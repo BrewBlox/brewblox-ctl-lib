@@ -15,24 +15,13 @@ script: pytest
 
 before_deploy:
   docker login -u ${DOCKER_USER} -p ${DOCKER_PASSWORD};
-  export CLEAN_TRAVIS_BRANCH=$(echo "${TRAVIS_BRANCH}" | tr '/' '-' | tr '[:upper:]' '[:lower:]');
   export TAG_VERSION=$(git describe --tags);
   bash ./build-docker.sh;
 
 deploy:
-  # Deploy to PyPi on any push to an upstream branch
-  - provider: pypi
-    user: ${PYPI_USER}
-    password: ${PYPI_PASSWORD}
-    skip_existing: true
-    skip_cleanup: true
-    on:
-      repo: ${GITHUB_REPO}
-      all_branches: true
-
   # Deploy images with tag branch name on any non-tagged push to an upstream branch
   - provider: script
-    script: bash ./push-docker.sh ${CLEAN_TRAVIS_BRANCH}
+    script: bash ./push-docker.sh
     skip_cleanup: true
     on:
       tags: false
@@ -47,3 +36,4 @@ deploy:
     skip_cleanup: true
     on:
       tags: true
+      repo: ${GITHUB_REPO}
