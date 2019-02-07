@@ -7,8 +7,7 @@ name = "pypi"
 
 [packages]
 
-python-dotenv = "*"
-requests = "*"
+brewblox-ctl = "*"
 
 
 [dev-packages]
