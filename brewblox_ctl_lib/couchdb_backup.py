@@ -10,14 +10,14 @@ from os import path
 import requests
 import urllib3
 
-HOST = 'https://localhost/datastore'
+from brewblox_ctl_lib.const import DATASTORE_URL
 
 
 def export_couchdb(target_dir):
     # Stop complaining about self-signed certs
     urllib3.disable_warnings()
 
-    dbs = requests.get(HOST + '/_all_dbs', verify=False).json()
+    dbs = requests.get(DATASTORE_URL + '/_all_dbs', verify=False).json()
 
     for db in dbs:
         if db.startswith('_'):
@@ -25,7 +25,7 @@ def export_couchdb(target_dir):
             continue
 
         content = requests.get(
-            '{}/{}/_all_docs'.format(HOST, db),
+            '{}/{}/_all_docs'.format(DATASTORE_URL, db),
             verify=False,
             params={'include_docs': True})
         docs = [row['doc'] for row in content.json()['rows']]
@@ -55,9 +55,9 @@ def import_couchdb(target_dir):
 
         db_name = path.splitext(path.basename(fname))[0]
 
-        requests.put('{}/{}'.format(HOST, db_name), verify=False)
+        requests.put('{}/{}'.format(DATASTORE_URL, db_name), verify=False)
         resp = requests.post(
-            '{}/{}/_bulk_docs'.format(HOST, db_name),
+            '{}/{}/_bulk_docs'.format(DATASTORE_URL, db_name),
             json=content,
             verify=False,
         )
