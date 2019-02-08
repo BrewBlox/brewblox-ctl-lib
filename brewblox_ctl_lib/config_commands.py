@@ -8,9 +8,10 @@ from brewblox_ctl.commands import Command
 from brewblox_ctl.utils import (check_config, confirm, is_pi, path_exists,
                                 select)
 
-from brewblox_ctl_lib.const import (CFG_VERSION_KEY, CONFIG_SRC, DATASTORE_URL,
+from brewblox_ctl_lib.const import (CFG_VERSION_KEY, CONFIG_SRC,
+                                    CURRENT_VERSION, DATASTORE_URL,
                                     HISTORY_URL, PY, RELEASE_KEY, UI_DATABASE)
-from brewblox_ctl_lib.migrate import CURRENT_VERSION, MigrateCommand
+from brewblox_ctl_lib.migrate import MigrateCommand
 
 
 class SetupCommand(Command):
@@ -55,7 +56,7 @@ class SetupCommand(Command):
 
     def start_config(self, images):
         return [
-            '{}docker-compose up -d {}'.format(self.optsudo, ' '.join(images)),
+            '{}docker-compose up -d --remove-orphans {}'.format(self.optsudo, ' '.join(images)),
             'sleep 30',
         ]
 
@@ -92,7 +93,8 @@ class SetupCommand(Command):
 
     def set_env(self):
         return [
-            '{} -m dotenv.cli --quote never set {}'.format(PY, CFG_VERSION_KEY, CURRENT_VERSION),
+            '{} -m dotenv.cli --quote never set {} {}'.format(PY, CFG_VERSION_KEY, CURRENT_VERSION),
+            'echo "All done!"',
         ]
 
     def action(self):
@@ -249,6 +251,8 @@ class CheckStatusCommand(Command):
     def action(self):
         check_config()
         shell_commands = [
+            'echo "Your release track is \\"${}\\""; '.format(RELEASE_KEY) +
+            'echo "Your config version is \\"${}\\""; '.format(CFG_VERSION_KEY) +
             '{}docker-compose ps'.format(self.optsudo),
         ]
         self.run_all(shell_commands)
