@@ -246,6 +246,8 @@ def test_check_status(mocked_utils, mocked_run_all):
     args = mocked_run_all.call_args_list[0][0][0]
 
     assert args == [
+        'echo "Your release track is \\"$BREWBLOX_RELEASE\\""; ' +
+        'echo "Your config version is \\"$BREWBLOX_CFG_VERSION\\""; ' +
         'SUDO docker-compose ps',
     ]
 

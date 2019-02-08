@@ -12,9 +12,9 @@ from brewblox_ctl_lib.const import (CFG_VERSION_KEY, CURRENT_VERSION,
                                     HISTORY_URL, PY)
 
 
-def getenv(env):  # pragma: no cover
+def getenv(*args, **kwargs):  # pragma: no cover
     """Wrapper function to improve testability"""
-    return getenv_(env)
+    return getenv_(*args, **kwargs)
 
 
 class MigrateCommand(Command):
