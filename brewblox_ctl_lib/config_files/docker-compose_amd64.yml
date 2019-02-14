@@ -6,6 +6,8 @@ services:
     image: brewblox/brewblox-mdns:${BREWBLOX_RELEASE:-stable}
     network_mode: host
     restart: unless-stopped
+    command: >
+      --port=${BREWBLOX_PORT_MDNS:-5000}
 
   eventbus:
     image: rabbitmq:alpine
@@ -65,9 +67,16 @@ services:
     image: traefik
     restart: unless-stopped
     ports:
-      - "80:80"
-      - "443:443"
+      - ${BREWBLOX_PORT_HTTP:-80}:${BREWBLOX_PORT_HTTP:-80}
+      - ${BREWBLOX_PORT_HTTPS:-443}:${BREWBLOX_PORT_HTTPS:-443}
     volumes:
       - ./traefik:/config
       - /var/run/docker.sock:/var/run/docker.sock
-    command: -c /config/traefik.toml --docker --docker.domain=brewblox.local
+    command: >
+      -c /dev/null
+      --docker 
+      --docker.domain=brewblox.local
+      --entrypoints='name:http Address::${BREWBLOX_PORT_HTTP:-80} Redirect.EntryPoint:https'
+      --entrypoints='name:https Address::${BREWBLOX_PORT_HTTPS:-443} TLS:config/brewblox.crt,config/brewblox.key'
+      --defaultentrypoints="http,https"
+

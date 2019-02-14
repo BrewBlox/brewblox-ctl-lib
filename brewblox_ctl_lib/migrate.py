@@ -3,18 +3,12 @@ Migration scripts
 """
 
 from distutils.version import StrictVersion
-from os import getenv as getenv_
 
 from brewblox_ctl.commands import Command
-from brewblox_ctl.utils import check_config, select
+from brewblox_ctl.utils import check_config, getenv, select
 
-from brewblox_ctl_lib.const import (CFG_VERSION_KEY, CURRENT_VERSION,
-                                    HISTORY_URL, PY)
-
-
-def getenv(*args, **kwargs):  # pragma: no cover
-    """Wrapper function to improve testability"""
-    return getenv_(*args, **kwargs)
+from brewblox_ctl_lib.const import CFG_VERSION_KEY, CURRENT_VERSION, PY
+from brewblox_ctl_lib.utils import get_history_url
 
 
 class MigrateCommand(Command):
@@ -42,9 +36,10 @@ class MigrateCommand(Command):
         if self.prev_version < StrictVersion('0.2.0'):
             # Breaking changes: Influx downsampling model overhaul
             # Old data is completely incompatible
+            history_url = get_history_url()
             shell_commands += [
-                'curl -Sk -X GET --retry 60 --retry-delay 10 {}/_service/status > /dev/null'.format(HISTORY_URL),
-                'curl -Sk -X POST {}/query/configure'.format(HISTORY_URL),
+                'curl -Sk -X GET --retry 60 --retry-delay 10 {}/_service/status > /dev/null'.format(history_url),
+                'curl -Sk -X POST {}/query/configure'.format(history_url),
             ]
 
         return shell_commands

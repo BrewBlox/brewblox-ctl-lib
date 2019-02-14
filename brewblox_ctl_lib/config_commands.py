@@ -9,9 +9,43 @@ from brewblox_ctl.utils import (check_config, confirm, is_pi, path_exists,
                                 select)
 
 from brewblox_ctl_lib.const import (CFG_VERSION_KEY, CONFIG_SRC,
-                                    CURRENT_VERSION, DATASTORE_URL,
-                                    HISTORY_URL, PY, RELEASE_KEY, UI_DATABASE)
+                                    CURRENT_VERSION, HTTP_PORT_KEY,
+                                    HTTPS_PORT_KEY, MDNS_PORT_KEY, PY,
+                                    RELEASE_KEY, UI_DATABASE)
 from brewblox_ctl_lib.migrate import MigrateCommand
+from brewblox_ctl_lib.utils import get_datastore_url, get_history_url
+
+
+class PortsCommand(Command):
+    def __init__(self):
+        super().__init__('Update used ports', 'ports')
+
+    def action(self):
+        check_config()
+
+        cfg = {}
+
+        cfg[HTTP_PORT_KEY] = select(
+            'Which port do you want to use for HTTP connections?',
+            '80'
+        )
+
+        cfg[HTTPS_PORT_KEY] = select(
+            'Which port do you want to use for HTTPS connections?',
+            '443'
+        )
+
+        cfg[MDNS_PORT_KEY] = select(
+            'Which port do you want to use for discovering Spark controllers?',
+            '5000'
+        )
+
+        shell_commands = [
+            '{} -m dotenv.cli --quote never set {} {}'.format(PY, key, val)
+            for key, val in cfg.items()
+        ]
+
+        self.run_all(shell_commands)
 
 
 class SetupCommand(Command):
@@ -39,7 +73,6 @@ class SetupCommand(Command):
     def create_traefik(self):
         return [
             'sudo rm -rf ./traefik/; mkdir ./traefik/',
-            'cp -rf {}/traefik/* ./traefik/'.format(CONFIG_SRC),
             'sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 ' +
             '-keyout traefik/brewblox.key ' +
             '-out traefik/brewblox.crt',
@@ -49,8 +82,12 @@ class SetupCommand(Command):
 
     def update(self):
         return [
-            '{}docker-compose down'.format(self.optsudo),
+            '{}docker-compose down --remove-orphans'.format(self.optsudo),
             '{}docker-compose pull'.format(self.optsudo),
+        ]
+
+    def update_ctl(self):
+        return [
             'sudo {} -m pip install -U brewblox-ctl'.format(PY),
         ]
 
@@ -68,11 +105,12 @@ class SetupCommand(Command):
     def config_datastore(self):
         shell_commands = []
         modules = ['services', 'dashboards', 'dashboard-items']
+        url = get_datastore_url()
         # Basic datastore setup
         shell_commands += [
-            'curl -Sk -X GET --retry 60 --retry-delay 10 {} > /dev/null'.format(DATASTORE_URL),
-            'curl -Sk -X PUT {}/_users'.format(DATASTORE_URL),
-            'curl -Sk -X PUT {}/{}'.format(DATASTORE_URL, UI_DATABASE),
+            'curl -Sk -X GET --retry 60 --retry-delay 10 {} > /dev/null'.format(url),
+            'curl -Sk -X PUT {}/_users'.format(url),
+            'curl -Sk -X PUT {}/{}'.format(url, UI_DATABASE),
         ]
         # Load presets
         shell_commands += [
@@ -80,15 +118,16 @@ class SetupCommand(Command):
             '| curl -Sk -X POST ' +
             '--header \'Content-Type: application/json\' ' +
             '--header \'Accept: application/json\' ' +
-            '--data "@-" {}/{}/_bulk_docs'.format(DATASTORE_URL, UI_DATABASE)
+            '--data "@-" {}/{}/_bulk_docs'.format(url, UI_DATABASE)
             for mod in modules
         ]
         return shell_commands
 
     def config_history(self):
+        url = get_history_url()
         return [
-            'curl -Sk -X GET --retry 60 --retry-delay 10 {}/_service/status > /dev/null'.format(HISTORY_URL),
-            'curl -Sk -X POST {}/query/configure'.format(HISTORY_URL),
+            'curl -Sk -X GET --retry 60 --retry-delay 10 {}/_service/status > /dev/null'.format(url),
+            'curl -Sk -X POST {}/query/configure'.format(url),
         ]
 
     def set_env(self):
@@ -99,6 +138,8 @@ class SetupCommand(Command):
 
     def action(self):
         check_config()
+
+        update_ctl = confirm('Do you want to update brewblox-ctl?')
 
         setup_compose = \
             not path_exists('./docker-compose.yml') \
@@ -128,6 +169,9 @@ class SetupCommand(Command):
 
         # Update after we're sure we have a compose file
         shell_commands += self.update()
+
+        if update_ctl:
+            shell_commands += self.update_ctl()
 
         if setup_datastore:
             config_images += ['datastore']
@@ -179,7 +223,7 @@ class UpdateCommand(Command):
 
 class ImportCommand(Command):
     def __init__(self):
-        super().__init__('Import database files', 'import')
+        super().__init__('Import datastore files', 'import')
 
     def action(self):
         check_config()
@@ -190,31 +234,18 @@ class ImportCommand(Command):
                 './brewblox-export'
             ).rstrip('/')
 
-            couchdb_target = target_dir + '/couchdb-snapshot'
-            influxdb_target = target_dir + '/influxdb-snapshot'
-
-            if not path_exists(couchdb_target):
-                print('"{}" not found'.format(couchdb_target))
-            elif not path_exists(influxdb_target):
-                print('"{}" not found'.format(influxdb_target))
-            else:
-                break
-
         shell_commands = [
-            '{}docker-compose up -d influx datastore traefik'.format(self.optsudo),
+            '{}docker-compose up -d datastore traefik'.format(self.optsudo),
             'sleep 10',
-            'curl -Sk -X GET --retry 60 --retry-delay 10 {} > /dev/null'.format(DATASTORE_URL),
-            'export PYTHONPATH="./"; {} -m brewblox_ctl_lib.couchdb_backup import {}'.format(PY, couchdb_target),
-            '{}docker cp {} $({}docker-compose ps -q influx):/tmp/'.format(
-                self.optsudo, influxdb_target, self.optsudo),
-            '{}docker-compose exec influx influxd restore -portable /tmp/influxdb-snapshot/'.format(self.optsudo),
+            'curl -Sk -X GET --retry 60 --retry-delay 10 {} > /dev/null'.format(get_datastore_url()),
+            'export PYTHONPATH="./"; {} -m brewblox_ctl_lib.couchdb_backup import {}'.format(PY, target_dir),
         ]
         self.run_all(shell_commands)
 
 
 class ExportCommand(Command):
     def __init__(self):
-        super().__init__('Export database files', 'export')
+        super().__init__('Export datastore files', 'export')
 
     def action(self):
         check_config()
@@ -224,22 +255,13 @@ class ExportCommand(Command):
             './brewblox-export'
         ).rstrip('/')
 
-        couchdb_target = target_dir + '/couchdb-snapshot'
-        influxdb_target = target_dir + '/influxdb-snapshot'
-
         shell_commands = [
-            'rm -r {} {} || true'.format(couchdb_target, influxdb_target),
-            'mkdir -p {}'.format(couchdb_target),
-            'mkdir -p {}'.format(influxdb_target),
-            '{}docker-compose up -d influx datastore traefik'.format(self.optsudo),
+            'mkdir -p {}'.format(target_dir),
+            '{}docker-compose up -d datastore traefik'.format(self.optsudo),
             'sleep 10',
-            'curl -Sk -X GET --retry 60 --retry-delay 10 {} > /dev/null'.format(DATASTORE_URL),
+            'curl -Sk -X GET --retry 60 --retry-delay 10 {} > /dev/null'.format(get_datastore_url()),
             'export PYTHONPATH="./"; {} -m brewblox_ctl_lib.couchdb_backup export {}'.format(
-                PY, couchdb_target),
-            '{}docker-compose exec influx rm -r /tmp/influxdb-snapshot/ || true'.format(self.optsudo),
-            '{}docker-compose exec influx influxd backup -portable /tmp/influxdb-snapshot/'.format(self.optsudo),
-            '{}docker cp $({}docker-compose ps -q influx):/tmp/influxdb-snapshot/ {}/'.format(
-                self.optsudo, self.optsudo, target_dir),
+                PY, target_dir),
         ]
         self.run_all(shell_commands)
 
@@ -275,8 +297,16 @@ class LogFileCommand(Command):
             'echo "$(uname -a)" >> brewblox.log',
             'echo "$({}docker --version)" >> brewblox.log'.format(self.optsudo),
             'echo "$({}docker-compose --version)" >> brewblox.log'.format(self.optsudo),
-            'source .env; echo "{}=${}" >> brewblox.log'.format(RELEASE_KEY, RELEASE_KEY),
-            'source .env; echo "{}=${}" >> brewblox.log'.format(CFG_VERSION_KEY, CFG_VERSION_KEY),
+            *[
+                'source .env; echo "{}=${}" >> brewblox.log'.format(key, key)
+                for key in [
+                    RELEASE_KEY,
+                    CFG_VERSION_KEY,
+                    HTTP_PORT_KEY,
+                    HTTPS_PORT_KEY,
+                    MDNS_PORT_KEY,
+                ]
+            ],
         ]
 
     def add_compose(self):
@@ -336,6 +366,7 @@ class LogFileCommand(Command):
 ALL_COMMANDS = [
     UpdateCommand(),
     MigrateCommand(),
+    PortsCommand(),
     SetupCommand(),
     ImportCommand(),
     ExportCommand(),
