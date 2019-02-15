@@ -45,6 +45,7 @@ services:
       - "traefik.frontend.rule=PathPrefix: /spark-one"
     command: >
       --name=spark-one
+      --mdns-port=${BREWBLOX_PORT_MDNS:-5000}
 
   history:
     image: brewblox/brewblox-history:${BREWBLOX_RELEASE:-stable}
@@ -79,4 +80,3 @@ services:
       --entrypoints='name:http Address::${BREWBLOX_PORT_HTTP:-80} Redirect.EntryPoint:https'
       --entrypoints='name:https Address::${BREWBLOX_PORT_HTTPS:-443} TLS:config/brewblox.crt,config/brewblox.key'
       --defaultentrypoints="http,https"
-
