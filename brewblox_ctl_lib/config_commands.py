@@ -2,6 +2,7 @@
 Config-dependent commands
 """
 
+import shlex
 from contextlib import suppress
 
 from brewblox_ctl.commands import Command
@@ -316,24 +317,28 @@ class LogFileCommand(Command):
         return [
             'echo "BREWBLOX DIAGNOSTIC DUMP" > brewblox.log',
             'date >> brewblox.log',
-            'echo \'{}\' >> brewblox.log'.format(reason),
+            'echo {} >> brewblox.log'.format(shlex.quote(reason)),
         ]
 
     def add_vars(self):
+        vars = {
+            k: getenv(k)
+            for k in [
+                RELEASE_KEY,
+                CFG_VERSION_KEY,
+                HTTP_PORT_KEY,
+                HTTPS_PORT_KEY,
+                MDNS_PORT_KEY,
+            ]
+        }
         return [
             'echo "==============VARS==============" >> brewblox.log',
             'echo "$(uname -a)" >> brewblox.log',
             'echo "$({}docker --version)" >> brewblox.log'.format(self.optsudo),
             'echo "$({}docker-compose --version)" >> brewblox.log'.format(self.optsudo),
             *[
-                'source .env; echo "{}=${}" >> brewblox.log'.format(key, key)
-                for key in [
-                    RELEASE_KEY,
-                    CFG_VERSION_KEY,
-                    HTTP_PORT_KEY,
-                    HTTPS_PORT_KEY,
-                    MDNS_PORT_KEY,
-                ]
+                'echo "{}={}" >> brewblox.log'.format(key, val)
+                for key, val in vars.items()
             ],
         ]
 
