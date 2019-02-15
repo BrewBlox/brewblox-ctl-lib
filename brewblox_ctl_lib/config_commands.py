@@ -5,8 +5,8 @@ Config-dependent commands
 from contextlib import suppress
 
 from brewblox_ctl.commands import Command
-from brewblox_ctl.utils import (check_config, confirm, is_pi, path_exists,
-                                select)
+from brewblox_ctl.utils import (check_config, check_output, confirm, getenv,
+                                is_pi, path_exists, select)
 
 from brewblox_ctl_lib.const import (CFG_VERSION_KEY, CONFIG_SRC,
                                     CURRENT_VERSION, HTTP_PORT_KEY,
@@ -51,6 +51,34 @@ class PortsCommand(Command):
 class SetupCommand(Command):
     def __init__(self):
         super().__init__('Run first-time setup', 'setup')
+
+    def check_ports(self):
+        if not confirm('Do you want to check whether ports are already in use?'):
+            return
+
+        if path_exists('./docker-compose.yml'):
+            self.run_all([
+                '{}docker-compose down --remove-orphans'.format(self.optsudo)
+            ])
+
+        ports = [
+            getenv(HTTP_PORT_KEY, '80'),
+            getenv(HTTPS_PORT_KEY, '443'),
+            getenv(MDNS_PORT_KEY, '5000'),
+        ]
+        port_commands = [
+            'sudo netstat -tulpn | grep ":{}[[:space:]]" || true'.format(port)
+            for port in ports
+        ]
+
+        self.announce(port_commands)
+        for cmd, port in zip(port_commands, ports):
+            print('Checking port {}...'.format(port))
+            if check_output(cmd, shell=True) \
+                    and not confirm('WARNING: port {} is already in use. Do you want to continue?'.format(port)):
+                raise SystemExit(0)
+
+        print('Done checking ports. If you want to change the ports used by BrewBlox, you can use "brewblox-ctl ports"')
 
     def create_compose(self):
         return [
@@ -138,6 +166,7 @@ class SetupCommand(Command):
 
     def action(self):
         check_config()
+        self.check_ports()
 
         update_ctl = confirm('Do you want to update brewblox-ctl?')
 
@@ -228,11 +257,10 @@ class ImportCommand(Command):
     def action(self):
         check_config()
 
-        while True:
-            target_dir = select(
-                'In which directory can the exported files be found?',
-                './brewblox-export'
-            ).rstrip('/')
+        target_dir = select(
+            'In which directory can the exported files be found?',
+            './brewblox-export'
+        ).rstrip('/')
 
         shell_commands = [
             '{}docker-compose up -d datastore traefik'.format(self.optsudo),
