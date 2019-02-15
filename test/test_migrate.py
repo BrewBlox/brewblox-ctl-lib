@@ -32,6 +32,7 @@ def mocked_utils(mocker):
     mocked = [
         'check_config',
         'select',
+        'get_history_url',
     ]
     return {k: mocker.patch(TESTED + '.' + k) for k in mocked}
 
@@ -46,6 +47,7 @@ def check_optsudo(args):
 def test_migrate(mocked_getenv, mocked_run_all, mocked_py, mocked_utils):
     mocked_getenv.side_effect = ['0.0.1']
     mocked_utils['select'].side_effect = ['']
+    mocked_utils['get_history_url'].side_effect = ['HISTORY']
 
     cmd = migrate.MigrateCommand()
     cmd.optsudo = 'SUDO '
@@ -64,8 +66,8 @@ def test_migrate(mocked_getenv, mocked_run_all, mocked_py, mocked_utils):
         'SUDO docker-compose up -d',
         'sleep 10',
         # upped
-        'curl -Sk -X GET --retry 60 --retry-delay 10 https://localhost/history/_service/status > /dev/null',
-        'curl -Sk -X POST https://localhost/history/query/configure',
+        'curl -Sk -X GET --retry 60 --retry-delay 10 HISTORY/_service/status > /dev/null',
+        'curl -Sk -X POST HISTORY/query/configure',
         # complete
         '/py -m dotenv.cli --quote never set {} {}'.format(CFG_VERSION_KEY, CURRENT_VERSION),
     ]

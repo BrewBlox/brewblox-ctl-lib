@@ -3,6 +3,7 @@ Tests brewblox_ctl_lib.config_commands
 """
 
 import re
+from unittest.mock import call
 
 import pytest
 
@@ -14,6 +15,11 @@ TESTED = config_commands.__name__
 @pytest.fixture
 def mocked_run(mocker):
     return mocker.patch(TESTED + '.Command.run')
+
+
+@pytest.fixture
+def mocked_announce(mocker):
+    return mocker.patch(TESTED + '.Command.announce')
 
 
 @pytest.fixture
@@ -30,10 +36,14 @@ def mocked_py(mocker):
 def mocked_utils(mocker):
     mocked = [
         'check_config',
+        'check_output',
         'confirm',
         'is_pi',
         'path_exists',
         'select',
+        'getenv',
+        'get_history_url',
+        'get_datastore_url',
     ]
     return {k: mocker.patch(TESTED + '.' + k) for k in mocked}
 
@@ -45,6 +55,29 @@ def check_optsudo(args):
     assert len(re.findall('SUDO docker-compose ', joined)) == len(re.findall('docker-compose ', joined))
 
 
+def test_ports(mocked_utils, mocked_run_all, mocked_py):
+    mocked_utils['select'].side_effect = [
+        '1',
+        '2',
+        '3',
+    ]
+
+    cmd = config_commands.PortsCommand()
+    cmd.optsudo = 'SUDO '
+    cmd.action()
+
+    assert mocked_utils['check_config'].call_count == 1
+    assert mocked_run_all.call_count == 1
+    args = mocked_run_all.call_args_list[0][0][0]
+
+    # order is not guaranteed
+    assert sorted(args) == sorted([
+        '/py -m dotenv.cli --quote never set BREWBLOX_PORT_HTTP 1',
+        '/py -m dotenv.cli --quote never set BREWBLOX_PORT_HTTPS 2',
+        '/py -m dotenv.cli --quote never set BREWBLOX_PORT_MDNS 3',
+    ])
+
+
 def test_setup_command(mocked_utils, mocked_run_all, mocked_py):
     mocked_utils['path_exists'].side_effect = [
         False,  # docker-compose
@@ -52,12 +85,16 @@ def test_setup_command(mocked_utils, mocked_run_all, mocked_py):
         False,  # influxdb
         False,  # traefik
     ]
+    mocked_utils['confirm'].side_effect = [
+        False,  # no port check
+        True,  # update ctl
+    ]
     cmd = config_commands.SetupCommand()
     cmd.optsudo = 'SUDO '
     cmd.action()
 
-    # Nothing existed, so we don't need to ask the user anything
-    assert mocked_utils['confirm'].call_count == 0
+    # Nothing existed, so we only asked the user about ports and ctl
+    assert mocked_utils['confirm'].call_count == 2
 
     assert mocked_utils['check_config'].call_count == 1
     assert mocked_run_all.call_count == 1
@@ -66,6 +103,7 @@ def test_setup_command(mocked_utils, mocked_run_all, mocked_py):
     assert args == [
         *cmd.create_compose(),
         *cmd.update(),
+        *cmd.update_ctl(),
         *cmd.create_datastore(),
         *cmd.create_history(),
         *cmd.create_traefik(),
@@ -87,6 +125,8 @@ def test_setup_no_config(mocked_utils, mocked_run_all, mocked_py):
         True,  # traefik
     ]
     mocked_utils['confirm'].side_effect = [
+        False,  # no port check
+        False,  # no ctl update
         True,  # keep compose
         True,  # keep couchdb
         True,  # keep influxdb
@@ -104,6 +144,71 @@ def test_setup_no_config(mocked_utils, mocked_run_all, mocked_py):
     ]
 
 
+def test_setup_check_ports_ok(mocked_utils, mocked_run_all, mocked_announce):
+    mocked_utils['getenv'].side_effect = [
+        '1',
+        '2',
+        '3',
+    ]
+    mocked_utils['confirm'].side_effect = [
+        True,  # yes, check
+    ]
+    mocked_utils['path_exists'].side_effect = [
+        True,  # compose exists
+    ]
+    mocked_utils['check_output'].return_value = ''
+
+    cmd = config_commands.SetupCommand()
+    cmd.optsudo = 'SUDO '
+    cmd.check_ports()
+
+    assert mocked_run_all.call_count == 1
+    assert mocked_run_all.call_args_list == [
+        call(['SUDO docker-compose down --remove-orphans'])
+    ]
+
+    port_commands = [
+        'sudo netstat -tulpn | grep ":1[[:space:]]" || true',
+        'sudo netstat -tulpn | grep ":2[[:space:]]" || true',
+        'sudo netstat -tulpn | grep ":3[[:space:]]" || true',
+    ]
+
+    assert mocked_announce.call_args_list == [call(port_commands)]
+    assert mocked_utils['check_output'].call_args_list == [
+        call(cmd, shell=True) for cmd in port_commands
+    ]
+
+
+def test_setup_check_ports_nok(mocked_utils, mocked_run_all, mocked_announce):
+    mocked_utils['getenv'].side_effect = [
+        '1',
+        '2',
+        '3',
+    ]
+    mocked_utils['confirm'].side_effect = [
+        True,  # yes, check
+        True,  # continue
+        False,  # exit
+    ]
+    mocked_utils['path_exists'].side_effect = [
+        False,  # no compose
+    ]
+    mocked_utils['check_output'].side_effect = [
+        '',
+        'used',
+        'used',
+    ]
+
+    cmd = config_commands.SetupCommand()
+    cmd.optsudo = 'SUDO '
+    with pytest.raises(SystemExit):
+        cmd.check_ports()
+
+    assert mocked_run_all.call_count == 0  # no need to compose down
+    assert mocked_announce.call_count == 1
+    assert mocked_utils['check_output'].call_count == 3
+
+
 def test_setup_partial_couch(mocked_utils, mocked_run_all, mocked_py):
     mocked_utils['path_exists'].side_effect = [
         False,  # docker-compose
@@ -112,6 +217,8 @@ def test_setup_partial_couch(mocked_utils, mocked_run_all, mocked_py):
         False,  # traefik
     ]
     mocked_utils['confirm'].side_effect = [
+        False,  # no port check
+        False,  # no ctl update
         True,  # keep couchdb
     ]
     cmd = config_commands.SetupCommand()
@@ -140,6 +247,8 @@ def test_setup_partial_influx(mocked_utils, mocked_run_all, mocked_py):
         False,  # traefik
     ]
     mocked_utils['confirm'].side_effect = [
+        False,  # no port check
+        False,  # no ctl update
         True,  # keep influx
     ]
     cmd = config_commands.SetupCommand()
@@ -181,16 +290,9 @@ def test_update(mocked_utils, mocked_run_all, mocked_py):
 
 
 def test_import(mocked_utils, mocked_run_all, mocked_py):
-    mocked_utils['select'].side_effect = ['dummy', 'dummy2', './out//']
-    mocked_utils['path_exists'].side_effect = [
-        # try 1
-        False,  # couchdb,
-        # try 2
-        True,  # couchdb,
-        False,  # influxdb,
-        # try 3
-        True,  # couchdb
-        True,  # influxdb
+    mocked_utils['select'].side_effect = ['./out//']
+    mocked_utils['get_datastore_url'].side_effect = [
+        '/datastore'
     ]
 
     cmd = config_commands.ImportCommand()
@@ -202,17 +304,18 @@ def test_import(mocked_utils, mocked_run_all, mocked_py):
     args = mocked_run_all.call_args_list[0][0][0]
 
     assert args == [
-        'SUDO docker-compose up -d influx datastore traefik',
+        'SUDO docker-compose up -d datastore traefik',
         'sleep 10',
-        'curl -Sk -X GET --retry 60 --retry-delay 10 https://localhost/datastore > /dev/null',
-        'export PYTHONPATH="./"; /py -m brewblox_ctl_lib.couchdb_backup import ./out/couchdb-snapshot',
-        'SUDO docker cp ./out/influxdb-snapshot $(SUDO docker-compose ps -q influx):/tmp/',
-        'SUDO docker-compose exec influx influxd restore -portable /tmp/influxdb-snapshot/',
+        'curl -Sk -X GET --retry 60 --retry-delay 10 /datastore > /dev/null',
+        'export PYTHONPATH="./"; /py -m brewblox_ctl_lib.couchdb_backup import ./out',
     ]
 
 
 def test_export(mocked_utils, mocked_run_all, mocked_py):
     mocked_utils['select'].side_effect = ['./out//']
+    mocked_utils['get_datastore_url'].side_effect = [
+        '/datastore'
+    ]
 
     cmd = config_commands.ExportCommand()
     cmd.optsudo = 'SUDO '
@@ -223,16 +326,11 @@ def test_export(mocked_utils, mocked_run_all, mocked_py):
     args = mocked_run_all.call_args_list[0][0][0]
 
     assert args == [
-        'rm -r ./out/couchdb-snapshot ./out/influxdb-snapshot || true',
-        'mkdir -p ./out/couchdb-snapshot',
-        'mkdir -p ./out/influxdb-snapshot',
-        'SUDO docker-compose up -d influx datastore traefik',
+        'mkdir -p ./out',
+        'SUDO docker-compose up -d datastore traefik',
         'sleep 10',
-        'curl -Sk -X GET --retry 60 --retry-delay 10 https://localhost/datastore > /dev/null',
-        'export PYTHONPATH="./"; /py -m brewblox_ctl_lib.couchdb_backup export ./out/couchdb-snapshot',
-        'SUDO docker-compose exec influx rm -r /tmp/influxdb-snapshot/ || true',
-        'SUDO docker-compose exec influx influxd backup -portable /tmp/influxdb-snapshot/',
-        'SUDO docker cp $(SUDO docker-compose ps -q influx):/tmp/influxdb-snapshot/ ./out/'
+        'curl -Sk -X GET --retry 60 --retry-delay 10 /datastore > /dev/null',
+        'export PYTHONPATH="./"; /py -m brewblox_ctl_lib.couchdb_backup export ./out',
     ]
 
 

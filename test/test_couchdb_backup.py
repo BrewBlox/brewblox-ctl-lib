@@ -8,7 +8,6 @@ from unittest.mock import call, mock_open
 import pytest
 
 from brewblox_ctl_lib import couchdb_backup
-from brewblox_ctl_lib.const import DATASTORE_URL
 
 TESTED = couchdb_backup.__name__
 
@@ -145,6 +144,12 @@ def mocked_open(mocker):
     return m
 
 
+@pytest.fixture
+def mocked_get_datastore_url(mocker):
+    m = mocker.patch(TESTED + '.get_datastore_url')
+    return m
+
+
 def test_export(mocked_requests, mocked_open):
     mocked_requests.get.return_value.json.side_effect = [
         ['_system', 'mah-store'],
@@ -158,19 +163,20 @@ def test_export(mocked_requests, mocked_open):
     assert json.loads(output) == exported_data()
 
 
-def test_import(mocked_requests, mocked_glob, mocked_open):
+def test_import(mocked_requests, mocked_glob, mocked_open, mocked_get_datastore_url):
     mocked_glob.return_value = ['out/db-one.json', 'out/db-two.json']
+    mocked_get_datastore_url.return_value = 'STORE'
     couchdb_backup.import_couchdb('out')
 
     mocked_glob.assert_called_once_with('out/*.json')
 
     assert mocked_requests.put.call_args_list == [
-        call('{}/{}'.format(DATASTORE_URL, 'db-one'), verify=False),
-        call('{}/{}'.format(DATASTORE_URL, 'db-two'), verify=False),
+        call('STORE/db-one', verify=False),
+        call('STORE/db-two', verify=False),
     ]
     assert mocked_requests.post.call_args_list == [
-        call('{}/{}/_bulk_docs'.format(DATASTORE_URL, 'db-one'), verify=False, json=exported_data()),
-        call('{}/{}/_bulk_docs'.format(DATASTORE_URL, 'db-two'), verify=False, json=exported_data()),
+        call('STORE/db-one/_bulk_docs', verify=False, json=exported_data()),
+        call('STORE/db-two/_bulk_docs', verify=False, json=exported_data()),
     ]
 
 
