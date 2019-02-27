@@ -45,7 +45,7 @@ steps:
   condition: and(succeeded(), variables['brewblox.tag'])
 
 - bash: |
-    bash ./docker.sh
+    bash ./push-docker.sh
   displayName: Deploy branch to Docker Hub on any push to the GitHub repository
   condition: and(succeeded(), variables['brewblox.branch'], not(variables['brewblox.tag']))
   env:
