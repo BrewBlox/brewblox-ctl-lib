@@ -33,6 +33,11 @@ def mocked_py(mocker):
 
 
 @pytest.fixture
+def mocked_cli(mocker):
+    return mocker.patch(TESTED + '.CLI', '/cli')
+
+
+@pytest.fixture
 def mocked_utils(mocker):
     mocked = [
         'check_config',
@@ -289,7 +294,7 @@ def test_update(mocked_utils, mocked_run_all, mocked_py):
     ]
 
 
-def test_import(mocked_utils, mocked_run_all, mocked_py):
+def test_import(mocked_utils, mocked_run_all, mocked_py, mocked_cli):
     mocked_utils['select'].side_effect = ['./out//']
     mocked_utils['get_datastore_url'].side_effect = [
         '/datastore'
@@ -305,13 +310,12 @@ def test_import(mocked_utils, mocked_run_all, mocked_py):
 
     assert args == [
         'SUDO docker-compose up -d datastore traefik',
-        'sleep 10',
-        'curl -Sk -X GET --retry 60 --retry-delay 10 /datastore > /dev/null',
+        '/cli http wait /datastore',
         'export PYTHONPATH="./"; /py -m brewblox_ctl_lib.couchdb_backup import ./out',
     ]
 
 
-def test_export(mocked_utils, mocked_run_all, mocked_py):
+def test_export(mocked_utils, mocked_run_all, mocked_py, mocked_cli):
     mocked_utils['select'].side_effect = ['./out//']
     mocked_utils['get_datastore_url'].side_effect = [
         '/datastore'
@@ -328,8 +332,7 @@ def test_export(mocked_utils, mocked_run_all, mocked_py):
     assert args == [
         'mkdir -p ./out',
         'SUDO docker-compose up -d datastore traefik',
-        'sleep 10',
-        'curl -Sk -X GET --retry 60 --retry-delay 10 /datastore > /dev/null',
+        '/cli http wait /datastore',
         'export PYTHONPATH="./"; /py -m brewblox_ctl_lib.couchdb_backup export ./out',
     ]
 

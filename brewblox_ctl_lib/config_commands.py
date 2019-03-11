@@ -9,7 +9,7 @@ from brewblox_ctl.commands import Command
 from brewblox_ctl.utils import (check_config, check_output, confirm, getenv,
                                 is_pi, path_exists, select)
 
-from brewblox_ctl_lib.const import (CFG_VERSION_KEY, CONFIG_SRC,
+from brewblox_ctl_lib.const import (CFG_VERSION_KEY, CLI, CONFIG_SRC,
                                     CURRENT_VERSION, HTTP_PORT_KEY,
                                     HTTPS_PORT_KEY, MDNS_PORT_KEY, PY,
                                     RELEASE_KEY, UI_DATABASE)
@@ -123,7 +123,6 @@ class SetupCommand(Command):
     def start_config(self, images):
         return [
             '{}docker-compose up -d --remove-orphans {}'.format(self.optsudo, ' '.join(images)),
-            'sleep 30',
         ]
 
     def end_config(self):
@@ -137,17 +136,15 @@ class SetupCommand(Command):
         url = get_datastore_url()
         # Basic datastore setup
         shell_commands += [
-            'curl -Sk -X GET --retry 60 --retry-delay 10 {} > /dev/null'.format(url),
-            'curl -Sk -X PUT {}/_users'.format(url),
-            'curl -Sk -X PUT {}/{}'.format(url, UI_DATABASE),
+            '{} http wait {}'.format(CLI, url),
+            '{} http put {}/_users'.format(CLI, url),
+            '{} http put {}/{}'.format(CLI, url, UI_DATABASE),
         ]
         # Load presets
         shell_commands += [
-            'cat {}/presets/{}.json '.format(CONFIG_SRC, mod) +
-            '| curl -Sk -X POST ' +
-            '--header \'Content-Type: application/json\' ' +
-            '--header \'Accept: application/json\' ' +
-            '--data "@-" {}/{}/_bulk_docs'.format(url, UI_DATABASE)
+            '{} http post {}/{}/_bulk_docs -f {}/presets/{}.json'.format(
+                CLI, url, UI_DATABASE, CONFIG_SRC, mod
+            )
             for mod in modules
         ]
         return shell_commands
@@ -155,8 +152,8 @@ class SetupCommand(Command):
     def config_history(self):
         url = get_history_url()
         return [
-            'curl -Sk -X GET --retry 60 --retry-delay 10 {}/_service/status > /dev/null'.format(url),
-            'curl -Sk -X POST {}/query/configure'.format(url),
+            '{} http wait {}/_service/status'.format(CLI, url),
+            '{} http post {}/query/configure'.format(CLI, url),
         ]
 
     def set_env(self):
@@ -265,8 +262,7 @@ class ImportCommand(Command):
 
         shell_commands = [
             '{}docker-compose up -d datastore traefik'.format(self.optsudo),
-            'sleep 10',
-            'curl -Sk -X GET --retry 60 --retry-delay 10 {} > /dev/null'.format(get_datastore_url()),
+            '{} http wait {}'.format(CLI, get_datastore_url()),
             'export PYTHONPATH="./"; {} -m brewblox_ctl_lib.couchdb_backup import {}'.format(PY, target_dir),
         ]
         self.run_all(shell_commands)
@@ -287,8 +283,7 @@ class ExportCommand(Command):
         shell_commands = [
             'mkdir -p {}'.format(target_dir),
             '{}docker-compose up -d datastore traefik'.format(self.optsudo),
-            'sleep 10',
-            'curl -Sk -X GET --retry 60 --retry-delay 10 {} > /dev/null'.format(get_datastore_url()),
+            '{} http wait {}'.format(CLI, get_datastore_url()),
             'export PYTHONPATH="./"; {} -m brewblox_ctl_lib.couchdb_backup export {}'.format(
                 PY, target_dir),
         ]
