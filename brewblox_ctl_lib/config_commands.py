@@ -238,7 +238,7 @@ class UpdateCommand(Command):
 
         ]
 
-        if confirm('Do you want to flash the firmware?'):
+        if confirm('Do you want to update your Spark controller firmware?'):
             shell_commands += [
                 '{} -m brewblox_ctl flash'.format(PY),
             ]

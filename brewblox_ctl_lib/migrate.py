@@ -55,7 +55,7 @@ class MigrateCommand(Command):
             return
 
         if self.prev_version >= StrictVersion(CURRENT_VERSION):
-            print('Your system is running a version later than the latest. ' +
+            print('Your system is running a version newer than the selected release. ' +
                   'This may be due to switching release tracks')
             if not confirm('Do you want to continue?'):
                 raise SystemExit(1)
