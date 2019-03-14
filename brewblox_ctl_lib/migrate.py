@@ -5,9 +5,9 @@ Migration scripts
 from distutils.version import StrictVersion
 
 from brewblox_ctl.commands import Command
-from brewblox_ctl.utils import check_config, getenv, select
+from brewblox_ctl.utils import check_config, confirm, getenv, select
 
-from brewblox_ctl_lib.const import CFG_VERSION_KEY, CURRENT_VERSION, PY
+from brewblox_ctl_lib.const import CFG_VERSION_KEY, CLI, CURRENT_VERSION, PY
 from brewblox_ctl_lib.utils import get_history_url
 
 
@@ -33,14 +33,12 @@ class MigrateCommand(Command):
         """Migration commands to be executed after the services have been started"""
         shell_commands = []
 
-        if self.prev_version < StrictVersion('0.2.0'):
-            # Breaking changes: Influx downsampling model overhaul
-            # Old data is completely incompatible
-            history_url = get_history_url()
-            shell_commands += [
-                'curl -Sk -X GET --retry 60 --retry-delay 10 {}/_service/status > /dev/null'.format(history_url),
-                'curl -Sk -X POST {}/query/configure'.format(history_url),
-            ]
+        # Always run history configure
+        history_url = get_history_url()
+        shell_commands += [
+            '{} http wait {}/_service/status'.format(CLI, history_url),
+            '{} http post {}/query/configure'.format(CLI, history_url),
+        ]
 
         return shell_commands
 
@@ -58,23 +56,15 @@ class MigrateCommand(Command):
 
         if self.prev_version >= StrictVersion(CURRENT_VERSION):
             print('Your system is running a version later than the latest. ' +
-                  'Please report a bug, or stop messing with the timeline.')
-            raise SystemExit(1)
+                  'This may be due to switching release tracks')
+            if not confirm('Do you want to continue?'):
+                raise SystemExit(1)
 
         shell_commands = [
-            '{}docker-compose down'.format(self.optsudo),
-        ]
-
-        shell_commands += self.downed_commands()
-
-        shell_commands += [
+            '{}docker-compose down --remove-orphans'.format(self.optsudo),
+            *self.downed_commands(),
             '{}docker-compose up -d'.format(self.optsudo),
-            'sleep 10',
-        ]
-
-        shell_commands += self.upped_commands()
-
-        shell_commands += [
+            *self.upped_commands(),
             '{} -m dotenv.cli --quote never set {} {}'.format(PY, CFG_VERSION_KEY, CURRENT_VERSION),
         ]
 
