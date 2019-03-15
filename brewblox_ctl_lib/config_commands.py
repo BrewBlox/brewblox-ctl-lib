@@ -159,7 +159,6 @@ class SetupCommand(Command):
     def set_env(self):
         return [
             '{} -m dotenv.cli --quote never set {} {}'.format(PY, CFG_VERSION_KEY, CURRENT_VERSION),
-            'echo "All done!"',
         ]
 
     def action(self):
@@ -189,7 +188,7 @@ class SetupCommand(Command):
                            'Do you want to keep them?')
 
         shell_commands = []
-        config_images = ['traefik']
+        config_images = ['traefik', 'influx', 'history']
 
         if setup_compose:
             shell_commands += self.create_compose()
@@ -205,28 +204,24 @@ class SetupCommand(Command):
             shell_commands += self.create_datastore()
 
         if setup_history:
-            config_images += ['influx', 'history']
             shell_commands += self.create_history()
 
         if setup_traefik:
             shell_commands += self.create_traefik()
 
-        if setup_history or setup_datastore:
-            # Start configuration of running containers
-            shell_commands += self.start_config(config_images)
+        shell_commands += self.start_config(config_images)
 
-            if setup_datastore:
-                shell_commands += self.config_datastore()
+        if setup_datastore:
+            shell_commands += self.config_datastore()
 
-            if setup_history:
-                shell_commands += self.config_history()
-
-            shell_commands += self.end_config()
+        shell_commands += self.config_history()
+        shell_commands += self.end_config()
 
         # Only set version after setup was OK
         shell_commands += self.set_env()
 
         self.run_all(shell_commands)
+        print('All done!')
 
 
 class UpdateCommand(Command):
@@ -240,8 +235,18 @@ class UpdateCommand(Command):
             '{}docker-compose pull'.format(self.optsudo),
             'sudo {} -m pip install -U brewblox-ctl'.format(PY),
             *self.lib_commands(),
+
+        ]
+
+        if confirm('Do you want to update your Spark controller firmware?'):
+            shell_commands += [
+                '{} -m brewblox_ctl flash'.format(PY),
+            ]
+
+        shell_commands += [
             '{} -m brewblox_ctl migrate'.format(PY),
         ]
+
         self.run_all(shell_commands)
 
         print('Scripts were updated - brewblox-ctl must shut down now')

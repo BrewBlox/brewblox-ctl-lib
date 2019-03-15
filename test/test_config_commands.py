@@ -112,7 +112,7 @@ def test_setup_command(mocked_utils, mocked_run_all, mocked_py):
         *cmd.create_datastore(),
         *cmd.create_history(),
         *cmd.create_traefik(),
-        *cmd.start_config(['traefik', 'datastore', 'influx', 'history']),
+        *cmd.start_config(['traefik', 'influx', 'history', 'datastore']),
         *cmd.config_datastore(),
         *cmd.config_history(),
         *cmd.end_config(),
@@ -145,6 +145,9 @@ def test_setup_no_config(mocked_utils, mocked_run_all, mocked_py):
 
     assert args == [
         *cmd.update(),
+        *cmd.start_config(['traefik', 'influx', 'history']),
+        *cmd.config_history(),
+        *cmd.end_config(),
         *cmd.set_env(),
     ]
 
@@ -267,8 +270,9 @@ def test_setup_partial_influx(mocked_utils, mocked_run_all, mocked_py):
         *cmd.update(),
         *cmd.create_datastore(),
         *cmd.create_traefik(),
-        *cmd.start_config(['traefik', 'datastore']),
+        *cmd.start_config(['traefik', 'influx', 'history', 'datastore']),
         *cmd.config_datastore(),
+        *cmd.config_history(),
         *cmd.end_config(),
         *cmd.set_env(),
     ]
@@ -282,6 +286,30 @@ def test_update(mocked_utils, mocked_run_all, mocked_py):
         cmd.action()
 
     assert mocked_utils['check_config'].call_count == 1
+    assert mocked_utils['confirm'].call_count == 1
+    assert mocked_run_all.call_count == 1
+    args = mocked_run_all.call_args_list[0][0][0]
+
+    assert args == [
+        'SUDO docker-compose down',
+        'SUDO docker-compose pull',
+        'sudo /py -m pip install -U brewblox-ctl',
+        *cmd.lib_commands(),
+        '/py -m brewblox_ctl flash',
+        '/py -m brewblox_ctl migrate',
+    ]
+
+
+def test_update_no_flash(mocked_utils, mocked_run_all, mocked_py):
+    mocked_utils['confirm'].return_value = False
+    cmd = config_commands.UpdateCommand()
+    cmd.optsudo = 'SUDO '
+
+    with pytest.raises(SystemExit):
+        cmd.action()
+
+    assert mocked_utils['check_config'].call_count == 1
+    assert mocked_utils['confirm'].call_count == 1
     assert mocked_run_all.call_count == 1
     args = mocked_run_all.call_args_list[0][0][0]
 
