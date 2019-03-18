@@ -28,11 +28,17 @@ def mocked_py(mocker):
 
 
 @pytest.fixture
+def mocked_cli(mocker):
+    return mocker.patch(TESTED + '.CLI', '/cli')
+
+
+@pytest.fixture
 def mocked_utils(mocker):
     mocked = [
         'check_config',
         'select',
         'get_history_url',
+        'confirm',
     ]
     return {k: mocker.patch(TESTED + '.' + k) for k in mocked}
 
@@ -44,7 +50,7 @@ def check_optsudo(args):
     assert len(re.findall('SUDO docker-compose ', joined)) == len(re.findall('docker-compose ', joined))
 
 
-def test_migrate(mocked_getenv, mocked_run_all, mocked_py, mocked_utils):
+def test_migrate(mocked_getenv, mocked_run_all, mocked_py, mocked_cli, mocked_utils):
     mocked_getenv.side_effect = ['0.0.1']
     mocked_utils['select'].side_effect = ['']
     mocked_utils['get_history_url'].side_effect = ['HISTORY']
@@ -59,26 +65,31 @@ def test_migrate(mocked_getenv, mocked_run_all, mocked_py, mocked_utils):
 
     assert args == [
         # down
-        'SUDO docker-compose down',
+        'SUDO docker-compose down --remove-orphans',
         # downed
         'sudo rm -rf ./influxdb',
         # up
         'SUDO docker-compose up -d',
-        'sleep 10',
         # upped
-        'curl -Sk -X GET --retry 60 --retry-delay 10 HISTORY/_service/status > /dev/null',
-        'curl -Sk -X POST HISTORY/query/configure',
+        '/cli http wait HISTORY/_service/status',
+        '/cli http post HISTORY/query/configure',
         # complete
         '/py -m dotenv.cli --quote never set {} {}'.format(CFG_VERSION_KEY, CURRENT_VERSION),
     ]
 
 
-def test_migrate_version_checks(mocked_getenv, mocked_run_all, mocked_utils):
+def test_migrate_version_checks(mocked_getenv, mocked_cli, mocked_run_all, mocked_utils):
     mocked_getenv.side_effect = [
         '0.0.0',
         CURRENT_VERSION,
         '9999.0.0',
+        '9999.0.0',
     ]
+    mocked_utils['confirm'].side_effect = [
+        False,  # abort on newer version
+        True,  # continue on newer version
+    ]
+    mocked_utils['get_history_url'].return_value = 'HISTORY'
 
     cmd = migrate.MigrateCommand()
 
@@ -86,14 +97,20 @@ def test_migrate_version_checks(mocked_getenv, mocked_run_all, mocked_utils):
     with pytest.raises(SystemExit):
         cmd.action()
 
-    # current version -> noop
+    # current version
     cmd.action()
     assert cmd.downed_commands() == []
-    assert cmd.upped_commands() == []
+    assert cmd.upped_commands() == [
+        '/cli http wait HISTORY/_service/status',
+        '/cli http post HISTORY/query/configure',
+    ]
 
-    # future version
+    # future version, and abort confirm
     with pytest.raises(SystemExit):
         cmd.action()
 
     assert mocked_utils['check_config'].call_count == 3
     assert mocked_run_all.call_count == 0
+
+    # future version, continue anyway
+    cmd.action()
