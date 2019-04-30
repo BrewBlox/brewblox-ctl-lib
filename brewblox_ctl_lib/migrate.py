@@ -36,7 +36,7 @@ class MigrateCommand(Command):
         # Always run history configure
         history_url = get_history_url()
         shell_commands += [
-            '{} http wait {}/_service/status'.format(CLI, history_url),
+            '{} http wait {}/ping'.format(CLI, history_url),
             '{} http post {}/query/configure'.format(CLI, history_url),
         ]
 
