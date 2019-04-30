@@ -69,8 +69,8 @@ def http(method, url, json_body, file, data, header, param):
             kwargs['data'] = body
 
     resp = getattr(requests, method)(url, **kwargs)
-    print(resp.text)
     try:
+        print(resp.text)
         resp.raise_for_status()
     except Exception as ex:
         print('Error:', ex)
