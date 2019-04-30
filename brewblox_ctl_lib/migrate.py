@@ -50,11 +50,7 @@ class MigrateCommand(Command):
             print('This configuration was never set up. Please run brewblox-ctl setup first')
             raise SystemExit(1)
 
-        if self.prev_version == StrictVersion(CURRENT_VERSION):
-            print('Your system already is running the latest version ({})'.format(CURRENT_VERSION))
-            return
-
-        if self.prev_version >= StrictVersion(CURRENT_VERSION):
+        if self.prev_version > StrictVersion(CURRENT_VERSION):
             print('Your system is running a version newer than the selected release. ' +
                   'This may be due to switching release tracks')
             if not confirm('Do you want to continue?'):

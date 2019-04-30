@@ -104,13 +104,14 @@ def test_migrate_version_checks(mocked_getenv, mocked_cli, mocked_run_all, mocke
         '/cli http wait HISTORY/_service/status',
         '/cli http post HISTORY/query/configure',
     ]
+    assert mocked_run_all.call_count == 1
 
     # future version, and abort confirm
     with pytest.raises(SystemExit):
         cmd.action()
 
     assert mocked_utils['check_config'].call_count == 3
-    assert mocked_run_all.call_count == 0
+    assert mocked_run_all.call_count == 1
 
     # future version, continue anyway
     cmd.action()
