@@ -20,7 +20,9 @@ def mock_wait(mocker):
 
 @pytest.fixture
 def mock_requests(mocker):
-    return mocker.patch(TESTED + '.requests')
+    m = mocker.patch(TESTED + '.requests')
+    m.status_code = 200
+    return m
 
 
 @pytest.fixture
@@ -101,3 +103,11 @@ def test_http_file_body(mocker, mock_requests):
         call('file.json'),
         call('file.json'),
     ]
+
+
+def test_http_error(mock_requests):
+    mock_requests.post.return_value.raise_for_status.side_effect = cli.ConnectionError
+    body = {'var1': 1, 'var2': 'val'}
+    runner = CliRunner()
+    result = runner.invoke(cli.http, ['post', 'url', '-d', json.dumps(body)])
+    assert result.exit_code != 0
