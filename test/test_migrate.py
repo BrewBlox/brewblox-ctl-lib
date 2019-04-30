@@ -71,7 +71,7 @@ def test_migrate(mocked_getenv, mocked_run_all, mocked_py, mocked_cli, mocked_ut
         # up
         'SUDO docker-compose up -d',
         # upped
-        '/cli http wait HISTORY/_service/status',
+        '/cli http wait HISTORY/ping',
         '/cli http post HISTORY/query/configure',
         # complete
         '/py -m dotenv.cli --quote never set {} {}'.format(CFG_VERSION_KEY, CURRENT_VERSION),
@@ -101,7 +101,7 @@ def test_migrate_version_checks(mocked_getenv, mocked_cli, mocked_run_all, mocke
     cmd.action()
     assert cmd.downed_commands() == []
     assert cmd.upped_commands() == [
-        '/cli http wait HISTORY/_service/status',
+        '/cli http wait HISTORY/ping',
         '/cli http post HISTORY/query/configure',
     ]
     assert mocked_run_all.call_count == 1
