@@ -249,7 +249,7 @@ class UpdateCommand(Command):
 
         self.run_all(shell_commands)
 
-        print('Scripts were updated - brewblox-ctl must shut down now')
+        print('brewblox-ctl itself was updated, and will exit now')
         raise SystemExit(0)
 
 
