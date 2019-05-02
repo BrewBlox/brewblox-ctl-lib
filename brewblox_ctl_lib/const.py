@@ -4,7 +4,7 @@ Const values
 import sys
 
 PY = sys.executable
-CLI = '{} brewblox_ctl_lib/cli.py'.format(PY)
+CLI = '{} -m brewblox_ctl'.format(PY)
 
 CURRENT_VERSION = '0.2.1'
 
