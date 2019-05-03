@@ -1,15 +1,15 @@
 """
-Tests brewblox_ctl_lib.utils
+Tests brewblox_ctl_lib.lib_utils
 """
 
 from unittest.mock import call
 
 import pytest
 
-from brewblox_ctl_lib import utils
+from brewblox_ctl_lib import lib_utils
 from brewblox_ctl_lib.const import HOST, HTTPS_PORT_KEY
 
-TESTED = utils.__name__
+TESTED = lib_utils.__name__
 
 
 @pytest.fixture
@@ -25,8 +25,8 @@ def test_get_urls(mocked_ext):
         '1234',
         '4321'
     ]
-    assert utils.get_history_url() == '{}:1234/history'.format(HOST)
-    assert utils.get_datastore_url() == '{}:4321/datastore'.format(HOST)
+    assert lib_utils.get_history_url() == '{}:1234/history'.format(HOST)
+    assert lib_utils.get_datastore_url() == '{}:4321/datastore'.format(HOST)
 
     assert mocked_ext['getenv'].call_args_list == [
         call(HTTPS_PORT_KEY, '443'),
