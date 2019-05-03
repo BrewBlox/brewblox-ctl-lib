@@ -5,6 +5,7 @@ Migration scripts
 from distutils.version import StrictVersion
 
 from brewblox_ctl import utils
+
 from brewblox_ctl_lib import const, lib_utils
 
 
@@ -22,7 +23,7 @@ def downed_commands(prev_version):
     return shell_commands
 
 
-def upped_commands():
+def upped_commands(prev_version):
     """Migration commands to be executed after the services have been started"""
     shell_commands = []
 
@@ -53,9 +54,9 @@ def action():
 
     shell_commands = [
         '{}docker-compose down --remove-orphans'.format(sudo),
-        *downed_commands(),
+        *downed_commands(prev_version),
         '{}docker-compose up -d'.format(sudo),
-        *upped_commands(),
+        *upped_commands(prev_version),
         '{} -m dotenv.cli --quote never set {} {}'.format(const.PY,
                                                           const.CFG_VERSION_KEY,
                                                           const.CURRENT_VERSION),

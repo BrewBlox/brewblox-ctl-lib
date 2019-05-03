@@ -3,6 +3,7 @@ Implementation of brewblox-ctl setup
 """
 
 from brewblox_ctl import utils
+
 from brewblox_ctl_lib import const, lib_utils
 
 
@@ -131,7 +132,7 @@ def action():
     utils.check_config()
     check_ports()
 
-    update_ctl = utils.confirm('Do you want to update brewblox-ctl?')
+    update_ctl_ok = utils.confirm('Do you want to update brewblox-ctl?')
 
     setup_compose = \
         not utils.path_exists('./docker-compose.yml') \
@@ -162,7 +163,7 @@ def action():
     # Update after we're sure we have a compose file
     shell_commands += update()
 
-    if update_ctl:
+    if update_ctl_ok:
         shell_commands += update_ctl()
 
     if setup_datastore:
