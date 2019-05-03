@@ -6,6 +6,7 @@ import shlex
 from contextlib import suppress
 
 from brewblox_ctl import utils
+
 from brewblox_ctl_lib import const
 
 
