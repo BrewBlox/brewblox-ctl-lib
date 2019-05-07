@@ -5,7 +5,6 @@ name = "pypi"
 
 [packages]
 brewblox-ctl = "*"
-click = "*"
 
 [dev-packages]
 pytest-cov = "*"
@@ -17,3 +16,6 @@ pytest-sugar = "*"
 
 [requires]
 python_version = "3.5"
+
+[pipenv]
+allow_prereleases = true

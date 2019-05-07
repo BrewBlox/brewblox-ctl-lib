@@ -75,3 +75,6 @@ brewblox/
 
 # build files
 docker/source
+
+# local link
+brewblox_ctl
