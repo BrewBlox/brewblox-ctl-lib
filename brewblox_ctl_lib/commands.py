@@ -4,8 +4,8 @@ Config-dependent commands
 
 
 import click
-
 from brewblox_ctl import click_helpers, utils
+
 from brewblox_ctl_lib import const, log_command, migrate_command, setup_command
 
 
@@ -60,14 +60,6 @@ def update():
         '{}docker-compose pull'.format(sudo),
         'sudo {} -m pip install -U brewblox-ctl'.format(const.PY),
         *utils.lib_loading_commands(),
-    ]
-
-    if utils.confirm('Do you want to update your Spark controller firmware?'):
-        shell_commands += [
-            '{} flash'.format(const.CLI),
-        ]
-
-    shell_commands += [
         '{} migrate'.format(const.CLI),
     ]
 
