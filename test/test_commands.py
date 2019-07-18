@@ -65,30 +65,6 @@ def test_update(mocked_utils, mocked_py, mocked_cli):
     assert not runner.invoke(commands.update).exception
 
     assert mocked_utils.check_config.call_count == 1
-    assert mocked_utils.confirm.call_count == 1
-    assert mocked_utils.run_all.call_count == 1
-    args = mocked_utils.run_all.call_args_list[0][0][0]
-
-    assert args == [
-        'SUDO docker-compose down',
-        'SUDO docker-compose pull',
-        'sudo /py -m pip install -U brewblox-ctl',
-        'load1',
-        'load2',
-        '/cli flash',
-        '/cli migrate',
-    ]
-
-
-def test_update_no_flash(mocked_utils, mocked_py, mocked_cli):
-    mocked_utils.lib_loading_commands.return_value = ['load1', 'load2']
-    mocked_utils.confirm.return_value = False
-
-    runner = CliRunner()
-    assert not runner.invoke(commands.update).exception
-
-    assert mocked_utils.check_config.call_count == 1
-    assert mocked_utils.confirm.call_count == 1
     assert mocked_utils.run_all.call_count == 1
     args = mocked_utils.run_all.call_args_list[0][0][0]
 
