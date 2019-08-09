@@ -23,12 +23,15 @@ def mocked_ext(mocker):
 def test_get_urls(mocked_ext):
     mocked_ext['getenv'].side_effect = [
         '1234',
-        '4321'
+        '4321',
+        '1432'
     ]
     assert lib_utils.get_history_url() == '{}:1234/history'.format(HOST)
     assert lib_utils.get_datastore_url() == '{}:4321/datastore'.format(HOST)
+    assert lib_utils.get_spark_one_url() == '{}:1432/spark-one'.format(HOST)
 
     assert mocked_ext['getenv'].call_args_list == [
+        call(HTTPS_PORT_KEY, '443'),
         call(HTTPS_PORT_KEY, '443'),
         call(HTTPS_PORT_KEY, '443'),
     ]

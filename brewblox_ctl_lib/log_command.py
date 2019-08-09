@@ -7,7 +7,7 @@ from contextlib import suppress
 
 from brewblox_ctl import utils
 
-from brewblox_ctl_lib import const
+from brewblox_ctl_lib import const, lib_utils
 
 
 def add_header(reason):
@@ -60,6 +60,15 @@ def add_logs():
     ]
 
 
+def add_blocks():
+    spark_one_url = lib_utils.get_spark_one_url()
+    return [
+        'echo "==============BLOCKS==============" >> brewblox.log',
+        '{} http get --pretty {}/objects >> brewblox.log || echo "spark-one not found" >> brewblox.log'.format(
+            const.CLI, spark_one_url)
+    ]
+
+
 def add_inspect():
     sudo = utils.optsudo()
     return [
@@ -84,6 +93,7 @@ def action():
         *add_vars(),
         *(add_compose() if compose_safe else []),
         *add_logs(),
+        *add_blocks(),
         *add_inspect(),
     ]
 
