@@ -18,6 +18,13 @@ def mocked_utils(mocker):
     return m
 
 
+@pytest.fixture(autouse=True)
+def mocked_lib_utils(mocker):
+    m = mocker.patch(TESTED + '.lib_utils')
+    m.get_spark_one_url.return_value = 'spark-url'
+    return m
+
+
 def check_optsudo(args):
     """Checks whether each call to docker/docker-compose is appropriately prefixed"""
     joined = ' '.join(args)
@@ -46,6 +53,7 @@ def test_log_file(mocked_utils):
         *log_command.add_vars(),
         *log_command.add_compose(),
         *log_command.add_logs(),
+        *log_command.add_blocks(),
         *log_command.add_inspect(),
     ]
 
@@ -75,5 +83,6 @@ def test_log_file_nopes(mocked_utils):
         *log_command.add_header('my reason'),
         *log_command.add_vars(),
         *log_command.add_logs(),
+        *log_command.add_blocks(),
         *log_command.add_inspect(),
     ]
