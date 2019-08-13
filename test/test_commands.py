@@ -86,6 +86,20 @@ def test_migrate(mocker):
     assert cmd.action.call_count == 1
 
 
+def test_editor(mocker, mocked_utils):
+    mocked_utils.docker_tag.return_value = 'rpi-test'
+
+    runner = CliRunner()
+    assert not runner.invoke(commands.editor).exception
+
+    args = mocked_utils.run_all.call_args_list[0][0][0]
+
+    assert mocked_utils.check_config.call_count == 1
+    assert args == [
+        'SUDO docker run --rm --init -p "8300:8300" -v "$(pwd):/app/config" brewblox/brewblox-web-editor:rpi-test'
+    ]
+
+
 def test_status(mocked_utils):
     runner = CliRunner()
     assert not runner.invoke(commands.status).exception

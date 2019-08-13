@@ -73,6 +73,20 @@ def migrate():
 
 
 @cli.command()
+def editor():
+    """Run web-based docker-compose.yml editor"""
+    utils.check_config()
+    shell_commands = [
+        '{}docker run --rm --init -p "8300:8300" -v "$(pwd):/app/config" brewblox/brewblox-web-editor:{}'.format(
+            utils.optsudo(),
+            utils.docker_tag()
+        )
+    ]
+
+    utils.run_all(shell_commands)
+
+
+@cli.command()
 def status():
     """Check system status"""
     utils.check_config()
