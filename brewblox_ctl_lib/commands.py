@@ -121,3 +121,13 @@ def status():
 def log():
     """Generate and share log file for bug reports"""
     log_command.action()
+
+
+@cli.command()
+@click.option('--image', default='brewblox/brewblox-devcon-spark')
+@click.option('--file', default='docker-compose.yml')
+def list_services(image, file):
+    """List all services of a specific type"""
+    utils.check_config()
+    services = lib_utils.list_services(image, file)
+    click.echo('\n'.join(services), nl=bool(services))
