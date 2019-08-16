@@ -148,3 +148,22 @@ def test_log(mocker):
     runner = CliRunner()
     assert not runner.invoke(commands.log).exception
     assert cmd.action.call_count == 1
+
+
+def test_list_services(mocker):
+    mocker.patch(TESTED + '.utils.check_config')
+    runner = CliRunner()
+
+    result = runner.invoke(commands.list_services,
+                           ['--file', 'brewblox_ctl_lib/config_files/docker-compose_armhf.yml'])
+    assert not result.exception
+    assert result.output == 'spark-one\n'
+
+    result = runner.invoke(
+        commands.list_services,
+        [
+            '--image', 'brewblox/world-peace',
+            '--file', 'brewblox_ctl_lib/config_files/docker-compose_armhf.yml'
+        ])
+    assert not result.exception
+    assert result.output == ''
