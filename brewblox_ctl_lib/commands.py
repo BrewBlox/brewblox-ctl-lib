@@ -102,7 +102,7 @@ def editor(port):
                           'Do you want to restart your BrewBlox services?'):
         utils.run_all([
             '{} restart'.format(const.CLI),
-        ])
+        ], prompt=False)
 
 
 @cli.command()
