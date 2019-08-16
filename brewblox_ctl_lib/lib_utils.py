@@ -20,3 +20,8 @@ def get_datastore_url():
 def get_spark_one_url():
     port = getenv(HTTPS_PORT_KEY, '443')
     return '{}:{}/spark-one'.format(HOST, port)
+
+
+def read_file(fname):  # pragma: no cover
+    with open(fname) as f:
+        return '\n'.join(f.readlines())

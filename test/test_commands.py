@@ -28,6 +28,12 @@ def mocked_utils(mocker):
     return m
 
 
+@pytest.fixture
+def mocked_lib_utils(mocker):
+    m = mocker.patch(TESTED + '.lib_utils')
+    return m
+
+
 def test_ports(mocked_utils, mocked_py):
     mocked_utils.select.side_effect = [
         '1',
@@ -86,8 +92,10 @@ def test_migrate(mocker):
     assert cmd.action.call_count == 1
 
 
-def test_editor(mocker, mocked_utils):
+def test_editor(mocker, mocked_utils, mocked_lib_utils):
     mocked_utils.docker_tag.return_value = 'rpi-test'
+    mocked_utils.run_all.side_effect = KeyboardInterrupt
+    mocked_lib_utils.read_file.return_value = 'content'
 
     runner = CliRunner()
     assert not runner.invoke(commands.editor).exception
@@ -95,8 +103,27 @@ def test_editor(mocker, mocked_utils):
     args = mocked_utils.run_all.call_args_list[0][0][0]
 
     assert mocked_utils.check_config.call_count == 1
+    assert mocked_lib_utils.read_file.call_count == 2
     assert args == [
-        'SUDO docker run --rm --init -p "8300:8300" -v "$(pwd):/app/config" brewblox/brewblox-web-editor:rpi-test'
+        'SUDO docker pull brewblox/brewblox-web-editor:rpi-test',
+        'SUDO docker run --rm --init -p "8300:8300" -v "$(pwd):/app/config" ' +
+        'brewblox/brewblox-web-editor:rpi-test --hostPort 8300'
+    ]
+
+
+def test_editor_changed(mocker, mocked_utils, mocked_lib_utils, mocked_cli):
+    mocked_utils.docker_tag.return_value = 'rpi-test'
+    mocked_lib_utils.read_file.side_effect = [
+        'content',
+        'changed content'
+    ]
+
+    runner = CliRunner()
+    assert not runner.invoke(commands.editor).exception
+
+    restart_args = mocked_utils.run_all.call_args_list[1][0][0]
+    assert restart_args == [
+        '/cli restart'
     ]
 
 
