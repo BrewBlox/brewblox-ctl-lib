@@ -6,7 +6,7 @@ import sys
 PY = sys.executable
 CLI = '{} -m brewblox_ctl'.format(PY)
 
-CURRENT_VERSION = '0.2.1'
+CURRENT_VERSION = '0.2.2'
 
 CONFIG_SRC = './brewblox_ctl_lib/config_files'
 

@@ -102,6 +102,8 @@ def config_datastore():
     shell_commands += [
         '{} http wait {}'.format(const.CLI, url),
         '{} http put {}/_users'.format(const.CLI, url),
+        '{} http put {}/_replicator'.format(const.CLI, url),
+        '{} http put {}/_global_changes'.format(const.CLI, url),
         '{} http put {}/{}'.format(const.CLI, url, const.UI_DATABASE),
     ]
     # Load presets

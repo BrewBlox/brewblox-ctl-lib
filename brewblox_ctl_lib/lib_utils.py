@@ -26,9 +26,18 @@ def read_file(fname):  # pragma: no cover
         return '\n'.join(f.readlines())
 
 
-def list_services(image, fname='docker-compose.yml'):
+def read_compose(fname='docker-compose.yml'):
     with open(fname) as f:
-        config = yaml.safe_load(f)
+        return yaml.safe_load(f)
+
+
+def write_compose(config, fname='docker-compose.yml'):  # pragma: no cover
+    with open(fname, 'w') as f:
+        yaml.safe_dump(config, f)
+
+
+def list_services(image, fname):
+    config = read_compose(fname) if fname else read_compose()
 
     return [
         k for k, v in config['services'].items()
