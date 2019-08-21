@@ -24,7 +24,7 @@ services:
       - INFLUXDB_DATA_INDEX_VERSION=tsi1
 
   datastore:
-    image: treehouses/couchdb
+    image: treehouses/couchdb:2.3.1
     restart: unless-stopped
     labels:
       - "traefik.port=5984"
@@ -50,7 +50,7 @@ services:
       - "traefik.frontend.rule=PathPrefix: /"
 
   traefik:
-    image: traefik
+    image: traefik:v1.7
     restart: unless-stopped
     ports:
       - ${BREWBLOX_PORT_HTTP:-80}:${BREWBLOX_PORT_HTTP:-80}

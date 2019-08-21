@@ -20,6 +20,14 @@ def downed_commands(prev_version):
                      'We\'ll be deleting it now')
         shell_commands += ['sudo rm -rf ./influxdb']
 
+    if prev_version < StrictVersion('0.2.2'):
+        print('Version pinning docker-compose tags')
+        config = lib_utils.read_compose()
+        config['services']['datastore']['image'] = 'treehouses/couchdb:2.3.1'
+        config['services']['traefik']['image'] = 'traefik:v1.7'
+        config['services']['influx']['image'] = 'influxdb:1.7'
+        lib_utils.write_compose(config)
+
     return shell_commands
 
 
@@ -32,6 +40,15 @@ def upped_commands(prev_version):
     shell_commands += [
         '{} http wait {}/ping'.format(const.CLI, history_url),
         '{} http post {}/query/configure'.format(const.CLI, history_url),
+    ]
+
+    # Ensure datastore system databases
+    datastore_url = lib_utils.get_datastore_url()
+    shell_commands += [
+        '{} http wait {}'.format(const.CLI, datastore_url),
+        '{} http put {}/_users'.format(const.CLI, datastore_url),
+        '{} http put {}/_replicator'.format(const.CLI, datastore_url),
+        '{} http put {}/_global_changes'.format(const.CLI, datastore_url),
     ]
 
     return shell_commands
