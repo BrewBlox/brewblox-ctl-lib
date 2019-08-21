@@ -46,9 +46,9 @@ def upped_commands(prev_version):
     datastore_url = lib_utils.get_datastore_url()
     shell_commands += [
         '{} http wait {}'.format(const.CLI, datastore_url),
-        '{} http put {}/_users'.format(const.CLI, datastore_url),
-        '{} http put {}/_replicator'.format(const.CLI, datastore_url),
-        '{} http put {}/_global_changes'.format(const.CLI, datastore_url),
+        '{} http put {}/_users > /dev/null || true'.format(const.CLI, datastore_url),
+        '{} http put {}/_replicator > /dev/null || true'.format(const.CLI, datastore_url),
+        '{} http put {}/_global_changes > /dev/null || true'.format(const.CLI, datastore_url),
     ]
 
     return shell_commands

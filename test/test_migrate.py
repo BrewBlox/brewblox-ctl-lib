@@ -72,9 +72,9 @@ def test_migrate(mocked_py, mocked_cli, mocked_utils, mocked_lib_utils):
         '/cli http wait HISTORY/ping',
         '/cli http post HISTORY/query/configure',
         '/cli http wait DATASTORE',
-        '/cli http put DATASTORE/_users',
-        '/cli http put DATASTORE/_replicator',
-        '/cli http put DATASTORE/_global_changes',
+        '/cli http put DATASTORE/_users > /dev/null || true',
+        '/cli http put DATASTORE/_replicator > /dev/null || true',
+        '/cli http put DATASTORE/_global_changes > /dev/null || true',
         # complete
         '/py -m dotenv.cli --quote never set {} {}'.format(CFG_VERSION_KEY, CURRENT_VERSION),
     ]
@@ -111,9 +111,9 @@ def test_migrate_version_checks(mocked_cli, mocked_utils, mocked_lib_utils):
         '/cli http wait HISTORY/ping',
         '/cli http post HISTORY/query/configure',
         '/cli http wait DATASTORE',
-        '/cli http put DATASTORE/_users',
-        '/cli http put DATASTORE/_replicator',
-        '/cli http put DATASTORE/_global_changes',
+        '/cli http put DATASTORE/_users > /dev/null || true',
+        '/cli http put DATASTORE/_replicator > /dev/null || true',
+        '/cli http put DATASTORE/_global_changes > /dev/null || true',
     ]
     assert mocked_utils.run_all.call_count == 1
 
