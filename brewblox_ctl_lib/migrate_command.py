@@ -26,6 +26,10 @@ def downed_commands(prev_version):
         config['services']['datastore']['image'] = 'treehouses/couchdb:2.3.1'
         config['services']['traefik']['image'] = 'traefik:v1.7'
         config['services']['influx']['image'] = 'influxdb:1.7'
+        config['services']['ui']['labels'] = [
+            'traefik.port=80',
+            'traefik.frontend.rule=Path:/, /ui, /ui/{sub:(.*)?}',
+        ]
         lib_utils.write_compose(config)
 
     return shell_commands
@@ -46,9 +50,9 @@ def upped_commands(prev_version):
     datastore_url = lib_utils.get_datastore_url()
     shell_commands += [
         '{} http wait {}'.format(const.CLI, datastore_url),
-        '{} http put {}/_users > /dev/null || true'.format(const.CLI, datastore_url),
-        '{} http put {}/_replicator > /dev/null || true'.format(const.CLI, datastore_url),
-        '{} http put {}/_global_changes > /dev/null || true'.format(const.CLI, datastore_url),
+        '{} http put --allow-fail {}/_users'.format(const.CLI, datastore_url),
+        '{} http put --allow-fail {}/_replicator'.format(const.CLI, datastore_url),
+        '{} http put --allow-fail {}/_global_changes'.format(const.CLI, datastore_url),
     ]
 
     return shell_commands

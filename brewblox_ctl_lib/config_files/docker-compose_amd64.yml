@@ -47,7 +47,7 @@ services:
     restart: unless-stopped
     labels:
       - "traefik.port=80"
-      - "traefik.frontend.rule=PathPrefix: /"
+      - "traefik.frontend.rule=Path:/, /ui, /ui/{sub:(.*)?}"
 
   traefik:
     image: traefik:v1.7
