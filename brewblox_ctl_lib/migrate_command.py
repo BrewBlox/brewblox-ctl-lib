@@ -27,8 +27,8 @@ def downed_commands(prev_version):
         config['services']['traefik']['image'] = 'traefik:v1.7'
         config['services']['influx']['image'] = 'influxdb:1.7'
         config['services']['ui']['labels'] = [
-            '"traefik.port=80"',
-            '"traefik.frontend.rule=Path:/, /ui, /ui/{sub:(.*)?}"',
+            'traefik.port=80',
+            'traefik.frontend.rule=Path:/, /ui, /ui/{sub:(.*)?}',
         ]
         lib_utils.write_compose(config)
 
