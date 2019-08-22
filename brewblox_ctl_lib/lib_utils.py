@@ -36,7 +36,7 @@ def write_compose(config, fname='docker-compose.yml'):  # pragma: no cover
         yaml.safe_dump(config, f)
 
 
-def list_services(image, fname):
+def list_services(image, fname=None):
     config = read_compose(fname) if fname else read_compose()
 
     return [
