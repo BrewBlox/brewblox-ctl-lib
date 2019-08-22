@@ -2,21 +2,44 @@
 Utility functions specific to lib
 """
 
+import yaml
 from brewblox_ctl.utils import getenv
 
 from brewblox_ctl_lib.const import HOST, HTTPS_PORT_KEY
 
 
-def get_history_url():
+def base_url():
     port = getenv(HTTPS_PORT_KEY, '443')
-    return '{}:{}/history'.format(HOST, port)
+    return '{}:{}'.format(HOST, port)
+
+
+def get_history_url():
+    return '{}/history'.format(base_url())
 
 
 def get_datastore_url():
-    port = getenv(HTTPS_PORT_KEY, '443')
-    return '{}:{}/datastore'.format(HOST, port)
+    return '{}/datastore'.format(base_url())
 
 
-def get_spark_one_url():
-    port = getenv(HTTPS_PORT_KEY, '443')
-    return '{}:{}/spark-one'.format(HOST, port)
+def read_file(fname):  # pragma: no cover
+    with open(fname) as f:
+        return '\n'.join(f.readlines())
+
+
+def read_compose(fname='docker-compose.yml'):
+    with open(fname) as f:
+        return yaml.safe_load(f)
+
+
+def write_compose(config, fname='docker-compose.yml'):  # pragma: no cover
+    with open(fname, 'w') as f:
+        yaml.safe_dump(config, f)
+
+
+def list_services(image, fname):
+    config = read_compose(fname) if fname else read_compose()
+
+    return [
+        k for k, v in config['services'].items()
+        if v.get('image', '').startswith(image)
+    ]

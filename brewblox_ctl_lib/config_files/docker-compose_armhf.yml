@@ -1,7 +1,6 @@
-version: '3'
+version: "3"
 
 services:
-
   mdns:
     image: brewblox/brewblox-mdns:rpi-${BREWBLOX_RELEASE:-stable}
     network_mode: host
@@ -25,27 +24,13 @@ services:
       - INFLUXDB_DATA_INDEX_VERSION=tsi1
 
   datastore:
-    image: treehouses/couchdb
+    image: treehouses/couchdb:2.3.1
     restart: unless-stopped
     labels:
       - "traefik.port=5984"
       - "traefik.frontend.rule=PathPrefixStrip: /datastore"
     volumes:
       - ./couchdb/:/opt/couchdb/data/
-
-  spark-one:
-    image: brewblox/brewblox-devcon-spark:rpi-${BREWBLOX_RELEASE:-stable}
-    privileged: true
-    depends_on:
-      - eventbus
-      - datastore
-    restart: unless-stopped
-    labels:
-      - "traefik.port=5000"
-      - "traefik.frontend.rule=PathPrefix: /spark-one"
-    command: >
-      --name=spark-one
-      --mdns-port=${BREWBLOX_PORT_MDNS:-5000}
 
   history:
     image: brewblox/brewblox-history:rpi-${BREWBLOX_RELEASE:-stable}
@@ -62,10 +47,10 @@ services:
     restart: unless-stopped
     labels:
       - "traefik.port=80"
-      - "traefik.frontend.rule=PathPrefix: /"
+      - "traefik.frontend.rule=Path:/, /ui, /ui/{sub:(.*)?}"
 
   traefik:
-    image: traefik
+    image: traefik:v1.7
     restart: unless-stopped
     ports:
       - ${BREWBLOX_PORT_HTTP:-80}:${BREWBLOX_PORT_HTTP:-80}
@@ -80,3 +65,17 @@ services:
       --entrypoints='name:http Address::${BREWBLOX_PORT_HTTP:-80} Redirect.EntryPoint:https'
       --entrypoints='name:https Address::${BREWBLOX_PORT_HTTPS:-443} TLS:config/brewblox.crt,config/brewblox.key'
       --defaultentrypoints="http,https"
+
+  spark-one:
+    image: brewblox/brewblox-devcon-spark:rpi-${BREWBLOX_RELEASE:-stable}
+    privileged: true
+    depends_on:
+      - eventbus
+      - datastore
+    restart: unless-stopped
+    labels:
+      - "traefik.port=5000"
+      - "traefik.frontend.rule=PathPrefix: /spark-one"
+    command: >
+      --name=spark-one
+      --mdns-port=${BREWBLOX_PORT_MDNS:-5000}

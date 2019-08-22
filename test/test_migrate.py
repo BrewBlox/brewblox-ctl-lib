@@ -23,6 +23,7 @@ def mocked_utils(mocker):
 def mocked_lib_utils(mocker):
     m = mocker.patch(TESTED + '.lib_utils')
     m.get_history_url.return_value = 'HISTORY'
+    m.get_datastore_url.return_value = 'DATASTORE'
     return m
 
 
@@ -46,6 +47,14 @@ def check_optsudo(args):
 def test_migrate(mocked_py, mocked_cli, mocked_utils, mocked_lib_utils):
     mocked_utils.getenv.side_effect = ['0.0.1']
     mocked_utils.select.side_effect = ['']
+    mocked_lib_utils.read_compose.return_value = {
+        'services': {
+            'datastore': {},
+            'traefik': {},
+            'influx': {},
+            'ui': {},
+        }
+    }
 
     migrate_command.action()
 
@@ -63,9 +72,27 @@ def test_migrate(mocked_py, mocked_cli, mocked_utils, mocked_lib_utils):
         # upped
         '/cli http wait HISTORY/ping',
         '/cli http post HISTORY/query/configure',
+        '/cli http wait DATASTORE',
+        '/cli http put --allow-fail DATASTORE/_users',
+        '/cli http put --allow-fail DATASTORE/_replicator',
+        '/cli http put --allow-fail DATASTORE/_global_changes',
         # complete
         '/py -m dotenv.cli --quote never set {} {}'.format(CFG_VERSION_KEY, CURRENT_VERSION),
     ]
+
+    mocked_lib_utils.write_compose.assert_called_once_with({
+        'services': {
+            'datastore': {'image': 'treehouses/couchdb:2.3.1'},
+            'traefik': {'image': 'traefik:v1.7'},
+            'influx': {'image': 'influxdb:1.7'},
+            'ui': {
+                'labels': [
+                    'traefik.port=80',
+                    'traefik.frontend.rule=Path:/, /ui, /ui/{sub:(.*)?}',
+                ],
+            }
+        }
+    })
 
 
 def test_migrate_version_checks(mocked_cli, mocked_utils, mocked_lib_utils):
@@ -90,6 +117,10 @@ def test_migrate_version_checks(mocked_cli, mocked_utils, mocked_lib_utils):
     assert migrate_command.upped_commands(CURRENT_VERSION) == [
         '/cli http wait HISTORY/ping',
         '/cli http post HISTORY/query/configure',
+        '/cli http wait DATASTORE',
+        '/cli http put --allow-fail DATASTORE/_users',
+        '/cli http put --allow-fail DATASTORE/_replicator',
+        '/cli http put --allow-fail DATASTORE/_global_changes',
     ]
     assert mocked_utils.run_all.call_count == 1
 

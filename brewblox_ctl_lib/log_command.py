@@ -61,11 +61,12 @@ def add_logs():
 
 
 def add_blocks():
-    spark_one_url = lib_utils.get_spark_one_url()
+    services = lib_utils.list_services('brewblox/brewblox-devcon-spark')
+    base_url = lib_utils.base_url()
+    query = '{} http get --pretty {}/{}/objects >> brewblox.log || echo "{} not found" >> brewblox.log'
     return [
         'echo "==============BLOCKS==============" >> brewblox.log',
-        '{} http get --pretty {}/objects >> brewblox.log || echo "spark-one not found" >> brewblox.log'.format(
-            const.CLI, spark_one_url)
+        *[query.format(const.CLI, base_url, svc, svc) for svc in services]
     ]
 
 
