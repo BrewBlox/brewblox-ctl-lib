@@ -87,8 +87,8 @@ def test_migrate(mocked_py, mocked_cli, mocked_utils, mocked_lib_utils):
             'influx': {'image': 'influxdb:1.7'},
             'ui': {
                 'labels': [
-                    'traefik.port=80',
-                    'traefik.frontend.rule=Path:/, /ui, /ui/{sub:(.*)?}',
+                    '"traefik.port=80"',
+                    '"traefik.frontend.rule=Path:/, /ui, /ui/{sub:(.*)?}"',
                 ],
             }
         }
