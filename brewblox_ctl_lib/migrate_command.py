@@ -50,9 +50,9 @@ def upped_commands(prev_version):
     datastore_url = lib_utils.get_datastore_url()
     shell_commands += [
         '{} http wait {}'.format(const.CLI, datastore_url),
-        '{} http put --allow-fail {}/_users'.format(const.CLI, datastore_url),
-        '{} http put --allow-fail {}/_replicator'.format(const.CLI, datastore_url),
-        '{} http put --allow-fail {}/_global_changes'.format(const.CLI, datastore_url),
+        '{} http put --allow-fail --quiet {}/_users'.format(const.CLI, datastore_url),
+        '{} http put --allow-fail --quiet {}/_replicator'.format(const.CLI, datastore_url),
+        '{} http put --allow-fail --quiet {}/_global_changes'.format(const.CLI, datastore_url),
     ]
 
     return shell_commands
