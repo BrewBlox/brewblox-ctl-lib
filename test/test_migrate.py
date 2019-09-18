@@ -76,6 +76,7 @@ def test_migrate(mocked_py, mocked_cli, mocked_utils, mocked_lib_utils):
         '/cli http put --allow-fail --quiet DATASTORE/_users',
         '/cli http put --allow-fail --quiet DATASTORE/_replicator',
         '/cli http put --allow-fail --quiet DATASTORE/_global_changes',
+        'SUDO docker image prune -f',
         # complete
         '/py -m dotenv.cli --quote never set {} {}'.format(CFG_VERSION_KEY, CURRENT_VERSION),
     ]
@@ -103,25 +104,34 @@ def test_migrate_version_checks(mocked_cli, mocked_utils, mocked_lib_utils):
         '9999.0.0',
     ]
     mocked_utils.confirm.side_effect = [
+        True,  # prune images - current version
+        True,  # prune images - explicit call
+        False,  # prune images - explicit call again
         False,  # abort on newer version
         True,  # continue on newer version
+        True,  # prune images - newer version
     ]
 
     # 0.0.0 is not yet installed
     with pytest.raises(SystemExit):
         migrate_command.action()
 
-    # current version
-    migrate_command.action()
-    assert migrate_command.downed_commands(CURRENT_VERSION) == []
-    assert migrate_command.upped_commands(CURRENT_VERSION) == [
+    expected_upped = [
         '/cli http wait HISTORY/ping',
         '/cli http post HISTORY/query/configure',
         '/cli http wait DATASTORE',
         '/cli http put --allow-fail --quiet DATASTORE/_users',
         '/cli http put --allow-fail --quiet DATASTORE/_replicator',
         '/cli http put --allow-fail --quiet DATASTORE/_global_changes',
+        'SUDO docker image prune -f',
     ]
+
+    # current version
+    migrate_command.action()
+    assert migrate_command.downed_commands(CURRENT_VERSION) == []
+    assert migrate_command.upped_commands(CURRENT_VERSION) == expected_upped
+    # mocked_utils.confirm now returns False
+    assert migrate_command.upped_commands(CURRENT_VERSION) == expected_upped[:-1]
     assert mocked_utils.run_all.call_count == 1
 
     # future version, and abort confirm
