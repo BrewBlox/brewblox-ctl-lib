@@ -55,6 +55,11 @@ def upped_commands(prev_version):
         '{} http put --allow-fail --quiet {}/_global_changes'.format(const.CLI, datastore_url),
     ]
 
+    if utils.confirm('Do you want to prune unused docker images to free disk space?'):
+        shell_commands += [
+            '{}docker image prune -f'.format(utils.optsudo())
+        ]
+
     return shell_commands
 
 
