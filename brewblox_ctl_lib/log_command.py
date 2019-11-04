@@ -105,5 +105,5 @@ def action():
     utils.run_all(shell_commands)
 
     print('Generated log file {}/brewblox.log\n'.format(getcwd()))
-    if utils.confirm('Do you want to upload your log file - and get a shareable link?'):
+    if utils.confirm('Do you want to upload your log file to termbin.com to get a shareable link?'):
         utils.run_all(share_commands)
