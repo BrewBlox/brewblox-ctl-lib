@@ -44,7 +44,6 @@ def test_log_file(mocked_utils):
 
     assert mocked_utils.check_config.call_count == 1
     assert mocked_utils.run_all.call_count == 2
-    assert mocked_utils.run.call_count == 1
     args = mocked_utils.run_all.call_args_list[0][0][0]
     share_args = mocked_utils.run_all.call_args_list[1][0][0]
 
