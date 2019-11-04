@@ -3,7 +3,7 @@ Logs system status and debugging info to file
 """
 
 import shlex
-from contextlib import suppress
+from os import getcwd
 
 from brewblox_ctl import utils
 
@@ -104,9 +104,6 @@ def action():
 
     utils.run_all(shell_commands)
 
-    if utils.confirm('Do you want to view your log file at <this computer>:9999/brewblox.log?'):
-        with suppress(KeyboardInterrupt):
-            utils.run('{} -m http.server 9999'.format(const.PY))
-
+    print('Generated log file {}/brewblox.log\n'.format(getcwd()))
     if utils.confirm('Do you want to upload your log file - and get a shareable link?'):
         utils.run_all(share_commands)
