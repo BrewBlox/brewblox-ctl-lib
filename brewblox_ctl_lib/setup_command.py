@@ -60,7 +60,8 @@ def create_history():
 def create_traefik():
     return [
         'sudo rm -rf ./traefik/; mkdir ./traefik/',
-        'sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 ' +
+        'sudo openssl req -x509 -nodes -days 3650 -newkey rsa:2048 ' +
+        '-subj "/C=NL/ST=./L=./O=BrewBlox/OU=./CN=." ' +
         '-keyout traefik/brewblox.key ' +
         '-out traefik/brewblox.crt',
         'sudo chmod 644 traefik/brewblox.crt',
