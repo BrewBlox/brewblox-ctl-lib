@@ -120,7 +120,7 @@ def config_datastore():
 def config_history():
     url = lib_utils.get_history_url()
     return [
-        '{} http wait {}/_service/status'.format(const.CLI, url),
+        '{} http wait {}/ping'.format(const.CLI, url),
         '{} http post {}/query/configure'.format(const.CLI, url),
     ]
 
