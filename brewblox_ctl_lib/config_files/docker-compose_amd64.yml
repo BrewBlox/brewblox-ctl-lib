@@ -34,9 +34,6 @@ services:
 
   history:
     image: brewblox/brewblox-history:${BREWBLOX_RELEASE:-stable}
-    depends_on:
-      - influx
-      - eventbus
     restart: unless-stopped
     labels:
       - "traefik.port=5000"
@@ -69,9 +66,6 @@ services:
   spark-one:
     image: brewblox/brewblox-devcon-spark:${BREWBLOX_RELEASE:-stable}
     privileged: true
-    depends_on:
-      - eventbus
-      - datastore
     restart: unless-stopped
     labels:
       - "traefik.port=5000"
