@@ -2,6 +2,8 @@
 Utility functions specific to lib
 """
 
+from subprocess import check_output
+
 import yaml
 from brewblox_ctl.utils import getenv
 
@@ -43,3 +45,7 @@ def list_services(image, fname=None):
         k for k, v in config['services'].items()
         if v.get('image', '').startswith(image)
     ]
+
+
+def subcommand(cmd):  # pragma: no cover
+    return check_output(cmd, shell=True).decode()

@@ -127,6 +127,96 @@ def test_editor_changed(mocker, mocked_utils, mocked_lib_utils, mocked_cli):
     ]
 
 
+def test_discover(mocker, mocked_utils, mocked_lib_utils):
+    m = mocker.patch(TESTED + '.check_call')
+
+    runner = CliRunner()
+    assert not runner.invoke(commands.discover).exception
+    assert m.call_count == 2
+    assert mocked_utils.run_all.call_count == 0
+
+    assert not runner.invoke(commands.discover, ['--announce']).exception
+    assert m.call_count == 2
+    assert mocked_utils.run_all.call_count == 1
+
+
+def test_discover_device(mocker, mocked_utils, mocked_lib_utils):
+    mocked_lib_utils.subcommand.return_value = '\n'.join(['dev1', 'dev2'])
+    mocked_utils.select.return_value = '2'
+
+    assert commands._discover_device('develop', None) == 'dev2'
+    assert commands._discover_device('develop', 'dev3') == 'dev2'
+    assert commands._discover_device('develop', 'dev1') == 'dev1'
+
+
+def test_discover_device_none(mocker, mocked_utils, mocked_lib_utils):
+    mocked_lib_utils.subcommand.return_value = ''
+    assert commands._discover_device('develop', None) is None
+
+
+def test_add_spark(mocker, mocked_utils, mocked_lib_utils):
+    devices = [
+        'usb 4f0052000551353432383931 P1',
+        'wifi 4f0052000551353432383931 192.168.0.71 8332'
+    ]
+
+    discovery = mocker.patch(TESTED + '._discover_device', return_value=devices[0])
+    mocked_lib_utils.read_compose.return_value = {'services': {}}
+
+    runner = CliRunner()
+    assert not runner.invoke(commands.add_spark, ['-n', 'testey', '--release', 'dev']).exception
+
+    assert mocked_lib_utils.write_compose.call_count == 1
+    assert discovery.call_count == 1
+
+    mocked_lib_utils.read_compose.return_value = {'services': {}}
+    discovery.return_value = devices[1]
+
+    assert not runner.invoke(commands.add_spark, ['-n', 'testey']).exception
+
+    assert mocked_lib_utils.write_compose.call_count == 2
+    assert discovery.call_count == 2
+
+
+def test_add_spark_no_discover(mocker, mocked_utils, mocked_lib_utils):
+    mocked_lib_utils.read_compose.return_value = {'services': {}}
+    mocked_utils.confirm.return_value = False
+
+    runner = CliRunner()
+    assert not runner.invoke(commands.add_spark, [
+        '-n', 'testey',
+        '--no-discover',
+        '--command', '"--debug"',
+    ]).exception
+
+
+def test_add_spark_nope(mocker, mocked_utils, mocked_lib_utils):
+    discovery = mocker.patch(TESTED + '._discover_device', return_value=None)
+    runner = CliRunner()
+
+    assert runner.invoke(commands.add_spark, ['-n', '@#']).exception
+
+    mocked_lib_utils.read_compose.return_value = {'services': {}}
+    assert not runner.invoke(commands.add_spark, ['-n', 'testey']).exception
+
+    mocked_lib_utils.read_compose.return_value = {'services': {'testey': {}}}
+    assert not runner.invoke(commands.add_spark, ['-n', 'testey']).exception
+
+    assert not runner.invoke(commands.add_spark, ['-n', 'testey', '--force']).exception
+
+    assert mocked_lib_utils.write_compose.call_count == 0
+
+    discovery.return_value = 'usb 4f0052000551353432383931 P1'
+    assert not runner.invoke(commands.add_spark, ['-n', 'testey', '--force']).exception
+
+
+def test_add_spark_id(mocker, mocked_utils, mocked_lib_utils):
+    mocked_lib_utils.read_compose.return_value = {'services': {}}
+    runner = CliRunner()
+
+    assert not runner.invoke(commands.add_spark, ['-n', 'testey', '--device-id', '1234']).exception
+
+
 def test_status(mocked_utils):
     runner = CliRunner()
     assert not runner.invoke(commands.status).exception
