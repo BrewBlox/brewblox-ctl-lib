@@ -143,10 +143,10 @@ def _discover_device(release, device_host):
         return
 
     if device_host:
-        dev = next((dev for dev in devs if device_host in dev), None)  # pragma: no cover
-        if dev:
-            print('Discovered device "{}" matching device host {}'.format(dev, device_host))
-            return dev
+        for dev in devs:
+            if device_host in dev:
+                print('Discovered device "{}" matching device host {}'.format(dev, device_host))
+                return dev
 
     for i, dev in enumerate(devs):
         print('device', i+1, '::', dev)
