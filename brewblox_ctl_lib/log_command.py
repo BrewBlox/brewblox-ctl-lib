@@ -42,21 +42,33 @@ def add_vars():
     ]
 
 
-def add_compose():
-    return [
-        'echo "==============CONFIG==============" >> brewblox.log',
-        'cat docker-compose.yml >> brewblox.log',
-    ]
-
-
 def add_logs():
     sudo = utils.optsudo()
-    return [
+    commands = [
         'echo "==============LOGS==============" >> brewblox.log',
-        'for svc in $({}docker-compose ps --services | tr "\\n" " "); do '.format(sudo) +
-        '{}docker-compose logs --timestamps --no-color --tail 200 ${{svc}} >> brewblox.log; '.format(sudo) +
-        'echo \'\\n\' >> brewblox.log; ' +
-        'done;',
+    ]
+
+    try:
+        names = list(lib_utils.read_compose()['services'].keys())
+        names += list(lib_utils.read_shared_compose()['services'].keys())
+        for name in names:
+            commands += [
+                '{}docker-compose logs --timestamps --no-color --tail 200 {} >> brewblox.log; '.format(sudo, name) +
+                'echo \'\\n\' >> brewblox.log; '
+            ]
+    except Exception as ex:
+        commands += [
+            'echo {} >> brewblox.log'.format(shlex.quote(type(ex).__name__ + ': ' + str(ex)))
+        ]
+    return commands
+
+
+def add_compose():
+    return [
+        'echo "==============COMPOSE==============" >> brewblox.log',
+        'cat docker-compose.yml >> brewblox.log',
+        'echo "==============SHARED===============" >> brewblox.log',
+        'cat docker-compose.shared.yml >> brewblox.log',
     ]
 
 
@@ -92,8 +104,8 @@ def action():
     shell_commands = [
         *add_header(reason),
         *add_vars(),
-        *(add_compose() if compose_safe else []),
         *add_logs(),
+        *(add_compose() if compose_safe else []),
         *add_blocks(),
         *add_inspect(),
     ]

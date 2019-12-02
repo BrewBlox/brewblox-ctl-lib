@@ -38,6 +38,14 @@ def write_compose(config, fname='docker-compose.yml'):  # pragma: no cover
         yaml.safe_dump(config, f)
 
 
+def read_shared_compose(fname='docker-compose.shared.yml'):
+    return read_compose(fname)
+
+
+def write_shared_compose(config, fname='docker-compose.shared.yml'):  # pragma: no cover
+    write_compose(config, fname)
+
+
 def list_services(image, fname=None):
     config = read_compose(fname) if fname else read_compose()
 

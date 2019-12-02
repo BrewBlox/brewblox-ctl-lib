@@ -37,5 +37,11 @@ def test_get_urls(mocked_ext):
 def test_list_services():
     services = lib_utils.list_services(
         'brewblox/brewblox-devcon-spark',
-        'brewblox_ctl_lib/config_files/docker-compose_amd64.yml')
+        'brewblox_ctl_lib/config_files/amd64/docker-compose.yml')
     assert services == ['spark-one']
+
+
+def test_read_shared():
+    cfg = lib_utils.read_shared_compose(
+        'brewblox_ctl_lib/config_files/amd64/docker-compose.shared.yml')
+    assert 'mdns' in cfg['services']

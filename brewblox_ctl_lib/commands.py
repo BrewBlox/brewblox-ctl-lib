@@ -19,29 +19,30 @@ def cli():
 
 
 @cli.command()
-def ports():
+@click.option('--http',
+              prompt='Which port do you want to use for HTTP connections? Press ENTER to keep using',
+              default=lambda: utils.getenv(const.HTTP_PORT_KEY, '80'),
+              help='Port used for HTTP connections. Override if default is already in use.')
+@click.option('--https',
+              prompt='Which port do you want to use for HTTPS connections? Press ENTER to keep using',
+              default=lambda: utils.getenv(const.HTTPS_PORT_KEY, '443'),
+              help='Port used for HTTPS connections. Override if default is already in use.')
+@click.option('--mdns',
+              prompt='Which port do you want to use for mDNS discovery? Press ENTER to keep using',
+              default=lambda: utils.getenv(const.MDNS_PORT_KEY, '5000'),
+              help='Port used for mDNS discovery. Override if default is already in use.')
+def ports(http, https, mdns):
     """Update used ports"""
     utils.check_config()
 
-    cfg = {}
-
-    cfg[const.HTTP_PORT_KEY] = utils.select(
-        'Which port do you want to use for HTTP connections?',
-        '80'
-    )
-
-    cfg[const.HTTPS_PORT_KEY] = utils.select(
-        'Which port do you want to use for HTTPS connections?',
-        '443'
-    )
-
-    cfg[const.MDNS_PORT_KEY] = utils.select(
-        'Which port do you want to use for discovering Spark controllers?',
-        '5000'
-    )
+    cfg = {
+        const.HTTP_PORT_KEY: http,
+        const.HTTPS_PORT_KEY: https,
+        const.MDNS_PORT_KEY: mdns,
+    }
 
     shell_commands = [
-        '{} -m dotenv.cli --quote never set {} {}'.format(const.PY, key, val)
+        '{} {} {}'.format(const.SETENV, key, val)
         for key, val in cfg.items()
     ]
 
@@ -154,7 +155,7 @@ def _discover_device(release, device_host):
     print('\n')
     idx = -1
     while idx < 1 or idx > len(devs):
-        idx = int(utils.select('Which device do you want to use? Press ENTER for default value', '1'))
+        idx = int(utils.select('Which device do you want to use?', '1'))
 
     return devs[idx-1]
 
