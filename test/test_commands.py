@@ -17,6 +17,11 @@ def mocked_py(mocker):
 
 
 @pytest.fixture
+def mocked_setenv(mocker):
+    return mocker.patch(TESTED + '.const.SETENV', '/dotenv')
+
+
+@pytest.fixture
 def mocked_cli(mocker):
     return mocker.patch(TESTED + '.const.CLI', '/cli')
 
@@ -34,26 +39,28 @@ def mocked_lib_utils(mocker):
     return m
 
 
-def test_ports(mocked_utils, mocked_py):
-    mocked_utils.select.side_effect = [
-        '1',
-        '2',
-        '3',
-    ]
-
+def test_ports(mocked_utils, mocked_setenv):
     runner = CliRunner()
-    assert not runner.invoke(commands.ports).exception
+    assert not runner.invoke(commands.ports, [
+        '--http=1',
+        '--https=2',
+        '--mdns=3'
+    ]).exception
 
-    assert mocked_utils.check_config.call_count == 1
-    assert mocked_utils.run_all.call_count == 1
+    assert not runner.invoke(commands.ports, input='1\n2\n3\n').exception
+
+    assert mocked_utils.check_config.call_count == 2
+    assert mocked_utils.run_all.call_count == 2
     args = mocked_utils.run_all.call_args_list[0][0][0]
+    prompted = mocked_utils.run_all.call_args_list[1][0][0]
 
-    # order is not guaranteed
+    # order is not guaranteed in python < 3.6
     assert sorted(args) == sorted([
-        '/py -m dotenv.cli --quote never set BREWBLOX_PORT_HTTP 1',
-        '/py -m dotenv.cli --quote never set BREWBLOX_PORT_HTTPS 2',
-        '/py -m dotenv.cli --quote never set BREWBLOX_PORT_MDNS 3',
+        '/dotenv BREWBLOX_PORT_HTTP 1',
+        '/dotenv BREWBLOX_PORT_HTTPS 2',
+        '/dotenv BREWBLOX_PORT_MDNS 3',
     ])
+    assert sorted(prompted) == sorted(args)
 
 
 def test_setup(mocker):
@@ -245,7 +252,7 @@ def test_list_services(mocker):
     runner = CliRunner()
 
     result = runner.invoke(commands.list_services,
-                           ['--file', 'brewblox_ctl_lib/config_files/docker-compose_armhf.yml'])
+                           ['--file', 'brewblox_ctl_lib/config_files/armhf/docker-compose.yml'])
     assert not result.exception
     assert result.output == 'spark-one\n'
 
@@ -253,7 +260,7 @@ def test_list_services(mocker):
         commands.list_services,
         [
             '--image', 'brewblox/world-peace',
-            '--file', 'brewblox_ctl_lib/config_files/docker-compose_armhf.yml'
+            '--file', 'brewblox_ctl_lib/config_files/armhf/docker-compose.yml'
         ])
     assert not result.exception
     assert result.output == ''
