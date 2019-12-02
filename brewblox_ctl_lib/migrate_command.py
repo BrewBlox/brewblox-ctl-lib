@@ -52,8 +52,8 @@ def downed_commands(prev_version):
             'version': config['version'],
             'services': {key: svc for (key, svc) in config['services'].items() if key in sys_names}
         }
-        lib_utils.write_compose(usr_config)
-        lib_utils.write_shared_compose(sys_config)
+        lib_utils.write_compose(usr_config, 'temp-config.yml')
+        lib_utils.write_compose(sys_config, 'temp-shared.yml')
 
         shell_commands += [' '.join([const.SETENV, *args]) for args in [
             [const.COMPOSE_FILES_KEY, utils.getenv(
@@ -63,6 +63,11 @@ def downed_commands(prev_version):
             [const.HTTPS_PORT_KEY, utils.getenv(const.HTTPS_PORT_KEY, '443')],
             [const.MDNS_PORT_KEY, utils.getenv(const.MDNS_PORT_KEY, '5000')],
         ]]
+
+        shell_commands += [
+            'mv ./temp-config.yml ./docker-compose.yml',
+            'mv ./temp-shared.yml ./docker-compose.shared.yml',
+        ]
 
     return shell_commands
 
