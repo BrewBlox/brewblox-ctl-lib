@@ -4,6 +4,7 @@ Config-dependent commands
 
 
 import re
+import sys
 from subprocess import DEVNULL, check_call
 
 import click
@@ -128,7 +129,9 @@ def discover(discovery, release, announce):
     if announce:
         utils.run_all(commands)
     else:
+        print('Preparing device discovery...', file=sys.stderr)
         check_call(commands[0], shell=True, stdout=DEVNULL)
+        print('Starting discovery...', file=sys.stderr)
         check_call(commands[1], shell=True)
 
 
@@ -170,7 +173,7 @@ def _discover_device(discovery, release, device_host):
 
 @cli.command()
 @click.option('-n', '--name',
-              prompt='Service name',
+              prompt='How do you want to call this service? The name must be unique.',
               callback=_validate_name,
               help='Service name')
 @click.option('--discover-now/--no-discover-now',
@@ -199,20 +202,11 @@ def add_spark(name, discover_now, device_id, discovery, device_host, command, fo
         print('Service "{}" already exists. Use the --force flag if you want to overwrite it'.format(name))
         return
 
-    if device_id is None and discover_now:
+    if device_id is None and device_host is None and discover_now:
         dev = _discover_device(discovery, release, device_host)
 
         if not dev:
             return
-
-        args = dev.split(' ')
-        device_id = args[1]
-        if args[0] == 'wifi' \
-            and device_host is None \
-                and utils.confirm(
-                    'When connecting, do you want to skip discovery? (sets --device-host={})'.format(args[2]),
-                    False):
-            device_host = args[2]
 
     commands = [
         '--name=' + name,
@@ -230,7 +224,7 @@ def add_spark(name, discover_now, device_id, discovery, device_host, command, fo
         commands += [command]
 
     config['services'][name] = {
-        'image': 'brewblox/brewblox-devcon-spark:${BREWBLOX_RELEASE}',
+        'image': 'brewblox/brewblox-devcon-spark:{}'.format(utils.docker_tag('${BREWBLOX_RELEASE}')),
         'privileged': True,
         'restart': 'unless-stopped',
         'labels': [
@@ -243,8 +237,8 @@ def add_spark(name, discover_now, device_id, discovery, device_host, command, fo
     lib_utils.write_compose(config)
     print('Added Spark service "{}".'.format(name))
     print('You can now add it as service in the UI.\n')
-    if utils.confirm('Do you want to restart your services now?'):
-        utils.run('{} restart'.format(const.CLI))
+    if utils.confirm('Do you want to run "brewblox-ctl up" now?'):
+        utils.run('{} up'.format(const.CLI))
 
 
 @cli.command()
