@@ -205,7 +205,9 @@ def add_spark(name, discover_now, device_id, discovery, device_host, command, fo
     if device_id is None and device_host is None and discover_now:
         dev = _discover_device(discovery, release, device_host)
 
-        if not dev:
+        if dev:
+            device_id = dev.split(' ')[1]
+        else:
             return
 
     commands = [
