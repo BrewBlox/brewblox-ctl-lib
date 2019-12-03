@@ -131,7 +131,7 @@ def discover(discovery, release, announce):
     else:
         print('Preparing device discovery...', file=sys.stderr)
         check_call(commands[0], shell=True, stdout=DEVNULL)
-        print('Starting discovery...', file=sys.stderr)
+        print('Discovering devices...', file=sys.stderr)
         check_call(commands[1], shell=True)
 
 
@@ -147,7 +147,7 @@ def _discover_device(discovery, release, device_host):
         '--release ' + release if release else '',
         '--discovery ' + discovery)
 
-    print('Discovering devices...')
+    print('Starting device discovery...')
     devs = [dev for dev in lib_utils.subcommand(discover_run).split('\n') if dev.rstrip()]
 
     if not devs:
