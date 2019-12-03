@@ -173,7 +173,7 @@ def _discover_device(discovery, release, device_host):
 
 @cli.command()
 @click.option('-n', '--name',
-              prompt='How do you want to call this service? The name must be unique.',
+              prompt='How do you want to call this service? The name must be unique',
               callback=_validate_name,
               help='Service name')
 @click.option('--discover-now/--no-discover-now',
