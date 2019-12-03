@@ -110,14 +110,19 @@ def editor(port):
 
 
 @cli.command()
+@click.option('--discovery',
+              type=click.Choice(['all', 'usb', 'wifi']),
+              default='all',
+              help='Discovery setting. Use "all" to check both Wifi and USB')
 @click.option('--release', default=None, help='BrewBlox release track')
 @click.option('--announce', is_flag=True, help='Display running commands')
-def discover(release, announce):
+def discover(discovery, release, announce):
     sudo = utils.optsudo()
     mdns = 'brewblox/brewblox-mdns:{}'.format(utils.docker_tag(release))
     commands = [
         '{}docker pull {}'.format(sudo, mdns),
-        '{}docker run --net=host -v /dev/serial:/dev/serial --rm -it {} --cli'.format(sudo, mdns)
+        '{}docker run --net=host -v /dev/serial:/dev/serial --rm -it {} --cli --discovery {}'.format(
+            sudo, mdns, discovery)
     ]
 
     if announce:
@@ -133,8 +138,11 @@ def _validate_name(ctx, param, value):
     return value
 
 
-def _discover_device(release, device_host):
-    discover_run = '{} discover {}'.format(const.CLI, '--release ' + release if release else '')
+def _discover_device(discovery, release, device_host):
+    discover_run = '{} discover {} {}'.format(
+        const.CLI,
+        '--release ' + release if release else '',
+        '--discovery ' + discovery)
 
     print('Discovering devices...')
     devs = [dev for dev in lib_utils.subcommand(discover_run).split('\n') if dev.rstrip()]
@@ -165,12 +173,13 @@ def _discover_device(release, device_host):
               prompt='Service name',
               callback=_validate_name,
               help='Service name')
-@click.option('--discover/--no-discover',
+@click.option('--discover-now/--no-discover-now',
               default=True,
-              help='Discover devices if device ID is not supplied')
+              help='Select from discovered devices if --device-id is not set')
 @click.option('--device-id',
               help='Check for device ID')
 @click.option('--discovery',
+              type=click.Choice(['all', 'usb', 'wifi']),
               default='all',
               help='Discovery setting. Use "all" to check both Wifi and USB')
 @click.option('--device-host',
@@ -181,9 +190,8 @@ def _discover_device(release, device_host):
               is_flag=True,
               help='Allow overwriting an existing service')
 @click.option('--release',
-              default=None,
               help='BrewBlox release track used by the discovery container.')
-def add_spark(name, discover, device_id, discovery, device_host, command, force, release):
+def add_spark(name, discover_now, device_id, discovery, device_host, command, force, release):
     utils.check_config()
     config = lib_utils.read_compose()
 
@@ -191,8 +199,8 @@ def add_spark(name, discover, device_id, discovery, device_host, command, force,
         print('Service "{}" already exists. Use the --force flag if you want to overwrite it'.format(name))
         return
 
-    if device_id is None and discover:
-        dev = _discover_device(release, device_host)
+    if device_id is None and discover_now:
+        dev = _discover_device(discovery, release, device_host)
 
         if not dev:
             return
@@ -200,13 +208,15 @@ def add_spark(name, discover, device_id, discovery, device_host, command, force,
         args = dev.split(' ')
         device_id = args[1]
         if args[0] == 'wifi' \
-            and not device_host \
-                and utils.confirm('A Wifi device was chosen: do you want to use its URL as --device-host?'):
+            and device_host is None \
+                and utils.confirm(
+                    'When connecting, do you want to skip discovery? (sets --device-host={})'.format(args[2]),
+                    False):
             device_host = args[2]
 
     commands = [
         '--name=' + name,
-        '--mdns-port=${BREWBLOX_PORT_MDNS:-5000}',
+        '--mdns-port=${BREWBLOX_PORT_MDNS}',
         '--discovery=' + discovery,
     ]
 
@@ -220,12 +230,12 @@ def add_spark(name, discover, device_id, discovery, device_host, command, force,
         commands += [command]
 
     config['services'][name] = {
-        'image': 'brewblox/brewblox-devcon-spark:${BREWBLOX_RELEASE:-stable}',
-        'privileged': 'true',
+        'image': 'brewblox/brewblox-devcon-spark:${BREWBLOX_RELEASE}',
+        'privileged': True,
         'restart': 'unless-stopped',
         'labels': [
-            '"traefik.port=5000"',
-            '"traefik.frontend.rule=PathPrefix: /{}"'.format(name),
+            'traefik.port=5000',
+            'traefik.frontend.rule=PathPrefix: /{}'.format(name),
         ],
         'command': ' '.join(commands)
     }

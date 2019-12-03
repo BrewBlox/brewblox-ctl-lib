@@ -151,14 +151,14 @@ def test_discover_device(mocker, mocked_utils, mocked_lib_utils):
     mocked_lib_utils.subcommand.return_value = '\n'.join(['dev1', 'dev2'])
     mocked_utils.select.return_value = '2'
 
-    assert commands._discover_device('develop', None) == 'dev2'
-    assert commands._discover_device('develop', 'dev3') == 'dev2'
-    assert commands._discover_device('develop', 'dev1') == 'dev1'
+    assert commands._discover_device('all', 'develop', None) == 'dev2'
+    assert commands._discover_device('all', 'develop', 'dev3') == 'dev2'
+    assert commands._discover_device('all', 'develop', 'dev1') == 'dev1'
 
 
 def test_discover_device_none(mocker, mocked_utils, mocked_lib_utils):
     mocked_lib_utils.subcommand.return_value = ''
-    assert commands._discover_device('develop', None) is None
+    assert commands._discover_device('all', 'develop', None) is None
 
 
 def test_add_spark(mocker, mocked_utils, mocked_lib_utils):
@@ -192,7 +192,7 @@ def test_add_spark_no_discover(mocker, mocked_utils, mocked_lib_utils):
     runner = CliRunner()
     assert not runner.invoke(commands.add_spark, [
         '-n', 'testey',
-        '--no-discover',
+        '--no-discover-now',
         '--command', '"--debug"',
     ]).exception
 
