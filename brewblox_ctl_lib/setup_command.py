@@ -38,9 +38,9 @@ def check_ports():
 
 def create_compose():
     return [
-        'cp -f {}/{} ./docker-compose.yml'.format(
+        'cp -f {}/{}/* ./'.format(
             const.CONFIG_SRC,
-            'docker-compose_{}.yml'.format('armhf' if utils.is_pi() else 'amd64')
+            'armhf' if utils.is_pi() else 'amd64'
         ),
     ]
 
@@ -126,9 +126,14 @@ def config_history():
 
 
 def set_env():
-    return [
-        '{} -m dotenv.cli --quote never set {} {}'.format(const.PY, const.CFG_VERSION_KEY, const.CURRENT_VERSION),
-    ]
+    return [' '.join([const.SETENV, *args]) for args in [
+        [const.COMPOSE_FILES_KEY, utils.getenv(
+            const.COMPOSE_FILES_KEY, 'docker-compose.shared.yml:docker-compose.yml')],
+        [const.RELEASE_KEY, utils.getenv(const.RELEASE_KEY, 'stable')],
+        [const.HTTP_PORT_KEY, utils.getenv(const.HTTP_PORT_KEY, '80')],
+        [const.HTTPS_PORT_KEY, utils.getenv(const.HTTPS_PORT_KEY, '443')],
+        [const.MDNS_PORT_KEY, utils.getenv(const.MDNS_PORT_KEY, '5000')],
+    ]]
 
 
 def action():
@@ -160,6 +165,8 @@ def action():
     shell_commands = []
     config_images = ['traefik', 'influx', 'history']
 
+    shell_commands += set_env()
+
     if setup_compose:
         shell_commands += create_compose()
 
@@ -188,7 +195,9 @@ def action():
     shell_commands += end_config()
 
     # Only set version after setup was OK
-    shell_commands += set_env()
+    shell_commands += [
+        '{} {} {}'.format(const.SETENV, const.CFG_VERSION_KEY, const.CURRENT_VERSION),
+    ]
 
     utils.run_all(shell_commands)
     print('All done!')

@@ -32,6 +32,43 @@ def downed_commands(prev_version):
         ]
         lib_utils.write_compose(config)
 
+    if prev_version < StrictVersion('0.3.0'):
+        print('Moving system services to docker-compose.shared.yml')
+        config = lib_utils.read_compose()
+        sys_names = [
+            'mdns',
+            'eventbus',
+            'influx',
+            'datastore',
+            'history',
+            'ui',
+            'traefik',
+        ]
+        usr_config = {
+            'version': config['version'],
+            'services': {key: svc for (key, svc) in config['services'].items() if key not in sys_names}
+        }
+        sys_config = {
+            'version': config['version'],
+            'services': {key: svc for (key, svc) in config['services'].items() if key in sys_names}
+        }
+        lib_utils.write_compose(usr_config, 'temp-config.yml')
+        lib_utils.write_compose(sys_config, 'temp-shared.yml')
+
+        shell_commands += [' '.join([const.SETENV, *args]) for args in [
+            [const.COMPOSE_FILES_KEY, utils.getenv(
+                const.COMPOSE_FILES_KEY, 'docker-compose.shared.yml:docker-compose.yml')],
+            [const.RELEASE_KEY, utils.getenv(const.RELEASE_KEY, 'stable')],
+            [const.HTTP_PORT_KEY, utils.getenv(const.HTTP_PORT_KEY, '80')],
+            [const.HTTPS_PORT_KEY, utils.getenv(const.HTTPS_PORT_KEY, '443')],
+            [const.MDNS_PORT_KEY, utils.getenv(const.MDNS_PORT_KEY, '5000')],
+        ]]
+
+        shell_commands += [
+            'mv ./temp-config.yml ./docker-compose.yml',
+            'mv ./temp-shared.yml ./docker-compose.shared.yml',
+        ]
+
     return shell_commands
 
 
@@ -83,9 +120,9 @@ def action():
         *downed_commands(prev_version),
         '{}docker-compose up -d'.format(sudo),
         *upped_commands(prev_version),
-        '{} -m dotenv.cli --quote never set {} {}'.format(const.PY,
-                                                          const.CFG_VERSION_KEY,
-                                                          const.CURRENT_VERSION),
+        '{} {} {}'.format(const.SETENV,
+                          const.CFG_VERSION_KEY,
+                          const.CURRENT_VERSION),
     ]
 
     utils.run_all(shell_commands)

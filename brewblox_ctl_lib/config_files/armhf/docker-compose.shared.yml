@@ -2,16 +2,13 @@ version: "3"
 
 services:
   mdns:
-    image: brewblox/brewblox-mdns:rpi-${BREWBLOX_RELEASE:-stable}
+    image: brewblox/brewblox-mdns:rpi-${BREWBLOX_RELEASE}
     network_mode: host
     restart: unless-stopped
-    command: >
-      --port=${BREWBLOX_PORT_MDNS:-5000}
-
+    command: --port=${BREWBLOX_PORT_MDNS}
   eventbus:
     image: arm32v6/rabbitmq:alpine
     restart: unless-stopped
-
   influx:
     image: influxdb
     restart: unless-stopped
@@ -22,7 +19,6 @@ services:
       - INFLUXDB_LOGGING_LEVEL=warn
       - INFLUXDB_DATA_WAL_FSYNC_DELAY=1s
       - INFLUXDB_DATA_INDEX_VERSION=tsi1
-
   datastore:
     image: treehouses/couchdb:2.3.1
     restart: unless-stopped
@@ -31,30 +27,18 @@ services:
       - "traefik.frontend.rule=PathPrefixStrip: /datastore"
     volumes:
       - ./couchdb/:/opt/couchdb/data/
-
   history:
-    image: brewblox/brewblox-history:rpi-${BREWBLOX_RELEASE:-stable}
-    depends_on:
-      - influx
-      - eventbus
+    image: brewblox/brewblox-history:rpi-${BREWBLOX_RELEASE}
     restart: unless-stopped
     labels:
       - "traefik.port=5000"
       - "traefik.frontend.rule=PathPrefix: /history"
-
-  ui:
-    image: brewblox/brewblox-ui:rpi-${BREWBLOX_RELEASE:-stable}
-    restart: unless-stopped
-    labels:
-      - "traefik.port=80"
-      - "traefik.frontend.rule=Path:/, /ui, /ui/{sub:(.*)?}"
-
   traefik:
     image: traefik:v1.7
     restart: unless-stopped
     ports:
-      - ${BREWBLOX_PORT_HTTP:-80}:${BREWBLOX_PORT_HTTP:-80}
-      - ${BREWBLOX_PORT_HTTPS:-443}:${BREWBLOX_PORT_HTTPS:-443}
+      - ${BREWBLOX_PORT_HTTP}:${BREWBLOX_PORT_HTTP}
+      - ${BREWBLOX_PORT_HTTPS}:${BREWBLOX_PORT_HTTPS}
     volumes:
       - ./traefik:/config
       - /var/run/docker.sock:/var/run/docker.sock
@@ -62,20 +46,12 @@ services:
       -c /dev/null
       --docker 
       --docker.domain=brewblox.local
-      --entrypoints='name:http Address::${BREWBLOX_PORT_HTTP:-80} Redirect.EntryPoint:https'
-      --entrypoints='name:https Address::${BREWBLOX_PORT_HTTPS:-443} TLS:config/brewblox.crt,config/brewblox.key'
+      --entrypoints='name:http Address::${BREWBLOX_PORT_HTTP} Redirect.EntryPoint:https'
+      --entrypoints='name:https Address::${BREWBLOX_PORT_HTTPS} TLS:config/brewblox.crt,config/brewblox.key'
       --defaultentrypoints="http,https"
-
-  spark-one:
-    image: brewblox/brewblox-devcon-spark:rpi-${BREWBLOX_RELEASE:-stable}
-    privileged: true
-    depends_on:
-      - eventbus
-      - datastore
+  ui:
+    image: brewblox/brewblox-ui:rpi-${BREWBLOX_RELEASE}
     restart: unless-stopped
     labels:
-      - "traefik.port=5000"
-      - "traefik.frontend.rule=PathPrefix: /spark-one"
-    command: >
-      --name=spark-one
-      --mdns-port=${BREWBLOX_PORT_MDNS:-5000}
+      - "traefik.port=80"
+      - "traefik.frontend.rule=Path:/, /ui, /ui/{sub:(.*)?}"

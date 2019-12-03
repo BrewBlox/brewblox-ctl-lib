@@ -21,7 +21,17 @@ def mocked_utils(mocker):
 @pytest.fixture(autouse=True)
 def mocked_lib_utils(mocker):
     m = mocker.patch(TESTED + '.lib_utils')
-    m.get_spark_one_url.return_value = 'spark-url'
+    m.read_compose.return_value = {
+        'services': {
+            'spark-one': {},
+        }
+    }
+    m.read_shared_compose.return_value = {
+        'services': {
+            'history': {},
+            'ui': {},
+        }
+    }
     return m
 
 
@@ -50,8 +60,8 @@ def test_log_file(mocked_utils):
     assert args == [
         *log_command.add_header('my reason'),
         *log_command.add_vars(),
-        *log_command.add_compose(),
         *log_command.add_logs(),
+        *log_command.add_compose(),
         *log_command.add_blocks(),
         *log_command.add_inspect(),
     ]
@@ -85,3 +95,8 @@ def test_log_file_nopes(mocked_utils):
         *log_command.add_blocks(),
         *log_command.add_inspect(),
     ]
+
+
+def test_add_log_error(mocked_utils, mocked_lib_utils):
+    mocked_lib_utils.read_compose.side_effect = RuntimeError('whoops')
+    assert 'whoops' in log_command.add_logs()[1]

@@ -3,6 +3,7 @@ Tests brewblox_ctl_lib.migrate
 """
 
 import re
+from unittest.mock import call
 
 import pytest
 
@@ -37,6 +38,11 @@ def mocked_cli(mocker):
     return mocker.patch(TESTED + '.const.CLI', '/cli')
 
 
+@pytest.fixture
+def mocked_setenv(mocker):
+    return mocker.patch(TESTED + '.const.SETENV', '/setenv')
+
+
 def check_optsudo(args):
     """Checks whether each call to docker/docker-compose is appropriately prefixed"""
     joined = ' '.join(args)
@@ -44,15 +50,24 @@ def check_optsudo(args):
     assert len(re.findall('SUDO docker-compose ', joined)) == len(re.findall('docker-compose ', joined))
 
 
-def test_migrate(mocked_py, mocked_cli, mocked_utils, mocked_lib_utils):
-    mocked_utils.getenv.side_effect = ['0.0.1']
+def test_migrate(mocked_py, mocked_cli, mocked_setenv, mocked_utils, mocked_lib_utils):
+    mocked_utils.getenv.side_effect = [
+        '0.0.1',
+        'compose-files',
+        'develop',
+        '81',
+        '444',
+        '5001',
+    ]
     mocked_utils.select.side_effect = ['']
     mocked_lib_utils.read_compose.return_value = {
+        'version': '1234',
         'services': {
             'datastore': {},
             'traefik': {},
             'influx': {},
             'ui': {},
+            'sparkey': {},
         }
     }
 
@@ -67,6 +82,13 @@ def test_migrate(mocked_py, mocked_cli, mocked_utils, mocked_lib_utils):
         'SUDO docker-compose down --remove-orphans',
         # downed
         'sudo rm -rf ./influxdb',
+        '/setenv COMPOSE_FILE compose-files',
+        '/setenv BREWBLOX_RELEASE develop',
+        '/setenv BREWBLOX_PORT_HTTP 81',
+        '/setenv BREWBLOX_PORT_HTTPS 444',
+        '/setenv BREWBLOX_PORT_MDNS 5001',
+        'mv ./temp-config.yml ./docker-compose.yml',
+        'mv ./temp-shared.yml ./docker-compose.shared.yml',
         # up
         'SUDO docker-compose up -d',
         # upped
@@ -78,25 +100,51 @@ def test_migrate(mocked_py, mocked_cli, mocked_utils, mocked_lib_utils):
         '/cli http put --allow-fail --quiet DATASTORE/_global_changes',
         'SUDO docker image prune -f',
         # complete
-        '/py -m dotenv.cli --quote never set {} {}'.format(CFG_VERSION_KEY, CURRENT_VERSION),
+        '/setenv {} {}'.format(CFG_VERSION_KEY, CURRENT_VERSION),
     ]
 
-    mocked_lib_utils.write_compose.assert_called_once_with({
-        'services': {
-            'datastore': {'image': 'treehouses/couchdb:2.3.1'},
-            'traefik': {'image': 'traefik:v1.7'},
-            'influx': {'image': 'influxdb:1.7'},
-            'ui': {
-                'labels': [
-                    'traefik.port=80',
-                    'traefik.frontend.rule=Path:/, /ui, /ui/{sub:(.*)?}',
-                ],
+    assert mocked_lib_utils.write_compose.call_args_list == [
+        call({
+            'version': '1234',
+            'services': {
+                'datastore': {'image': 'treehouses/couchdb:2.3.1'},
+                'traefik': {'image': 'traefik:v1.7'},
+                'influx': {'image': 'influxdb:1.7'},
+                'ui': {
+                    'labels': [
+                        'traefik.port=80',
+                        'traefik.frontend.rule=Path:/, /ui, /ui/{sub:(.*)?}',
+                    ],
+                },
+                'sparkey': {}
             }
-        }
-    })
+        }),
+        call({
+            'version': '1234',
+            'services': {
+                'sparkey': {},
+            }
+        },
+            'temp-config.yml'),
+        call({
+            'version': '1234',
+            'services': {
+                'datastore': {'image': 'treehouses/couchdb:2.3.1'},
+                'traefik': {'image': 'traefik:v1.7'},
+                'influx': {'image': 'influxdb:1.7'},
+                'ui': {
+                    'labels': [
+                        'traefik.port=80',
+                        'traefik.frontend.rule=Path:/, /ui, /ui/{sub:(.*)?}',
+                    ],
+                },
+            }
+        },
+            'temp-shared.yml')
+    ]
 
 
-def test_migrate_version_checks(mocked_cli, mocked_utils, mocked_lib_utils):
+def test_migrate_version_checks(mocked_cli, mocked_setenv, mocked_utils, mocked_lib_utils):
     mocked_utils.getenv.side_effect = [
         '0.0.0',
         CURRENT_VERSION,

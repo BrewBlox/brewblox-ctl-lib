@@ -17,6 +17,11 @@ def mocked_py(mocker):
 
 
 @pytest.fixture
+def mocked_setenv(mocker):
+    return mocker.patch(TESTED + '.const.SETENV', '/dotenv')
+
+
+@pytest.fixture
 def mocked_cli(mocker):
     return mocker.patch(TESTED + '.const.CLI', '/cli')
 
@@ -34,26 +39,28 @@ def mocked_lib_utils(mocker):
     return m
 
 
-def test_ports(mocked_utils, mocked_py):
-    mocked_utils.select.side_effect = [
-        '1',
-        '2',
-        '3',
-    ]
-
+def test_ports(mocked_utils, mocked_setenv):
     runner = CliRunner()
-    assert not runner.invoke(commands.ports).exception
+    assert not runner.invoke(commands.ports, [
+        '--http=1',
+        '--https=2',
+        '--mdns=3'
+    ]).exception
 
-    assert mocked_utils.check_config.call_count == 1
-    assert mocked_utils.run_all.call_count == 1
+    assert not runner.invoke(commands.ports, input='1\n2\n3\n').exception
+
+    assert mocked_utils.check_config.call_count == 2
+    assert mocked_utils.run_all.call_count == 2
     args = mocked_utils.run_all.call_args_list[0][0][0]
+    prompted = mocked_utils.run_all.call_args_list[1][0][0]
 
-    # order is not guaranteed
+    # order is not guaranteed in python < 3.6
     assert sorted(args) == sorted([
-        '/py -m dotenv.cli --quote never set BREWBLOX_PORT_HTTP 1',
-        '/py -m dotenv.cli --quote never set BREWBLOX_PORT_HTTPS 2',
-        '/py -m dotenv.cli --quote never set BREWBLOX_PORT_MDNS 3',
+        '/dotenv BREWBLOX_PORT_HTTP 1',
+        '/dotenv BREWBLOX_PORT_HTTPS 2',
+        '/dotenv BREWBLOX_PORT_MDNS 3',
     ])
+    assert sorted(prompted) == sorted(args)
 
 
 def test_setup(mocker):
@@ -127,6 +134,97 @@ def test_editor_changed(mocker, mocked_utils, mocked_lib_utils, mocked_cli):
     ]
 
 
+def test_discover(mocker, mocked_utils, mocked_lib_utils):
+    m = mocker.patch(TESTED + '.check_call')
+
+    runner = CliRunner()
+    assert not runner.invoke(commands.discover).exception
+    assert m.call_count == 2
+    assert mocked_utils.run_all.call_count == 0
+
+    assert not runner.invoke(commands.discover, ['--announce']).exception
+    assert m.call_count == 2
+    assert mocked_utils.run_all.call_count == 1
+
+
+def test_discover_device(mocker, mocked_utils, mocked_lib_utils):
+    mocked_lib_utils.subcommand.return_value = '\n'.join(['dev1', 'dev2'])
+    mocked_utils.select.return_value = '2'
+
+    assert commands._discover_device('all', 'develop', None) == 'dev2'
+    assert commands._discover_device('all', 'develop', 'dev3') == 'dev2'
+    assert commands._discover_device('all', 'develop', 'dev1') == 'dev1'
+
+
+def test_discover_device_none(mocker, mocked_utils, mocked_lib_utils):
+    mocked_lib_utils.subcommand.return_value = ''
+    assert commands._discover_device('all', 'develop', None) is None
+
+
+def test_add_spark(mocker, mocked_utils, mocked_lib_utils):
+    devices = [
+        'usb 4f0052000551353432383931 P1',
+        'wifi 4f0052000551353432383931 192.168.0.71 8332'
+    ]
+
+    discovery = mocker.patch(TESTED + '._discover_device', return_value=devices[0])
+    mocked_lib_utils.read_compose.return_value = {'services': {}}
+
+    runner = CliRunner()
+    assert not runner.invoke(commands.add_spark, ['-n', 'testey', '--release', 'dev']).exception
+
+    assert mocked_lib_utils.write_compose.call_count == 1
+    assert discovery.call_count == 1
+
+    mocked_lib_utils.read_compose.return_value = {'services': {}}
+    discovery.return_value = devices[1]
+
+    assert not runner.invoke(commands.add_spark, ['-n', 'testey']).exception
+
+    assert mocked_lib_utils.write_compose.call_count == 2
+    assert discovery.call_count == 2
+
+
+def test_add_spark_no_discover(mocker, mocked_utils, mocked_lib_utils):
+    mocked_lib_utils.read_compose.return_value = {'services': {}}
+    mocked_utils.confirm.return_value = False
+
+    runner = CliRunner()
+    assert not runner.invoke(commands.add_spark, [
+        '-n', 'testey',
+        '--no-discover-now',
+        '--device-host=192.168.0.1',
+        '--command', '"--debug"',
+    ]).exception
+
+
+def test_add_spark_nope(mocker, mocked_utils, mocked_lib_utils):
+    discovery = mocker.patch(TESTED + '._discover_device', return_value=None)
+    runner = CliRunner()
+
+    assert runner.invoke(commands.add_spark, ['-n', '@#']).exception
+
+    mocked_lib_utils.read_compose.return_value = {'services': {}}
+    assert not runner.invoke(commands.add_spark, ['-n', 'testey']).exception
+
+    mocked_lib_utils.read_compose.return_value = {'services': {'testey': {}}}
+    assert not runner.invoke(commands.add_spark, ['-n', 'testey']).exception
+
+    assert not runner.invoke(commands.add_spark, ['-n', 'testey', '--force']).exception
+
+    assert mocked_lib_utils.write_compose.call_count == 0
+
+    discovery.return_value = 'usb 4f0052000551353432383931 P1'
+    assert not runner.invoke(commands.add_spark, ['-n', 'testey', '--force']).exception
+
+
+def test_add_spark_id(mocker, mocked_utils, mocked_lib_utils):
+    mocked_lib_utils.read_compose.return_value = {'services': {}}
+    runner = CliRunner()
+
+    assert not runner.invoke(commands.add_spark, ['-n', 'testey', '--device-id', '1234']).exception
+
+
 def test_status(mocked_utils):
     runner = CliRunner()
     assert not runner.invoke(commands.status).exception
@@ -155,7 +253,7 @@ def test_list_services(mocker):
     runner = CliRunner()
 
     result = runner.invoke(commands.list_services,
-                           ['--file', 'brewblox_ctl_lib/config_files/docker-compose_armhf.yml'])
+                           ['--file', 'brewblox_ctl_lib/config_files/armhf/docker-compose.yml'])
     assert not result.exception
     assert result.output == 'spark-one\n'
 
@@ -163,7 +261,7 @@ def test_list_services(mocker):
         commands.list_services,
         [
             '--image', 'brewblox/world-peace',
-            '--file', 'brewblox_ctl_lib/config_files/docker-compose_armhf.yml'
+            '--file', 'brewblox_ctl_lib/config_files/armhf/docker-compose.yml'
         ])
     assert not result.exception
     assert result.output == ''
