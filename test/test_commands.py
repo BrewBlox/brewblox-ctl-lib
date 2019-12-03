@@ -193,6 +193,7 @@ def test_add_spark_no_discover(mocker, mocked_utils, mocked_lib_utils):
     assert not runner.invoke(commands.add_spark, [
         '-n', 'testey',
         '--no-discover-now',
+        '--device-host=192.168.0.1',
         '--command', '"--debug"',
     ]).exception
 
