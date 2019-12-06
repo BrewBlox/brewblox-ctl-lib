@@ -92,15 +92,10 @@ def upped_commands(prev_version):
         '{} http put --allow-fail --quiet {}/_global_changes'.format(const.CLI, datastore_url),
     ]
 
-    if utils.confirm('Do you want to prune unused docker images to free disk space?'):
-        shell_commands += [
-            '{}docker image prune -f'.format(utils.optsudo())
-        ]
-
     return shell_commands
 
 
-def action():
+def action(prune):
     utils.check_config()
     sudo = utils.optsudo()
     prev_version = StrictVersion(utils.getenv(const.CFG_VERSION_KEY, '0.0.0'))
@@ -115,14 +110,15 @@ def action():
         if not utils.confirm('Do you want to continue?'):
             raise SystemExit(1)
 
-    shell_commands = [
-        '{}docker-compose down --remove-orphans'.format(sudo),
-        *downed_commands(prev_version),
-        '{}docker-compose up -d'.format(sudo),
-        *upped_commands(prev_version),
-        '{} {} {}'.format(const.SETENV,
-                          const.CFG_VERSION_KEY,
-                          const.CURRENT_VERSION),
-    ]
+    def generate():
+        yield '{}docker-compose down --remove-orphans'.format(sudo)
+        yield from downed_commands(prev_version)
+        yield '{}docker-compose up -d'.format(sudo)
+        yield from upped_commands(prev_version)
+        if prune:
+            yield '{}docker image prune -f'.format(sudo)
+        yield '{} {} {}'.format(const.SETENV,
+                                const.CFG_VERSION_KEY,
+                                const.CURRENT_VERSION)
 
-    utils.run_all(shell_commands)
+    utils.run_all(list(generate()))

@@ -57,7 +57,11 @@ def setup():
 
 
 @cli.command()
-def update():
+@click.option('--prune/--no-prune',
+              default=True,
+              prompt='Do you want to remove old Docker images to free disk space?',
+              help='Prune docker images.')
+def update(prune):
     """Update services and scripts"""
     utils.check_config()
     sudo = utils.optsudo()
@@ -66,16 +70,20 @@ def update():
         '{}docker-compose pull'.format(sudo),
         'sudo {} -m pip install -U brewblox-ctl'.format(const.PY),
         *utils.lib_loading_commands(),
-        '{} migrate'.format(const.CLI),
+        '{} migrate {}'.format(const.CLI, '--prune' if prune else '--no-prune'),
     ]
 
     utils.run_all(shell_commands)
 
 
 @cli.command()
-def migrate():
+@click.option('--prune/--no-prune',
+              default=True,
+              prompt='Do you want to remove old Docker images to free disk space?',
+              help='Prune docker images.')
+def migrate(prune):
     """Update configuration files to the lastest version"""
-    migrate_command.action()
+    migrate_command.action(prune)
 
 
 @cli.command()
