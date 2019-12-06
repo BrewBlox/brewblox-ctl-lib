@@ -75,7 +75,7 @@ def test_update(mocked_utils, mocked_py, mocked_cli):
     mocked_utils.lib_loading_commands.return_value = ['load1', 'load2']
 
     runner = CliRunner()
-    assert not runner.invoke(commands.update).exception
+    assert not runner.invoke(commands.update, input='\n').exception
 
     assert mocked_utils.check_config.call_count == 1
     assert mocked_utils.run_all.call_count == 1
@@ -87,7 +87,7 @@ def test_update(mocked_utils, mocked_py, mocked_cli):
         'sudo /py -m pip install -U brewblox-ctl',
         'load1',
         'load2',
-        '/cli migrate',
+        '/cli migrate --prune',
     ]
 
 
@@ -95,8 +95,8 @@ def test_migrate(mocker):
     cmd = mocker.patch(TESTED + '.migrate_command')
 
     runner = CliRunner()
-    assert not runner.invoke(commands.migrate).exception
-    assert cmd.action.call_count == 1
+    assert not runner.invoke(commands.migrate, ['--no-prune']).exception
+    cmd.action.assert_called_once_with(False)
 
 
 def test_editor(mocker, mocked_utils, mocked_lib_utils):

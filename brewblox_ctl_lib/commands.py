@@ -57,7 +57,11 @@ def setup():
 
 
 @cli.command()
-def update():
+@click.option('--prune/--no-prune',
+              default=True,
+              prompt='Do you want to remove old Docker images to free disk space?',
+              help='Prune docker images.')
+def update(prune):
     """Update services and scripts"""
     utils.check_config()
     sudo = utils.optsudo()
@@ -66,16 +70,20 @@ def update():
         '{}docker-compose pull'.format(sudo),
         'sudo {} -m pip install -U brewblox-ctl'.format(const.PY),
         *utils.lib_loading_commands(),
-        '{} migrate'.format(const.CLI),
+        '{} migrate {}'.format(const.CLI, '--prune' if prune else '--no-prune'),
     ]
 
     utils.run_all(shell_commands)
 
 
 @cli.command()
-def migrate():
+@click.option('--prune/--no-prune',
+              default=True,
+              prompt='Do you want to remove old Docker images to free disk space?',
+              help='Prune docker images.')
+def migrate(prune):
     """Update configuration files to the lastest version"""
-    migrate_command.action()
+    migrate_command.action(prune)
 
 
 @cli.command()
@@ -118,6 +126,14 @@ def editor(port):
 @click.option('--release', default=None, help='BrewBlox release track')
 @click.option('--announce', is_flag=True, help='Display running commands')
 def discover(discovery, release, announce):
+    """
+    Discover available Spark controllers.
+
+    This yields device ID for all devices, and IP address for Wifi devices.
+    If a device is connected over USB, and has Wifi active, it may show up twice.
+
+    Multicast DNS (mDNS) is used for Wifi discovery. Whether this works is dependent on your router's configuration.
+    """
     sudo = utils.optsudo()
     mdns = 'brewblox/brewblox-mdns:{}'.format(utils.docker_tag(release))
     commands = [
@@ -195,6 +211,16 @@ def _discover_device(discovery, release, device_host):
 @click.option('--release',
               help='BrewBlox release track used by the discovery container.')
 def add_spark(name, discover_now, device_id, discovery, device_host, command, force, release):
+    """
+    Create or update a Spark service.
+
+    If you run brewblox-ctl add-spark without any arguments,
+    it will prompt you for required info, and then create a sensibly configured service.
+
+    If you want to fine-tune your service configuration, multiple arguments are available.
+
+    For a detailed explanation: https://brewblox.netlify.com/user/connect_settings.html
+    """
     utils.check_config()
     config = lib_utils.read_compose()
 
