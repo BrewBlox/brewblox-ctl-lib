@@ -88,7 +88,7 @@ def test_migrate(mocked_py, mocked_cli, mocked_setenv, mocked_utils, mocked_lib_
         '/setenv BREWBLOX_PORT_HTTPS 444',
         '/setenv BREWBLOX_PORT_MDNS 5001',
         'mv ./temp-config.yml ./docker-compose.yml',
-        'mv ./temp-shared.yml ./docker-compose.shared.yml',
+        'cp -f ./brewblox_ctl_lib/config_files/docker-compose.shared.yml ./',
         # up
         'SUDO docker-compose up -d',
         # upped
@@ -127,21 +127,6 @@ def test_migrate(mocked_py, mocked_cli, mocked_setenv, mocked_utils, mocked_lib_
             }
         },
             'temp-config.yml'),
-        call({
-            'version': '1234',
-            'services': {
-                'datastore': {'image': 'treehouses/couchdb:2.3.1'},
-                'traefik': {'image': 'traefik:v1.7'},
-                'influx': {'image': 'influxdb:1.7'},
-                'ui': {
-                    'labels': [
-                        'traefik.port=80',
-                        'traefik.frontend.rule=Path:/, /ui, /ui/{sub:(.*)?}',
-                    ],
-                },
-            }
-        },
-            'temp-shared.yml')
     ]
 
 
