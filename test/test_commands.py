@@ -3,12 +3,31 @@ Tests brewblox_ctl_lib.commands
 """
 
 
+import json
+import re
+import zipfile
+from os import path
+from unittest.mock import call
+
 import pytest
 from click.testing import CliRunner
 
 from brewblox_ctl_lib import commands
 
 TESTED = commands.__name__
+
+
+class pytest_regex:
+    """Assert that a given string meets some expectations."""
+
+    def __init__(self, pattern, flags=0):
+        self._regex = re.compile(pattern, flags)
+
+    def __eq__(self, actual):
+        return bool(self._regex.match(actual))
+
+    def __repr__(self):
+        return self._regex.pattern
 
 
 @pytest.fixture
@@ -265,3 +284,46 @@ def test_list_services(mocker):
         ])
     assert not result.exception
     assert result.output == ''
+
+
+def test_save_backup(mocker, mocked_utils, mocked_lib_utils):
+    mkdir_mock = mocker.patch(TESTED + '.mkdir')
+    get_mock = mocker.patch(TESTED + '.requests.get')
+    zipf_mock = mocker.patch(TESTED + '.zipfile.ZipFile')
+    runner = CliRunner()
+
+    get_mock.return_value.json.side_effect = [
+        ['_system', 'brewblox-ui-store', 'brewblox-automation'],
+        {'rows': [
+            {'doc': {'id': 1, '_rev': 'revvy'}},
+            {'doc': {'id': 2, '_rev': 'revvy'}},
+            {'doc': {'id': 3, '_rev': 'revvy'}},
+        ]},
+        {'rows': [
+            {'doc': {'id': 4, '_rev': 'revvy'}},
+            {'doc': {'id': 5, '_rev': 'revvy'}},
+            {'doc': {'id': 6, '_rev': 'revvy'}},
+        ]},
+    ]
+    get_mock.return_value.text = 'resp_text'
+
+    mocked_lib_utils.read_compose.return_value = {'services': {
+        'spark-one': {
+            'image': 'brewblox/brewblox-devcon-spark:rpi-edge',
+        },
+        'plaato': {
+            'image': 'brewblox/brewblox-plaato:rpi-edge',
+        }
+    }}
+
+    result = runner.invoke(commands.save_backup)
+    assert not result.exception
+
+    mkdir_mock.assert_called_once_with(path.abspath('backup/'))
+    zipf_mock.assert_called_once_with(
+        pytest_regex(r'^backup/brewblox_backup_\d{8}_\d{4}.zip'), 'w', zipfile.ZIP_DEFLATED)
+    assert zipf_mock.return_value.writestr.call_args_list == [
+        call('brewblox-ui-store.datastore.json', json.dumps([{'id': 1}, {'id': 2}, {'id': 3}])),
+        call('brewblox-automation.datastore.json', json.dumps([{'id': 4}, {'id': 5}, {'id': 6}])),
+        call('spark-one.spark.json', 'resp_text'),
+    ]
