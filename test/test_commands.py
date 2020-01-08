@@ -6,6 +6,7 @@ Tests brewblox_ctl_lib.commands
 import json
 import re
 import zipfile
+from os import path
 from unittest.mock import call
 
 import pytest
@@ -286,6 +287,7 @@ def test_list_services(mocker):
 
 
 def test_save_backup(mocker, mocked_utils, mocked_lib_utils):
+    mkdir_mock = mocker.patch(TESTED + '.mkdir')
     get_mock = mocker.patch(TESTED + '.requests.get')
     zipf_mock = mocker.patch(TESTED + '.zipfile.ZipFile')
     runner = CliRunner()
@@ -315,10 +317,11 @@ def test_save_backup(mocker, mocked_utils, mocked_lib_utils):
     }}
 
     result = runner.invoke(commands.save_backup)
-    print(result.output)
     assert not result.exception
 
-    zipf_mock.assert_called_once_with(pytest_regex(r'^brewblox_backup_\d{8}_\d{4}.zip'), 'w', zipfile.ZIP_DEFLATED)
+    mkdir_mock.assert_called_once_with(path.abspath('backup/'))
+    zipf_mock.assert_called_once_with(
+        pytest_regex(r'^backup/brewblox_backup_\d{8}_\d{4}.zip'), 'w', zipfile.ZIP_DEFLATED)
     assert zipf_mock.return_value.writestr.call_args_list == [
         call('brewblox-ui-store.datastore.json', json.dumps([{'id': 1}, {'id': 2}, {'id': 3}])),
         call('brewblox-automation.datastore.json', json.dumps([{'id': 4}, {'id': 5}, {'id': 6}])),

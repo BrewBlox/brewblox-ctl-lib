@@ -7,7 +7,9 @@ import json
 import re
 import sys
 import zipfile
+from contextlib import suppress
 from datetime import datetime
+from os import mkdir, path
 from subprocess import DEVNULL, check_call
 
 import click
@@ -303,13 +305,14 @@ def list_services(image, file):
 
 
 @cli.command()
-@click.option('--file',
-              default=lambda: 'brewblox_backup_{}.zip'.format(datetime.now().strftime('%Y%m%d_%H%M')),
-              help='Name of created zip archive. Default is "brewblox_backup_<date>_<time>.zip"')
-def save_backup(file):
+def save_backup():
     """Export datastore files and Spark blocks to zip file"""
     utils.check_config()
     urllib3.disable_warnings()
+
+    file = 'backup/brewblox_backup_{}.zip'.format(datetime.now().strftime('%Y%m%d_%H%M'))
+    with suppress(FileExistsError):
+        mkdir(path.abspath('backup/'))
 
     url = lib_utils.get_datastore_url()
     http.wait(url)
@@ -342,4 +345,4 @@ def save_backup(file):
         zipf.writestr(spark + '.spark.json', resp.text)
 
     zipf.close()
-    print('Created', file)
+    print('Created', path.abspath(file))
