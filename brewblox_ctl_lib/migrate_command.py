@@ -48,12 +48,7 @@ def downed_commands(prev_version):
             'version': config['version'],
             'services': {key: svc for (key, svc) in config['services'].items() if key not in sys_names}
         }
-        sys_config = {
-            'version': config['version'],
-            'services': {key: svc for (key, svc) in config['services'].items() if key in sys_names}
-        }
         lib_utils.write_compose(usr_config, 'temp-config.yml')
-        lib_utils.write_compose(sys_config, 'temp-shared.yml')
 
         shell_commands += [' '.join([const.SETENV, *args]) for args in [
             [const.COMPOSE_FILES_KEY, utils.getenv(
@@ -66,7 +61,7 @@ def downed_commands(prev_version):
 
         shell_commands += [
             'mv ./temp-config.yml ./docker-compose.yml',
-            'mv ./temp-shared.yml ./docker-compose.shared.yml',
+            'cp -f {}/docker-compose.shared.yml ./'.format(const.CONFIG_SRC),
         ]
 
     return shell_commands
