@@ -2,9 +2,15 @@
 Implementation of brewblox-ctl setup
 """
 
-from brewblox_ctl import utils
+import click
+from brewblox_ctl import click_helpers, utils
 
 from brewblox_ctl_lib import const, lib_utils
+
+
+@click.group(cls=click_helpers.OrderedGroup)
+def cli():
+    """Command collector"""
 
 
 def check_ports():
@@ -33,15 +39,12 @@ def check_ports():
                 and not utils.confirm('WARNING: port {} is already in use. Do you want to continue?'.format(port)):
             raise SystemExit(0)
 
-    print('Done checking ports. If you want to change the ports used by BrewBlox, you can use "brewblox-ctl ports"')
+    print('Done checking ports. If you want to change the ports used by Brewblox, you can use "brewblox-ctl ports"')
 
 
 def create_compose():
     return [
-        'cp -f {}/{}/* ./'.format(
-            const.CONFIG_SRC,
-            'armhf' if utils.is_pi() else 'amd64'
-        ),
+        'cp -f {}/{}/* ./'.format(const.CONFIG_SRC, lib_utils.config_name()),
     ]
 
 
@@ -61,7 +64,7 @@ def create_traefik():
     return [
         'sudo rm -rf ./traefik/; mkdir ./traefik/',
         'sudo openssl req -x509 -nodes -days 3650 -newkey rsa:2048 ' +
-        '-subj "/C=NL/ST=./L=./O=BrewBlox/OU=./CN=." ' +
+        '-subj "/C=NL/ST=./L=./O=Brewblox/OU=./CN=." ' +
         '-keyout traefik/brewblox.key ' +
         '-out traefik/brewblox.crt',
         'sudo chmod 644 traefik/brewblox.crt',
@@ -126,17 +129,19 @@ def config_history():
 
 
 def set_env():
-    return [' '.join([const.SETENV, *args]) for args in [
-        [const.COMPOSE_FILES_KEY, utils.getenv(
-            const.COMPOSE_FILES_KEY, 'docker-compose.shared.yml:docker-compose.yml')],
-        [const.RELEASE_KEY, utils.getenv(const.RELEASE_KEY, 'stable')],
-        [const.HTTP_PORT_KEY, utils.getenv(const.HTTP_PORT_KEY, '80')],
-        [const.HTTPS_PORT_KEY, utils.getenv(const.HTTPS_PORT_KEY, '443')],
-        [const.MDNS_PORT_KEY, utils.getenv(const.MDNS_PORT_KEY, '5000')],
+    return [lib_utils.setenv_cmd(*args) for args in [
+        (const.COMPOSE_FILES_KEY, utils.getenv(
+            const.COMPOSE_FILES_KEY, 'docker-compose.shared.yml:docker-compose.yml')),
+        (const.RELEASE_KEY, utils.getenv(const.RELEASE_KEY, 'stable')),
+        (const.HTTP_PORT_KEY, utils.getenv(const.HTTP_PORT_KEY, '80')),
+        (const.HTTPS_PORT_KEY, utils.getenv(const.HTTPS_PORT_KEY, '443')),
+        (const.MDNS_PORT_KEY, utils.getenv(const.MDNS_PORT_KEY, '5000')),
     ]]
 
 
-def action():
+@cli.command()
+def setup():
+    """Run first-time setup"""
     utils.check_config()
     check_ports()
 
@@ -201,3 +206,34 @@ def action():
 
     utils.run_all(shell_commands)
     print('All done!')
+
+
+@cli.command()
+@click.option('--http',
+              prompt='Which port do you want to use for HTTP connections? Press ENTER to keep using',
+              default=lambda: utils.getenv(const.HTTP_PORT_KEY, '80'),
+              help='Port used for HTTP connections. Override if default is already in use.')
+@click.option('--https',
+              prompt='Which port do you want to use for HTTPS connections? Press ENTER to keep using',
+              default=lambda: utils.getenv(const.HTTPS_PORT_KEY, '443'),
+              help='Port used for HTTPS connections. Override if default is already in use.')
+@click.option('--mdns',
+              prompt='Which port do you want to use for mDNS discovery? Press ENTER to keep using',
+              default=lambda: utils.getenv(const.MDNS_PORT_KEY, '5000'),
+              help='Port used for mDNS discovery. Override if default is already in use.')
+def ports(http, https, mdns):
+    """Update used ports"""
+    utils.check_config()
+
+    cfg = {
+        const.HTTP_PORT_KEY: http,
+        const.HTTPS_PORT_KEY: https,
+        const.MDNS_PORT_KEY: mdns,
+    }
+
+    shell_commands = [
+        '{} {} {}'.format(const.SETENV, key, val)
+        for key, val in cfg.items()
+    ]
+
+    utils.run_all(shell_commands)

@@ -5,9 +5,15 @@ Logs system status and debugging info to file
 import shlex
 from os import getcwd
 
-from brewblox_ctl import utils
+import click
+from brewblox_ctl import click_helpers, utils
 
 from brewblox_ctl_lib import const, lib_utils
+
+
+@click.group(cls=click_helpers.OrderedGroup)
+def cli():
+    """Top-level commands"""
 
 
 def add_header(reason):
@@ -93,7 +99,9 @@ def add_inspect():
     ]
 
 
-def action():
+@cli.command()
+def log():
+    """Generate and share log file for bug reports"""
     utils.check_config()
 
     reason = utils.select('Why are you generating this log? (will be included in log)')

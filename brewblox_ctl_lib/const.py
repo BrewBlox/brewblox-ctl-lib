@@ -5,11 +5,12 @@ import sys
 
 PY = sys.executable
 CLI = '{} -m brewblox_ctl'.format(PY)
+ARGS = sys.argv
 SETENV = '{} -m dotenv.cli --quote never set'.format(PY)
 
 CURRENT_VERSION = '0.3.0'
 
-CONFIG_SRC = './brewblox_ctl_lib/config_files'
+CONFIG_SRC = './brewblox_ctl_lib/config_files/'
 
 HOST = 'https://localhost'
 
