@@ -51,7 +51,7 @@ def save():
     ]
     zipf = zipfile.ZipFile(file, 'w', zipfile.ZIP_DEFLATED)
 
-    print('Exporting databases:', ', '.join(dbs))
+    utils.info('Exporting databases:', ', '.join(dbs))
     for db in dbs:
         resp = requests.get('{}/{}/_all_docs'.format(url, db),
                             params={'include_docs': True},
@@ -62,11 +62,11 @@ def save():
             del d['_rev']
         zipf.writestr(db + '.datastore.json', json.dumps(docs))
 
-    print('Exporting Spark blocks:', ', '.join(sparks))
+    utils.info('Exporting Spark blocks:', ', '.join(sparks))
     for spark in sparks:
         resp = requests.get('{}/{}/export_objects'.format(lib_utils.base_url(), spark), verify=False)
         resp.raise_for_status()
         zipf.writestr(spark + '.spark.json', resp.text)
 
     zipf.close()
-    print('Created', path.abspath(file))
+    utils.info('Created', path.abspath(file))

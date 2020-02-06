@@ -3,16 +3,13 @@ Const values
 """
 import sys
 
+CURRENT_VERSION = '0.3.0'
+
 PY = sys.executable
 CLI = '{} -m brewblox_ctl'.format(PY)
 ARGS = sys.argv
-
-CURRENT_VERSION = '0.3.0'
-
-CONFIG_SRC = './brewblox_ctl_lib/config_files/'
-
 HOST = 'https://localhost'
-
+CONFIG_SRC = './brewblox_ctl_lib/config_files/'
 UI_DATABASE = 'brewblox-ui-store'
 
 CFG_VERSION_KEY = 'BREWBLOX_CFG_VERSION'
@@ -29,6 +26,3 @@ ENV_DEFAULTS = {
     MDNS_PORT_KEY: '5000',
     COMPOSE_FILES_KEY: 'docker-compose.shared.yml:docker-compose.yml',
 }
-
-
-LOG_COMPOSE = 'COMPOSE'.ljust(10)

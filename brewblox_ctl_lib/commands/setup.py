@@ -154,6 +154,7 @@ def setup(port_check):
 def ports(http, https, mdns):
     """Update used ports"""
     utils.check_config()
+    utils.confirm_mode()
 
     cfg = {
         const.HTTP_PORT_KEY: http,
@@ -161,5 +162,6 @@ def ports(http, https, mdns):
         const.MDNS_PORT_KEY: mdns,
     }
 
+    utils.info('Writing port settings to .env...')
     for key, val in cfg.items():
         utils.setenv(key, val)

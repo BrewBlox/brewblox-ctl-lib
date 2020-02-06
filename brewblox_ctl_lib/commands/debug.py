@@ -3,7 +3,7 @@ Logs system status and debugging info to file
 """
 
 import shlex
-from os import getcwd
+from os import path
 
 import click
 
@@ -18,6 +18,7 @@ def cli():
 
 
 def add_header():
+    utils.info('Log file: {}'.format(path.abspath('./brewblox.log')))
     sh('echo "BREWBLOX DIAGNOSTIC DUMP" > brewblox.log')
     sh('date >> brewblox.log')
 
@@ -34,6 +35,7 @@ def add_vars():
             const.MDNS_PORT_KEY,
         ]
     }
+    utils.info('Writing Brewblox .env values...')
     sh([
         'echo "==============VARS==============" >> brewblox.log',
         'echo "$(uname -a)" >> brewblox.log',
@@ -45,6 +47,7 @@ def add_vars():
 
 def add_logs():
     sudo = utils.optsudo()
+    utils.info('Writing service logs...')
     sh('echo "==============LOGS==============" >> brewblox.log')
 
     try:
@@ -58,6 +61,7 @@ def add_logs():
 
 
 def add_compose():
+    utils.info('Writing docker-compose configuration...')
     sh([
         'echo "==============COMPOSE==============" >> brewblox.log',
         'cat docker-compose.yml >> brewblox.log',
@@ -69,39 +73,44 @@ def add_compose():
 def add_blocks():
     services = lib_utils.list_services('brewblox/brewblox-devcon-spark')
     base_url = lib_utils.base_url()
+
+    utils.info('Writing Spark blocks...')
     sh('echo "==============BLOCKS==============" >> brewblox.log')
     query = '{} http get --pretty {}/{}/objects >> brewblox.log || echo "{} not found" >> brewblox.log'
     sh(query.format(const.CLI, base_url, svc, svc) for svc in services)
 
 
-def add_inspect():
-    sudo = utils.optsudo()
-    sh([
-        'echo "==============INSPECT==============" >> brewblox.log',
-        'for cont in $({}docker-compose ps -q); do '.format(sudo) +
-        '{}docker inspect $({}docker inspect --format \'{}\' "$cont") >> brewblox.log; '.format(
-            sudo, sudo, '{{ .Image }}') +
-        'done;',
-    ])
-
-
 @cli.command()
-def log():
-    """Generate and share log file for bug reports"""
-    click.get_current_context().ensure_object(dict)['dry'] = True
-    utils.check_config()
+@click.option('--skip-compose',
+              is_flag=True,
+              help='Do not include docker-compose.yml content in log file.')
+@click.option('--skip-upload',
+              is_flag=True,
+              help='Do not upload log file to termbin.com.')
+def log(skip_compose, skip_upload):
+    """Generate and share log file for bug reports
 
-    compose_safe = utils.confirm('Can we include your docker-compose file? ' +
-                                 'You should choose "no" if it contains any passwords or other sensitive information')
+
+    \b
+    Steps:
+        - Create ./brewblox.log file.
+        - Append Brewblox .env variables.
+        - Append service logs.
+        - Append content of docker-compose.yml (optional).
+        - Append content of docker-comopse.shared.yml (optional).
+        - Append blocks from Spark services.
+        - Upload file to termbin.com for shareable link (optional).
+    """
+    utils.check_config()
+    utils.confirm_mode()
 
     add_header()
     add_vars()
     add_logs()
-    if compose_safe:
+    if not skip_compose:
         add_compose()
     add_blocks()
-    add_inspect()
 
-    click.echo('Generated log file {}/brewblox.log\n'.format(getcwd()))
-    if utils.confirm('Do you want to upload your log file to termbin.com to get a shareable link?'):
+    if not skip_upload:
+        utils.info('Uploading brewblox.log to termbin.com...')
         sh('cat brewblox.log | nc termbin.com 9999')

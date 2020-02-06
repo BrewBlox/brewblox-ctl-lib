@@ -7,13 +7,9 @@ import re
 import click
 import yaml
 
+from brewblox_ctl.const import LOG_COMPOSE
 from brewblox_ctl.utils import ctx_opts, getenv, is_pi
-from brewblox_ctl_lib.const import HOST, HTTPS_PORT_KEY, LOG_COMPOSE
-
-
-def is_dry():
-    ctx = click.get_current_context()
-    return ctx.ensure_object(dict).get('dry', False)
+from brewblox_ctl_lib.const import HOST, HTTPS_PORT_KEY
 
 
 def base_url():
@@ -27,6 +23,14 @@ def get_history_url():
 
 def get_datastore_url():
     return '{}/datastore'.format(base_url())
+
+
+def get_host_ip():
+    try:
+        # remote IP / port, local IP / port
+        return getenv('SSH_CONNECTION', '').split()[2]
+    except IndexError:
+        return '127.0.0.1'
 
 
 def config_name():
@@ -47,7 +51,7 @@ def write_compose(config, fname='docker-compose.yml'):  # pragma: no cover
     opts = ctx_opts()
     if opts.dry_run or opts.verbose:
         click.secho('{} {}'.format(LOG_COMPOSE, fname), fg='magenta', color=opts.color)
-
+        click.secho(yaml.safe_dump(config), fg='blue', color=opts.color)
     if not opts.dry_run:
         with open(fname, 'w') as f:
             yaml.safe_dump(config, f)
@@ -74,11 +78,3 @@ def check_service_name(ctx, param, value):
     if not re.match(r'^[a-z0-9-_]+$', value):
         raise click.BadParameter('Names can only contain lowercase letters, numbers, - or _')
     return value
-
-
-def get_host_url():
-    try:
-        # remote IP / port, local IP / port
-        return getenv('SSH_CONNECTION', '').split()[2]
-    except IndexError:
-        return '127.0.0.1'
