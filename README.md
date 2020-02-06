@@ -62,3 +62,9 @@ bash ../dev-deploy.sh
 ```
 
 Re-run `../dev-deploy.sh` any time you want to test new changes in a `brewblox-ctl` CLI context.
+
+When making simultaneous changes to `brewblox-ctl` and `brewblox-ctl-lib`, it is often easiest to create a link to `brewblox-ctl`.
+
+In either or both the `brewblox-ctl-lib` and the `brewblox-ctl-lib/brewblox` directory, run `ln -s <REPO_DIR>/brewblox_ctl brewblox_ctl`.
+
+Then invoke ctl by using `python -m brewblox_ctl`.

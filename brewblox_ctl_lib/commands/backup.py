@@ -12,8 +12,9 @@ from os import mkdir, path
 import click
 import requests
 import urllib3
-from brewblox_ctl import click_helpers, http, utils
 
+from brewblox_ctl import click_helpers, utils
+from brewblox_ctl.commands import http
 from brewblox_ctl_lib import lib_utils
 
 
