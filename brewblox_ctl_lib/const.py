@@ -3,22 +3,32 @@ Const values
 """
 import sys
 
-CURRENT_VERSION = '0.3.0'
+from brewblox_ctl import const
 
 PY = sys.executable
-CLI = '{} -m brewblox_ctl'.format(PY)
 ARGS = sys.argv
+CLI = '{} -m brewblox_ctl'.format(PY)
 HOST = 'https://localhost'
 CONFIG_SRC = './brewblox_ctl_lib/config_files/'
+
 UI_DATABASE = 'brewblox-ui-store'
 
-CFG_VERSION_KEY = 'BREWBLOX_CFG_VERSION'
-RELEASE_KEY = 'BREWBLOX_RELEASE'
+RELEASE_KEY = const.RELEASE_KEY
+CFG_VERSION_KEY = const.CFG_VERSION_KEY
 HTTP_PORT_KEY = 'BREWBLOX_PORT_HTTP'
 HTTPS_PORT_KEY = 'BREWBLOX_PORT_HTTPS'
 MDNS_PORT_KEY = 'BREWBLOX_PORT_MDNS'
 COMPOSE_FILES_KEY = 'COMPOSE_FILE'
 
+LOG_SHELL = const.LOG_SHELL
+LOG_PYTHON = const.LOG_PYTHON
+LOG_ENV = const.LOG_ENV
+LOG_COMPOSE = const.LOG_COMPOSE
+LOG_INFO = const.LOG_INFO
+LOG_WARN = const.LOG_WARN
+LOG_ERR = const.LOG_ERR
+
+CURRENT_VERSION = '0.3.0'
 ENV_DEFAULTS = {
     RELEASE_KEY: 'stable',
     HTTP_PORT_KEY: '80',

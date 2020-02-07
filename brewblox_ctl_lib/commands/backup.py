@@ -13,9 +13,9 @@ import click
 import requests
 import urllib3
 
-from brewblox_ctl import click_helpers, utils
+from brewblox_ctl import click_helpers
 from brewblox_ctl.commands import http
-from brewblox_ctl_lib import lib_utils
+from brewblox_ctl_lib import utils
 
 
 @click.group(cls=click_helpers.OrderedGroup)
@@ -38,13 +38,13 @@ def save():
     with suppress(FileExistsError):
         mkdir(path.abspath('backup/'))
 
-    url = lib_utils.get_datastore_url()
+    url = utils.get_datastore_url()
     http.wait(url)
     resp = requests.get(url + '/_all_dbs', verify=False)
     resp.raise_for_status()
     dbs = [v for v in resp.json() if not v.startswith('_')]
 
-    config = lib_utils.read_compose()
+    config = utils.read_compose()
     sparks = [
         k for k, v in config['services'].items()
         if v.get('image', '').startswith('brewblox/brewblox-devcon-spark')
@@ -64,7 +64,7 @@ def save():
 
     utils.info('Exporting Spark blocks:', ', '.join(sparks))
     for spark in sparks:
-        resp = requests.get('{}/{}/export_objects'.format(lib_utils.base_url(), spark), verify=False)
+        resp = requests.get('{}/{}/export_objects'.format(utils.base_url(), spark), verify=False)
         resp.raise_for_status()
         zipf.writestr(spark + '.spark.json', resp.text)
 

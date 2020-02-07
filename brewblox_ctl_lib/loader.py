@@ -2,8 +2,8 @@
 Collects and returns all CLI groups in the correct order
 """
 
-from brewblox_ctl_lib.commands import (backup, debug, service, setup, spark,
-                                       update)
+from brewblox_ctl_lib.commands import (backup, diagnostic, service, setup,
+                                       spark, update)
 
 
 def cli_sources():
@@ -12,6 +12,6 @@ def cli_sources():
         spark.cli,
         service.cli,
         update.cli,
-        debug.cli,
+        diagnostic.cli,
         backup.cli,
     ]

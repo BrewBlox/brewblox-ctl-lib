@@ -4,9 +4,8 @@ Implementation of brewblox-ctl setup
 
 import click
 
-from brewblox_ctl import click_helpers, utils
-from brewblox_ctl.utils import sh
-from brewblox_ctl_lib import const, lib_utils
+from brewblox_ctl import click_helpers, sh
+from brewblox_ctl_lib import const, utils
 
 
 @click.group(cls=click_helpers.OrderedGroup)
@@ -19,11 +18,12 @@ def check_ports():
         utils.info('Stopping services...')
         sh('{}docker-compose down --remove-orphans'.format(utils.optsudo()))
 
-    ports = [utils.getenv(key, const.ENV_DEFAULTS[key]) for key in [
-        const.HTTP_PORT_KEY,
-        const.HTTPS_PORT_KEY,
-        const.MDNS_PORT_KEY,
-    ]]
+    ports = [
+        utils.getenv(key, const.ENV_DEFAULTS[key]) for key in [
+            const.HTTP_PORT_KEY,
+            const.HTTPS_PORT_KEY,
+            const.MDNS_PORT_KEY,
+        ]]
 
     ports_ok = True
     for port in ports:
@@ -33,7 +33,7 @@ def check_ports():
             ports_ok = False
 
     if not ports_ok \
-            and not click.confirm('One or more ports are already in use. Do you want to continue?'):
+            and not utils.confirm('One or more ports are already in use. Do you want to continue?'):
         raise SystemExit(0)
 
 
@@ -48,55 +48,55 @@ def setup(port_check):
 
     sudo = utils.optsudo()
     config_images = ['traefik', 'influx', 'history']
-    datastore_url = lib_utils.get_datastore_url()
-    history_url = lib_utils.get_history_url()
+    datastore_url = utils.get_datastore_url()
+    history_url = utils.get_history_url()
 
     if port_check:
         check_ports()
 
-    setup_compose = \
-        not utils.path_exists('./docker-compose.yml') \
-        or not click.confirm('This directory already contains a docker-compose.yml file. ' +
-                             'Do you want to keep it?')
+    skip_compose = \
+        utils.path_exists('./docker-compose.yml') \
+        and utils.confirm('This directory already contains a docker-compose.yml file. ' +
+                          'Do you want to keep it?')
 
-    setup_datastore = \
-        not utils.path_exists('./couchdb/') \
-        or not click.confirm('This directory already contains datastore files. ' +
-                             'Do you want to keep them?')
+    skip_datastore = \
+        utils.path_exists('./couchdb/') \
+        and utils.confirm('This directory already contains Couchdb datastore files. ' +
+                          'Do you want to keep them?')
 
-    setup_history = \
-        not utils.path_exists('./influxdb/') \
-        or not click.confirm('This directory already contains history files. ' +
-                             'Do you want to keep them?')
+    skip_history = \
+        utils.path_exists('./influxdb/') \
+        and utils.confirm('This directory already contains Influx history files. ' +
+                          'Do you want to keep them?')
 
-    setup_gateway = \
-        not utils.path_exists('./traefik/') \
-        or not click.confirm('This directory already contains Traefik files. ' +
-                             'Do you want to keep them?')
+    skip_gateway = \
+        utils.path_exists('./traefik/') \
+        and utils.confirm('This directory already contains Traefik gateway files. ' +
+                          'Do you want to keep them?')
 
-    for key, default_val in const.ENV_DEFAULTS:
+    for key, default_val in const.ENV_DEFAULTS.items():
         utils.info('Setting .env values...')
         utils.setenv(key, utils.getenv(key, default_val))
 
-    if setup_compose:
+    if not skip_compose:
         utils.info('Copying configuration...')
-        sh('cp -f {}/{}/* ./'.format(const.CONFIG_SRC, lib_utils.config_name()))
+        sh('cp -f {}/{}/* ./'.format(const.CONFIG_SRC, utils.config_name()))
 
     # Pull after we're sure we have a compose file
     utils.info('Pulling docker images...')
     sh('{}docker-compose down --remove-orphans'.format(sudo))
     sh('{}docker-compose pull'.format(sudo))
 
-    if setup_datastore:
+    if not skip_datastore:
         utils.info('Creating datastore directory...')
         config_images.append('datastore')
         sh('sudo rm -rf ./couchdb/; mkdir ./couchdb/')
 
-    if setup_history:
+    if not skip_history:
         utils.info('Creating history directory...')
         sh('sudo rm -rf ./influxdb/; mkdir ./influxdb/')
 
-    if setup_gateway:
+    if not skip_gateway:
         utils.info('Creating gateway directory...')
         sh('sudo rm -rf ./traefik/; mkdir ./traefik/')
 
@@ -112,7 +112,7 @@ def setup(port_check):
     utils.info('Starting configured services...')
     sh('{}docker-compose up -d --remove-orphans {}'.format(sudo, ' '.join(config_images)))
 
-    if setup_datastore:
+    if not skip_datastore:
         modules = ['services', 'dashboards', 'dashboard-items']
         # Generic datastore setup
         utils.info('Configuring datastore settings...')
@@ -122,8 +122,8 @@ def setup(port_check):
         sh('{} http put {}/_global_changes'.format(const.CLI, datastore_url))
         sh('{} http put {}/{}'.format(const.CLI, datastore_url, const.UI_DATABASE))
         # Load presets
+        utils.info('Loading preset data...')
         for mod in modules:
-            utils.info('Loading preset data...')
             sh('{} http post {}/{}/_bulk_docs -f {}/presets/{}.json'.format(
                 const.CLI, datastore_url, const.UI_DATABASE, const.CONFIG_SRC, mod))
 

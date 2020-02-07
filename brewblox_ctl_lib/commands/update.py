@@ -6,9 +6,8 @@ from distutils.version import StrictVersion
 
 import click
 
-from brewblox_ctl import click_helpers, utils
-from brewblox_ctl.utils import sh
-from brewblox_ctl_lib import const, lib_utils
+from brewblox_ctl import click_helpers, sh
+from brewblox_ctl_lib import const, utils
 
 
 @click.group(cls=click_helpers.OrderedGroup)
@@ -17,7 +16,7 @@ def cli():
 
 
 def downed_migrate(prev_version):
-    """Migration commands to be executed while the services are down"""
+    """Migration commands to be executed without any running services"""
     if prev_version < StrictVersion('0.2.0'):
         # Breaking changes: Influx downsampling model overhaul
         # Old data is completely incompatible
@@ -29,7 +28,7 @@ def downed_migrate(prev_version):
         # Splitting compose configuration between docker-compose and docker-compose.shared.yml
         # Version pinning (0.2.2) will happen automatically
         utils.info('Moving system services to docker-compose.shared.yml')
-        config = lib_utils.read_compose()
+        config = utils.read_compose()
         sys_names = [
             'mdns',
             'eventbus',
@@ -43,7 +42,7 @@ def downed_migrate(prev_version):
             'version': config['version'],
             'services': {key: svc for (key, svc) in config['services'].items() if key not in sys_names}
         }
-        lib_utils.write_compose(usr_config)
+        utils.write_compose(usr_config)
 
         utils.info('Writing env values for all variables')
         for key in [
@@ -59,17 +58,16 @@ def downed_migrate(prev_version):
 def upped_migrate(prev_version):
     """Migration commands to be executed after the services have been started"""
     # Always run history configure
-    history_url = lib_utils.get_history_url()
+    history_url = utils.get_history_url()
     sh('{} http wait {}/ping'.format(const.CLI, history_url))
     sh('{} http post {}/query/configure'.format(const.CLI, history_url))
 
     # Ensure datastore system databases
-    datastore_url = lib_utils.get_datastore_url()
+    datastore_url = utils.get_datastore_url()
     sh('{} http wait {}'.format(const.CLI, datastore_url))
     sh('{} http put --allow-fail --quiet {}/_users'.format(const.CLI, datastore_url))
     sh('{} http put --allow-fail --quiet {}/_replicator'.format(const.CLI, datastore_url))
     sh('{} http put --allow-fail --quiet {}/_global_changes'.format(const.CLI, datastore_url))
-    utils.setenv(const.CFG_VERSION_KEY, const.CURRENT_VERSION)
 
 
 @cli.command()
@@ -92,14 +90,18 @@ def upped_migrate(prev_version):
               default=True,
               prompt='Do you want to remove old Docker images to free disk space?',
               help='Prune docker images.')
+@click.option('--from-version',
+              default='0.0.0',
+              envvar=const.CFG_VERSION_KEY,
+              help='Override current version number.')
 @click.pass_context
-def update(ctx, update_ctl, update_ctl_done, pull, migrate, copy_shared, prune):
+def update(ctx, update_ctl, update_ctl_done, pull, migrate, copy_shared, prune, from_version):
     """Update services and configuration"""
     utils.check_config()
     utils.confirm_mode()
     sudo = utils.optsudo()
 
-    prev_version = StrictVersion(utils.getenv(const.CFG_VERSION_KEY, '0.0.0'))
+    prev_version = StrictVersion(from_version)
 
     if prev_version.version == (0, 0, 0):
         click.echo('This configuration was never set up. Please run brewblox-ctl setup first')
@@ -107,9 +109,9 @@ def update(ctx, update_ctl, update_ctl_done, pull, migrate, copy_shared, prune):
 
     if prev_version > StrictVersion(const.CURRENT_VERSION):
         click.echo('Your system is running a version newer than the selected release. ' +
-                   'This may be due to switching release tracks')
-        if not utils.confirm('Do you want to continue?'):
-            raise SystemExit(1)
+                   'This may be due to switching release tracks.' +
+                   'You can use the --from-version flag if you know what you are doing.')
+        raise SystemExit(1)
 
     if update_ctl and not update_ctl_done:
         utils.info('Updating brewblox-ctl...')
@@ -129,7 +131,7 @@ def update(ctx, update_ctl, update_ctl_done, pull, migrate, copy_shared, prune):
 
     if copy_shared:
         sh('cp -f {}/{}/docker-compose.shared.yml ./'.format(
-            const.CONFIG_SRC, lib_utils.config_name()))
+            const.CONFIG_SRC, utils.config_name()))
 
     utils.info('Starting docker images...')
     sh('{}docker-compose up -d --remove-orphans'.format(sudo))
@@ -137,6 +139,9 @@ def update(ctx, update_ctl, update_ctl_done, pull, migrate, copy_shared, prune):
     if migrate:
         utils.info('Migrating services...')
         upped_migrate(prev_version)
+
+        utils.info('Updating version number to {}...'.format(const.CURRENT_VERSION))
+        utils.setenv(const.CFG_VERSION_KEY, const.CURRENT_VERSION)
 
     if prune:
         utils.info('Pruning unused images...')

@@ -7,14 +7,38 @@ import re
 import click
 import yaml
 
-from brewblox_ctl.const import LOG_COMPOSE
-from brewblox_ctl.utils import ctx_opts, getenv, is_pi
-from brewblox_ctl_lib.const import HOST, HTTPS_PORT_KEY
+from brewblox_ctl import utils
+from brewblox_ctl_lib import const
+
+# Module-level __getattr__ is reintroduced in 3.7
+# There are some hacks, but for now dumb is better than convoluted
+ctx_opts = utils.ctx_opts
+confirm = utils.confirm
+select = utils.select
+prompt_usb = utils.prompt_usb
+confirm_mode = utils.confirm_mode
+getenv = utils.getenv
+setenv = utils.setenv
+path_exists = utils.path_exists
+command_exists = utils.command_exists
+is_pi = utils.is_pi
+is_v6 = utils.is_v6
+is_root = utils.is_root
+is_docker_user = utils.is_docker_user
+is_brewblox_cwd = utils.is_brewblox_cwd
+optsudo = utils.optsudo
+tag_prefix = utils.tag_prefix
+docker_tag = utils.docker_tag
+check_config = utils.check_config
+sh = utils.sh
+check_ok = utils.check_ok
+info = utils.info
+load_ctl_lib = utils.load_ctl_lib
 
 
 def base_url():
-    port = getenv(HTTPS_PORT_KEY, '443')
-    return '{}:{}'.format(HOST, port)
+    port = getenv(const.HTTPS_PORT_KEY, '443')
+    return '{}:{}'.format(const.HOST, port)
 
 
 def get_history_url():
@@ -50,7 +74,7 @@ def read_compose(fname='docker-compose.yml'):
 def write_compose(config, fname='docker-compose.yml'):  # pragma: no cover
     opts = ctx_opts()
     if opts.dry_run or opts.verbose:
-        click.secho('{} {}'.format(LOG_COMPOSE, fname), fg='magenta', color=opts.color)
+        click.secho('{} {}'.format(const.LOG_COMPOSE, fname), fg='magenta', color=opts.color)
         click.secho(yaml.safe_dump(config), fg='blue', color=opts.color)
     if not opts.dry_run:
         with open(fname, 'w') as f:

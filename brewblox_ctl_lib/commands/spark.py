@@ -1,9 +1,8 @@
 
 import click
 
-from brewblox_ctl import click_helpers, const, utils
-from brewblox_ctl.utils import sh
-from brewblox_ctl_lib import lib_utils
+from brewblox_ctl import click_helpers, sh
+from brewblox_ctl_lib import utils
 
 
 @click.group(cls=click_helpers.OrderedGroup)
@@ -11,21 +10,33 @@ def cli():
     """Command collector"""
 
 
-def _discover_device(discovery, release, device_host):
-    discover_run = '{} discover {} {}'.format(
-        const.CLI,
-        '--release '.format(release) if release else '',
-        '--discovery ' + discovery)
+def discover_device(discovery, release):
+    sudo = utils.optsudo()
+    mdns = 'brewblox/brewblox-mdns:{}'.format(utils.docker_tag(release))
 
-    utils.info('Starting device discovery...')
-    devs = [dev for dev in sh(discover_run).split('\n') if dev.rstrip()]
+    utils.info('Pulling image...')
+    sh('{}docker pull {}'.format(sudo, mdns), silent=True)
+
+    utils.info('Discovering devices...')
+    raw_devs = sh('{}docker run '.format(sudo) +
+                  '--rm -it ' +
+                  '--net=host ' +
+                  '-v /dev/serial:/dev/serial ' +
+                  '{} --cli --discovery {}'.format(mdns, discovery),
+                  capture=True)
+
+    return [dev for dev in raw_devs.split('\n') if dev.rstrip()]
+
+
+def find_device(discovery, release, device_host):
+    devs = discover_device(discovery, release)
 
     if not devs:
         click.echo('No devices discovered')
-        return
+        return None
 
     if device_host:
-        for dev in devs:
+        for dev in devs:  # pragma: no cover
             if device_host in dev:
                 click.echo('Discovered device "{}" matching device host {}'.format(dev, device_host))
                 return dev
@@ -33,10 +44,9 @@ def _discover_device(discovery, release, device_host):
     for i, dev in enumerate(devs):
         click.echo('device {} :: {}'.format(i+1, dev))
 
-    click.echo('\n')
-    idx = -1
-    while idx < 1 or idx > len(devs):
-        idx = int(utils.select('Which device do you want to use?', '1'))
+    idx = click.prompt('Which device do you want to use?',
+                       type=click.IntRange(1, len(devs)),
+                       default=1)
 
     return devs[idx-1]
 
@@ -59,29 +69,21 @@ def discover_spark(discovery, release):
     Multicast DNS (mDNS) is used for Wifi discovery. Whether this works is dependent on your router's configuration.
     """
     utils.confirm_mode()
-    sudo = utils.optsudo()
-
-    mdns = 'brewblox/brewblox-mdns:{}'.format(utils.docker_tag(release))
-
-    utils.info('Preparing device discovery...')
-    sh('{}docker pull {}'.format(sudo, mdns), silent=True)
-
-    utils.info('Discovering devices...')
-    sh('{}docker run --net=host -v /dev/serial:/dev/serial --rm -it {} --cli --discovery {}'.format(
-        sudo, mdns, discovery))
+    for dev in discover_device(discovery, release):
+        click.echo(dev)
     utils.info('Done!')
 
 
 @cli.command()
 @click.option('-n', '--name',
               prompt='How do you want to call this service? The name must be unique',
-              callback=lib_utils.check_service_name,
+              callback=utils.check_service_name,
               help='Service name')
 @click.option('--discover-now/--no-discover-now',
               default=True,
               help='Select from discovered devices if --device-id is not set')
 @click.option('--device-id',
-              help='Check for device ID')
+              help='Checked device ID')
 @click.option('--discovery',
               type=click.Choice(['all', 'usb', 'wifi']),
               default='all',
@@ -110,19 +112,21 @@ def add_spark(name, discover_now, device_id, discovery, device_host, command, fo
     utils.confirm_mode()
 
     sudo = utils.optsudo()
-    config = lib_utils.read_compose()
+    config = utils.read_compose()
 
     if name in config['services'] and not force:
         click.echo('Service "{}" already exists. Use the --force flag if you want to overwrite it'.format(name))
-        return
+        raise SystemExit(1)
 
-    if device_id is None and device_host is None and discover_now:
-        dev = _discover_device(discovery, release, device_host)
+    if device_id is None and discover_now:
+        dev = find_device(discovery, release, device_host)
 
         if dev:
             device_id = dev.split(' ')[1]
-        else:
-            return
+        elif device_host is None:
+            # We have no device ID, and no device host. Avoid a wildcard service
+            click.echo('No valid combination of device ID and device host.')
+            raise SystemExit(1)
 
     commands = [
         '--name=' + name,
@@ -150,7 +154,7 @@ def add_spark(name, discover_now, device_id, discovery, device_host, command, fo
         'command': ' '.join(commands)
     }
 
-    lib_utils.write_compose(config)
+    utils.write_compose(config)
     click.echo('Added Spark service \'{}\'.'.format(name))
     click.echo('You can now add it as service in the UI.\n')
     if utils.confirm('Do you want to run \'brewblox-ctl up\' now?'):
