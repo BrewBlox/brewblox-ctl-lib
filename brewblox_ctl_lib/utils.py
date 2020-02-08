@@ -2,6 +2,7 @@
 Utility functions specific to lib
 """
 
+import json
 import re
 
 import click
@@ -36,6 +37,14 @@ info = utils.info
 warn = utils.warn
 error = utils.error
 load_ctl_lib = utils.load_ctl_lib
+
+
+def show_data(data):
+    opts = ctx_opts()
+    if opts.dry_run or opts.verbose:
+        if not isinstance(data, str):
+            data = json.dumps(data)
+        click.secho(data, fg='blue', color=opts.color)
 
 
 def base_url():
@@ -77,7 +86,7 @@ def write_compose(config, fname='docker-compose.yml'):  # pragma: no cover
     opts = ctx_opts()
     if opts.dry_run or opts.verbose:
         click.secho('{} {}'.format(const.LOG_COMPOSE, fname), fg='magenta', color=opts.color)
-        click.secho(yaml.safe_dump(config), fg='blue', color=opts.color)
+        show_data(yaml.safe_dump(config))
     if not opts.dry_run:
         with open(fname, 'w') as f:
             yaml.safe_dump(config, f)
