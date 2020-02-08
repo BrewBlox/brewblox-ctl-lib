@@ -2,6 +2,7 @@
 Tests brewblox_ctl_lib.utils
 """
 
+import json
 from unittest.mock import call
 
 import click
@@ -16,6 +17,23 @@ TESTED = utils.__name__
 @pytest.fixture
 def m_getenv(mocker):
     return mocker.patch(TESTED + '.getenv')
+
+
+def test_show_data(mocker):
+    m_opts = mocker.patch(TESTED + '.ctx_opts').return_value
+    m_secho = mocker.patch(TESTED + '.click.secho')
+
+    utils.show_data('text')
+    utils.show_data({'obj': True})
+    assert m_secho.call_count == 2
+    m_secho.assert_called_with(json.dumps({'obj': True}), fg='blue', color=m_opts.color)
+
+    m_secho.reset_mock()
+    m_opts.dry_run = False
+    m_opts.verbose = False
+
+    utils.show_data('text')
+    assert m_secho.call_count == 0
 
 
 def test_get_urls(m_getenv):
