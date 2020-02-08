@@ -12,6 +12,8 @@ CLEAN_BRANCH_NAME=$(echo "${TRAVIS_BRANCH:-$(git rev-parse --abbrev-ref HEAD)}" 
 REPO=brewblox/brewblox-ctl-lib
 TAG=${1:-${CLEAN_BRANCH_NAME}}
 
+# rpi- tags are no longer needed for ctl-lib
+# Keep them around for backwards compatibility
 docker tag ${REPO}:local ${REPO}:${TAG}
 docker tag ${REPO}:local ${REPO}:rpi-${TAG}
 
