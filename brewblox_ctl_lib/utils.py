@@ -15,7 +15,7 @@ from brewblox_ctl_lib import const
 ctx_opts = utils.ctx_opts
 confirm = utils.confirm
 select = utils.select
-prompt_usb = utils.prompt_usb
+confirm_usb = utils.confirm_usb
 confirm_mode = utils.confirm_mode
 getenv = utils.getenv
 setenv = utils.setenv
@@ -33,6 +33,8 @@ check_config = utils.check_config
 sh = utils.sh
 check_ok = utils.check_ok
 info = utils.info
+warn = utils.warn
+error = utils.error
 load_ctl_lib = utils.load_ctl_lib
 
 

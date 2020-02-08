@@ -18,10 +18,10 @@
     "default": {
         "brewblox-ctl": {
             "hashes": [
-                "sha256:f13c9dda7f9e19e55f55b92367bd72c8dc6d42af72bf896d127e96e7188027cf"
+                "sha256:4e9c7a0a74432dee5d8586267b013d0c508cdf4c1e08d085148718da579d927c"
             ],
             "index": "pypi",
-            "version": "==0.14.2.dev5"
+            "version": "==0.14.2.dev20"
         },
         "certifi": {
             "hashes": [
@@ -62,10 +62,10 @@
                 "cli"
             ],
             "hashes": [
-                "sha256:440c7c23d53b7d352f9c94d6f70860242c2f071cf5c029dd661ccb22d64ae42b",
-                "sha256:f254bfd0c970d64ccbb6c9ebef3667ab301a71473569c991253a481f1c98dddc"
+                "sha256:8429f459fc041237d98c9ff32e1938e7e5535b5ff24388876315a098027c3a57",
+                "sha256:ca9f3debf2262170d6f46571ce4d6ca1add60bb93b69c3a29dcb3d1a00a65c93"
             ],
-            "version": "==0.10.5"
+            "version": "==0.11.0"
         },
         "pyyaml": {
             "hashes": [

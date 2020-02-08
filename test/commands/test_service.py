@@ -2,10 +2,11 @@
 Tests brewblox_ctl_lib.commands.service
 """
 
+from unittest.mock import Mock
+
 import pytest
 
 from brewblox_ctl.testing import check_sudo, invoke
-from brewblox_ctl_lib import const
 from brewblox_ctl_lib.commands import service
 
 TESTED = service.__name__
@@ -30,21 +31,37 @@ def m_sh(mocker):
     return m
 
 
+def test_restart_services(m_utils):
+    m_utils.confirm.side_effect = [
+        False,
+        True
+    ]
+    ctx = Mock()
+    service.restart_services(ctx)
+    assert ctx.invoke.call_count == 0
+
+    service.restart_services(ctx)
+    assert ctx.invoke.call_count == 1
+
+
 def test_show(m_utils, m_sh):
     m_utils.list_services.return_value = ['s1', 's2']
     invoke(service.show, '--image brewblox --file docker-compose.shared.yml')
     m_utils.list_services.assert_called_once_with('brewblox', 'docker-compose.shared.yml')
 
 
-def test_remove(m_utils, m_sh):
+def test_remove(m_utils, m_sh, mocker):
+    mocker.patch(TESTED + '.restart_services')
     invoke(service.remove, '-n spark-one')
     invoke(service.remove, '-n spark-none')
     invoke(service.remove, _err=True)
 
 
-def test_editor(m_utils, m_sh):
+def test_editor(m_utils, m_sh, mocker):
+    m_restart = mocker.patch(TESTED + '.restart_services')
+
     invoke(service.editor)
-    assert m_utils.confirm.call_count == 0
+    assert m_restart.call_count == 0
 
     m_utils.read_file.side_effect = [
         {
@@ -58,6 +75,11 @@ def test_editor(m_utils, m_sh):
             }
         },
     ]
+
     invoke(service.editor)
-    assert m_utils.confirm.call_count == 1
-    m_sh.assert_any_call('{} restart'.format(const.CLI))
+    assert m_restart.call_count == 1
+
+
+def test_ports(m_utils, m_sh):
+    invoke(service.ports)
+    assert m_utils.setenv.call_count == 3

@@ -2,6 +2,8 @@
 Implementation of brewblox-ctl setup
 """
 
+import re
+
 import click
 
 from brewblox_ctl import click_helpers, sh
@@ -25,16 +27,26 @@ def check_ports():
             const.MDNS_PORT_KEY,
         ]]
 
-    ports_ok = True
-    for port in ports:
-        if utils.check_ok('sudo netstat -tulpn | grep ":{}[[:space:]]"'.format(port)):
-            click.echo('WARNING: port {} is already in use. '.format(port) +
-                       'Run "brewblox-ctl ports" to configure Brewblox ports.')
-            ports_ok = False
+    utils.info('Checking ports...')
+    retv = sh('sudo netstat -tulpn', capture=True)
+    lines = retv.split('\n')
 
-    if not ports_ok \
-            and not utils.confirm('One or more ports are already in use. Do you want to continue?'):
-        raise SystemExit(0)
+    used_ports = []
+    used_lines = []
+    for port in ports:
+        for line in lines:
+            if re.match(r'.*(:::|0.0.0.0:){}\s.*'.format(port), line):
+                used_ports.append(port)
+                used_lines.append(line)
+                break
+
+    if used_ports:
+        utils.warn('Port(s) {} already in use. '.format(', '.join(used_ports)) +
+                   'Run \'brewblox-ctl service ports\' to configure Brewblox ports.')
+        for line in used_lines:
+            utils.warn(line)
+        if not utils.confirm('Do you want to continue?'):
+            raise SystemExit(1)
 
 
 @cli.command()
@@ -42,14 +54,39 @@ def check_ports():
               default=True,
               help='Check whether ports are already in use')
 def setup(port_check):
-    """Run first-time setup"""
+    """First-time setup.
+
+    Run after brewblox-ctl install, in the newly created Brewblox directory.
+    This will create all required configuration files for your system.
+
+    You can safely use this command to partially reset your system.
+    Before making any changes, it will check for existing files,
+    and prompt if any are found. It will do so separately for docker-compose,
+    datastore, history, and gateway files.
+    Choose to skip any, and the others will still be created and configured.
+
+    \b
+    Steps:
+        - Check whether files already exist.
+        - Set .env values.
+        - Create docker-compose configuration files. (Optional)
+        - Pull docker images.
+        - Create datastore (CouchDB) directory.      (Optional)
+        - Create history (InfluxDB) directory.       (Optional)
+        - Create gateway (Traefik) directory.        (Optional)
+        - Create SSL certificates.                   (Optional)
+        - Start and configure services.              (Optional)
+        - Stop all services.
+        - Set version number in .env.
+    """
     utils.check_config()
     utils.confirm_mode()
 
     sudo = utils.optsudo()
-    config_images = ['traefik', 'influx', 'history']
     datastore_url = utils.get_datastore_url()
     history_url = utils.get_history_url()
+    upped_services = ['traefik', 'influx', 'history']
+    preset_modules = ['services', 'dashboards', 'dashboard-items']
 
     if port_check:
         check_ports()
@@ -82,14 +119,15 @@ def setup(port_check):
         utils.info('Copying configuration...')
         sh('cp -f {}/{}/* ./'.format(const.CONFIG_SRC, utils.config_name()))
 
-    # Pull after we're sure we have a compose file
-    utils.info('Pulling docker images...')
+    # Stop and pull after we're sure we have a compose file
+    utils.info('Stopping services...')
     sh('{}docker-compose down --remove-orphans'.format(sudo))
+    utils.info('Pulling docker images...')
     sh('{}docker-compose pull'.format(sudo))
 
     if not skip_datastore:
         utils.info('Creating datastore directory...')
-        config_images.append('datastore')
+        upped_services.append('datastore')
         sh('sudo rm -rf ./couchdb/; mkdir ./couchdb/')
 
     if not skip_history:
@@ -110,10 +148,9 @@ def setup(port_check):
 
     # Bring images online that we will send configuration
     utils.info('Starting configured services...')
-    sh('{}docker-compose up -d --remove-orphans {}'.format(sudo, ' '.join(config_images)))
+    sh('{}docker-compose up -d --remove-orphans {}'.format(sudo, ' '.join(upped_services)))
 
     if not skip_datastore:
-        modules = ['services', 'dashboards', 'dashboard-items']
         # Generic datastore setup
         utils.info('Configuring datastore settings...')
         sh('{} http wait {}'.format(const.CLI, datastore_url))
@@ -123,7 +160,7 @@ def setup(port_check):
         sh('{} http put {}/{}'.format(const.CLI, datastore_url, const.UI_DATABASE))
         # Load presets
         utils.info('Loading preset data...')
-        for mod in modules:
+        for mod in preset_modules:
             sh('{} http post {}/{}/_bulk_docs -f {}/presets/{}.json'.format(
                 const.CLI, datastore_url, const.UI_DATABASE, const.CONFIG_SRC, mod))
 
@@ -139,29 +176,3 @@ def setup(port_check):
     # Setup is complete and ok - now set CFG version
     utils.setenv(const.CFG_VERSION_KEY, const.CURRENT_VERSION)
     utils.info('All done!')
-
-
-@cli.command()
-@click.option('--http',
-              envvar=const.HTTP_PORT_KEY,
-              help='Port used for HTTP connections.')
-@click.option('--https',
-              envvar=const.HTTPS_PORT_KEY,
-              help='Port used for HTTPS connections.')
-@click.option('--mdns',
-              envvar=const.MDNS_PORT_KEY,
-              help='Port used for mDNS discovery.')
-def ports(http, https, mdns):
-    """Update used ports"""
-    utils.check_config()
-    utils.confirm_mode()
-
-    cfg = {
-        const.HTTP_PORT_KEY: http,
-        const.HTTPS_PORT_KEY: https,
-        const.MDNS_PORT_KEY: mdns,
-    }
-
-    utils.info('Writing port settings to .env...')
-    for key, val in cfg.items():
-        utils.setenv(key, val)

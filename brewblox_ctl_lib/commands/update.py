@@ -73,30 +73,71 @@ def upped_migrate(prev_version):
 @cli.command()
 @click.option('--update-ctl/--no-update-ctl',
               default=True,
-              help='Update brewblox-ctl')
+              help='Update brewblox-ctl.')
 @click.option('--update-ctl-done',
               is_flag=True,
               hidden=True)
 @click.option('--pull/--no-pull',
               default=True,
-              help='Update Docker service images')
+              help='Update Docker service images.')
 @click.option('--migrate/--no-migrate',
               default=True,
-              help='Migrate Brewblox configuration to the new version')
+              help='Migrate Brewblox configuration and service settings.')
 @click.option('--copy-shared/--no-copy-shared',
               default=True,
-              help='Reset docker-compose.shared.yml file to default')
+              help='Reset docker-compose.shared.yml file to defaults.')
 @click.option('--prune/--no-prune',
               default=True,
               prompt='Do you want to remove old Docker images to free disk space?',
-              help='Prune docker images.')
+              help='Remove unused Docker images.')
 @click.option('--from-version',
               default='0.0.0',
               envvar=const.CFG_VERSION_KEY,
-              help='Override current version number.')
+              help='[ADVANCED] Override current version number.')
 @click.pass_context
 def update(ctx, update_ctl, update_ctl_done, pull, migrate, copy_shared, prune, from_version):
-    """Update services and configuration"""
+    """Download and apply updates.
+
+    This is the one-stop-shop for updating your Brewblox install.
+    You can use any of the options to fine-tune the update by enabling or disabling subroutines.
+
+    By default, all options are enabled.
+
+    --update-ctl/--no-update-ctl determines whether it download new versions
+    of brewblox-ctl and brewblox-ctl lib. If this flag is set, update will download the new version
+    and then restart itself. This way, the migrate is done with the latest version of brewblox-ctl.
+
+    If you're using dry run mode, you'll notice the hidden option --update-ctl-done.
+    You can use it to watch the rest of the update: it\'s a flag to avoid endless loops.
+
+    --pull/--no-pull governs whether new Docker images are pulled.
+    This is useful if any of your services is using a local image (not from Docker Hub).
+
+    --copy-shared/--no-copy-shared. By default, docker-compose.shared.yml is recreated every update.
+    Manually editing docker-compose.shared.yml is possible, but highly discouraged.
+    Consider using docker-compose.override.yml instead.
+
+    --migrate/--no-migrate. Updates regularly require changes to configuration.
+    To do this, services are stopped. If the update only requires pulling Docker images,
+    you can disable migration to avoid the docker-compose down/up.
+
+    --prune/--no-prune (prompts if not set). Updates to Docker images can leave unused old versions
+    on your system. These can be pruned to free up disk space.
+    Do note that this includes all images on your system, not just those created by Brewblox.
+
+    \b
+    Steps:
+        - Update brewblox-ctl and extensions.
+        - Restart update command to run with updated brewblox-ctl.
+        - Pull Docker images.
+        - Stop services.
+        - Migrate configuration files.
+        - Copy docker-compose.shared.yml from defaults.
+        - Start services.
+        - Migrate service configuration.
+        - Write version number to .env file.
+        - Prune unused images.
+    """
     utils.check_config()
     utils.confirm_mode()
     sudo = utils.optsudo()
@@ -126,18 +167,22 @@ def update(ctx, update_ctl, update_ctl_done, pull, migrate, copy_shared, prune, 
         sh('{}docker-compose pull'.format(sudo))
 
     if migrate:
-        utils.info('Migrating configuration...')
+        # Everything except downed_migrate can be done with running services
+        utils.info('Stopping services...')
+        sh('{}docker-compose down'.format(sudo))
+
+        utils.info('Migrating configuration files...')
         downed_migrate(prev_version)
 
     if copy_shared:
         sh('cp -f {}/{}/docker-compose.shared.yml ./'.format(
             const.CONFIG_SRC, utils.config_name()))
 
-    utils.info('Starting docker images...')
+    utils.info('Starting services...')
     sh('{}docker-compose up -d --remove-orphans'.format(sudo))
 
     if migrate:
-        utils.info('Migrating services...')
+        utils.info('Migrating service configuration...')
         upped_migrate(prev_version)
 
         utils.info('Updating version number to {}...'.format(const.CURRENT_VERSION))

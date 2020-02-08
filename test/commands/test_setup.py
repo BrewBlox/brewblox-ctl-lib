@@ -43,9 +43,18 @@ def test_setup_port_check(m_utils, m_sh, mocker):
 
 
 def test_port_check(m_utils, m_sh):
+    m_utils.getenv.side_effect = lambda k, default: default
     setup.check_ports()
 
     m_utils.path_exists.return_value = False
+    setup.check_ports()
+
+    # Find a mapped port
+    m_sh.return_value = '\n'.join([
+        'tcp6 0 0 :::1234 :::* LISTEN 11557/docker-proxy',
+        'tcp6 0 0 :::80 :::* LISTEN 11557/docker-proxy',
+        'tcp6 0 0 :::1234 :::* LISTEN 11557/docker-proxy'
+    ])
     setup.check_ports()
 
     m_utils.confirm.return_value = False
@@ -53,7 +62,7 @@ def test_port_check(m_utils, m_sh):
         setup.check_ports()
 
     # no mapped ports found -> no need for confirm
-    m_utils.check_ok.return_value = False
+    m_sh.return_value = ''
     setup.check_ports()
 
 
@@ -62,8 +71,3 @@ def test_setup_unconfirmed(m_utils, m_sh, mocker):
     m_utils.confirm.return_value = False
 
     invoke(setup.setup)
-
-
-def test_ports(m_utils, m_sh):
-    invoke(setup.ports)
-    assert m_utils.setenv.call_count == 3

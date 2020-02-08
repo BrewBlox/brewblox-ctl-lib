@@ -23,6 +23,7 @@ def m_utils(mocker):
 
 
 def test_save_backup(mocker, m_utils):
+    mocker.patch(TESTED + '.http.wait')
     mkdir_mock = mocker.patch(TESTED + '.mkdir')
     get_mock = mocker.patch(TESTED + '.requests.get')
     zipf_mock = mocker.patch(TESTED + '.zipfile.ZipFile')

@@ -25,12 +25,34 @@ def cli():
 
 @cli.group()
 def backup():
-    """Commands for creating and loading backups"""
+    """Group: save and load backups."""
 
 
 @backup.command()
 def save():
-    """Export datastore files and Spark blocks to zip file"""
+    """Create a backup of Brewblox settings.
+
+    A zip file with the output is created in the backup/ directory.
+    The file name will include current date and time.
+
+    The created file is not exported to any kind of remote/cloud storage.
+
+    To use this command in scripts, run it as `brewblox-ctl --quiet backup save`.
+    Its only output to stdout will be the absolute path to the generated file.
+
+    The command will fail if any of the Spark services could not be contacted.
+
+    \b
+    Stored data:
+    - Datastore content.
+    - docker-compose.yml.
+    - Blocks for all Spark services in docker-compose.yml.
+
+    \b
+    NOT stored:
+    - History data.
+
+    """
     utils.check_config()
     urllib3.disable_warnings()
 
@@ -39,7 +61,7 @@ def save():
         mkdir(path.abspath('backup/'))
 
     url = utils.get_datastore_url()
-    http.wait(url)
+    http.wait(url, info_updates=True)
     resp = requests.get(url + '/_all_dbs', verify=False)
     resp.raise_for_status()
     dbs = [v for v in resp.json() if not v.startswith('_')]
@@ -51,7 +73,7 @@ def save():
     ]
     zipf = zipfile.ZipFile(file, 'w', zipfile.ZIP_DEFLATED)
 
-    utils.info('Exporting databases:', ', '.join(dbs))
+    utils.info('Exporting databases: {}'.format(', '.join(dbs)))
     for db in dbs:
         resp = requests.get('{}/{}/_all_docs'.format(url, db),
                             params={'include_docs': True},
@@ -62,11 +84,12 @@ def save():
             del d['_rev']
         zipf.writestr(db + '.datastore.json', json.dumps(docs))
 
-    utils.info('Exporting Spark blocks:', ', '.join(sparks))
     for spark in sparks:
+        utils.info('Exporting Spark blocks from \'{}\''.format(spark))
         resp = requests.get('{}/{}/export_objects'.format(utils.base_url(), spark), verify=False)
         resp.raise_for_status()
         zipf.writestr(spark + '.spark.json', resp.text)
 
     zipf.close()
-    utils.info('Created', path.abspath(file))
+    click.echo(path.abspath(file))
+    utils.info('Done!')
