@@ -33,6 +33,12 @@ services:
     labels:
       - "traefik.port=5000"
       - "traefik.frontend.rule=PathPrefix: /history"
+  emitter:
+    image: brewblox/brewblox-emitter:rpi-${BREWBLOX_RELEASE}
+    restart: unless-stopped
+    labels:
+      - "traefik.port=5000"
+      - "traefik.frontend.rule=PathPrefix: /emitter"
   traefik:
     image: traefik:v1.7
     restart: unless-stopped

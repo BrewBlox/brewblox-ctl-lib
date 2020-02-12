@@ -2,12 +2,10 @@ version: "3"
 
 services:
   spark-one:
-    image: brewblox/brewblox-devcon-spark:rpi-${BREWBLOX_RELEASE}
+    image: brewblox/brewblox-devcon-spark:${BREWBLOX_RELEASE}
     privileged: true
     restart: unless-stopped
     labels:
       - "traefik.port=5000"
       - "traefik.frontend.rule=PathPrefix: /spark-one"
-    command: >
-      --name=spark-one
-      --mdns-port=${BREWBLOX_PORT_MDNS}
+    command: --name=spark-one --mdns-port=${BREWBLOX_PORT_MDNS}
