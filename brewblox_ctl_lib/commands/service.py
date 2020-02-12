@@ -3,9 +3,9 @@ User service management
 """
 
 import click
-
 from brewblox_ctl import click_helpers, sh
 from brewblox_ctl.commands.docker import restart
+
 from brewblox_ctl_lib import const, utils
 
 
@@ -16,7 +16,7 @@ def cli():
 
 @cli.group()
 def service():
-    """Group: show or edit services in docker-compose.yml."""
+    """Show or edit services in docker-compose.yml."""
 
 
 def restart_services(ctx):
@@ -63,7 +63,7 @@ def remove(ctx, name):
 def editor(ctx, port):
     """Run web-based docker-compose.yml editor.
 
-    This will start a new Docker container listening on a host port (default: 8300).
+    This will start a new docker container listening on a host port (default: 8300).
     Navigate there in your browser to access the GUI for editing docker-compose.yml.
 
     When you're done editing, save your file in the GUI, and press Ctrl+C in the terminal.
@@ -74,7 +74,7 @@ def editor(ctx, port):
     orig = utils.read_file('docker-compose.yml')
 
     sudo = utils.optsudo()
-    host_ip = utils.get_host_ip()
+    host_ip = utils.host_ip()
     editor = 'brewblox/brewblox-web-editor:{}'.format(utils.docker_tag())
 
     utils.info('Pulling image...')

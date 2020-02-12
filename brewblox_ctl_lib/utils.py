@@ -7,8 +7,8 @@ import re
 
 import click
 import yaml
-
 from brewblox_ctl import utils
+
 from brewblox_ctl_lib import const
 
 # Module-level __getattr__ is reintroduced in 3.7
@@ -47,29 +47,25 @@ def show_data(data):
         click.secho(data, fg='blue', color=opts.color)
 
 
-def base_url():
+def host_url():
     port = getenv(const.HTTPS_PORT_KEY, '443')
     return '{}:{}'.format(const.HOST, port)
 
 
-def get_history_url():
-    return '{}/history'.format(base_url())
+def history_url():
+    return '{}/history'.format(host_url())
 
 
-def get_datastore_url():
-    return '{}/datastore'.format(base_url())
+def datastore_url():
+    return '{}/datastore'.format(host_url())
 
 
-def get_host_ip():
+def host_ip():
     try:
         # remote IP / port, local IP / port
         return getenv('SSH_CONNECTION', '').split()[2]
     except IndexError:
         return '127.0.0.1'
-
-
-def config_name():
-    return 'armhf' if is_pi() else 'amd64'
 
 
 def read_file(fname):  # pragma: no cover

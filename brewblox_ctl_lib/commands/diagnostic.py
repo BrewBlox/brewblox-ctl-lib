@@ -100,10 +100,10 @@ def log(add_compose, upload):
     # Add blocks
     utils.info('Writing Spark blocks...')
     sh('echo "==============BLOCKS==============" >> brewblox.log')
-    base_url = utils.base_url()
+    host_url = utils.host_url()
     services = utils.list_services('brewblox/brewblox-devcon-spark')
     query = '{} http get --pretty {}/{}/objects >> brewblox.log || echo "{} not found" >> brewblox.log'
-    sh(query.format(const.CLI, base_url, svc, svc) for svc in services)
+    sh(query.format(const.CLI, host_url, svc, svc) for svc in services)
 
     # Upload
     if upload:

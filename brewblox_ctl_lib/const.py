@@ -3,13 +3,16 @@ Const values
 """
 import sys
 
-from brewblox_ctl import const
+from brewblox_ctl import const, utils
 
 PY = sys.executable
 ARGS = sys.argv
 CLI = '{} -m brewblox_ctl'.format(PY)
 HOST = 'https://localhost'
-CONFIG_SRC = './brewblox_ctl_lib/config_files/'
+DATA_SRC = './brewblox_ctl_lib/data'
+PRESETS_DIR = DATA_SRC + '/presets'
+CONFIG_DIR = DATA_SRC + ('/armhf' if utils.is_pi() else '/amd64')
+
 
 UI_DATABASE = 'brewblox-ui-store'
 

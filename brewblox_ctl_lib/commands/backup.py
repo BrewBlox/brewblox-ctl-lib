@@ -14,9 +14,9 @@ import click
 import requests
 import urllib3
 import yaml
-
 from brewblox_ctl import click_helpers, sh
 from brewblox_ctl.commands import http
+
 from brewblox_ctl_lib import const, utils
 
 
@@ -27,7 +27,7 @@ def cli():
 
 @cli.group()
 def backup():
-    """Group: save and load backups."""
+    """Save or load backups."""
 
 
 @backup.command()
@@ -68,7 +68,7 @@ def save(save_compose):
     with suppress(FileExistsError):
         mkdir(path.abspath('backup/'))
 
-    url = utils.get_datastore_url()
+    url = utils.datastore_url()
 
     utils.info('Waiting for the datastore...')
     http.wait(url, info_updates=True)
@@ -100,7 +100,7 @@ def save(save_compose):
 
     for spark in sparks:
         utils.info('Exporting Spark blocks from \'{}\''.format(spark))
-        resp = requests.get('{}/{}/export_objects'.format(utils.base_url(), spark), verify=False)
+        resp = requests.get('{}/{}/export_objects'.format(utils.host_url(), spark), verify=False)
         resp.raise_for_status()
         zipf.writestr(spark + '.spark.json', resp.text)
 
@@ -143,8 +143,8 @@ def load(archive, load_compose, load_datastore, load_spark):
     urllib3.disable_warnings()
 
     sudo = utils.optsudo()
-    base_url = utils.base_url()
-    store_url = utils.get_datastore_url()
+    host_url = utils.host_url()
+    store_url = utils.datastore_url()
 
     zipf = zipfile.ZipFile(archive, 'r', zipfile.ZIP_DEFLATED)
     available = zipf.namelist()
@@ -193,7 +193,7 @@ def load(archive, load_compose, load_datastore, load_spark):
                 utils.show_data(data)
                 json.dump(data, tmp)
                 tmp.flush()
-                sh('{} http post {}/{}/import_objects -f {}'.format(const.CLI, base_url, spark, tmp.name))
+                sh('{} http post {}/{}/import_objects -f {}'.format(const.CLI, host_url, spark, tmp.name))
 
     zipf.close()
     utils.info('Done!')
