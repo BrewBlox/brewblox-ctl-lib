@@ -159,7 +159,7 @@ def update(ctx, update_ctl, update_ctl_done, pull, migrate, copy_shared, prune, 
         sh('sudo {} -m pip install -U brewblox-ctl'.format(const.PY))
         utils.load_ctl_lib()
         # Restart ctl - we just replaced the source code
-        sh(' '.join([const.PY, *const.ARGS, '--update-ctl-done']))
+        sh(' '.join([const.PY, *const.ARGS, '--update-ctl-done', '--prune' if prune else '--no-prune']))
         return
 
     if pull:
