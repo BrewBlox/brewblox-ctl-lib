@@ -5,8 +5,8 @@ Implementation of brewblox-ctl setup
 import re
 
 import click
-
 from brewblox_ctl import click_helpers, sh
+
 from brewblox_ctl_lib import const, utils
 
 
@@ -54,7 +54,7 @@ def check_ports():
               default=True,
               help='Check whether ports are already in use')
 def setup(port_check):
-    """First-time setup.
+    """Run first-time setup in Brewblox directory.
 
     Run after brewblox-ctl install, in the newly created Brewblox directory.
     This will create all required configuration files for your system.
@@ -83,8 +83,8 @@ def setup(port_check):
     utils.confirm_mode()
 
     sudo = utils.optsudo()
-    datastore_url = utils.get_datastore_url()
-    history_url = utils.get_history_url()
+    datastore_url = utils.datastore_url()
+    history_url = utils.history_url()
     upped_services = ['traefik', 'influx', 'history']
     preset_modules = ['services', 'dashboards', 'dashboard-items']
 
@@ -111,13 +111,13 @@ def setup(port_check):
         and utils.confirm('This directory already contains Traefik gateway files. ' +
                           'Do you want to keep them?')
 
+    utils.info('Setting .env values...')
     for key, default_val in const.ENV_DEFAULTS.items():
-        utils.info('Setting .env values...')
         utils.setenv(key, utils.getenv(key, default_val))
 
     if not skip_compose:
         utils.info('Copying configuration...')
-        sh('cp -f {}/{}/* ./'.format(const.CONFIG_SRC, utils.config_name()))
+        sh('cp -f {}/* ./'.format(const.CONFIG_DIR))
 
     # Stop and pull after we're sure we have a compose file
     utils.info('Stopping services...')
@@ -139,9 +139,9 @@ def setup(port_check):
         sh('sudo rm -rf ./traefik/; mkdir ./traefik/')
 
         utils.info('Creating SSL certificate...')
-        sh('sudo openssl req -x509 -nodes -days 3650 -newkey rsa:2048 '
-            '-subj "/C=NL/ST=./L=./O=Brewblox/OU=./CN=." '
-            '-keyout traefik/brewblox.key '
+        sh('sudo openssl req -x509 -nodes -days 3650 -newkey rsa:2048 ' +
+            '-subj "/C=NL/ST=./L=./O=Brewblox/OU=./CN=." ' +
+            '-keyout traefik/brewblox.key ' +
             '-out traefik/brewblox.crt')
         sh('sudo chmod 644 traefik/brewblox.crt')
         sh('sudo chmod 600 traefik/brewblox.key')
@@ -161,8 +161,8 @@ def setup(port_check):
         # Load presets
         utils.info('Loading preset data...')
         for mod in preset_modules:
-            sh('{} http post {}/{}/_bulk_docs -f {}/presets/{}.json'.format(
-                const.CLI, datastore_url, const.UI_DATABASE, const.CONFIG_SRC, mod))
+            sh('{} http post {}/{}/_bulk_docs -f {}/{}.json'.format(
+                const.CLI, datastore_url, const.UI_DATABASE, const.PRESETS_DIR, mod))
 
     # Always setup history
     utils.info('Configuring history settings...')

@@ -1,7 +1,7 @@
 
 import click
-
 from brewblox_ctl import click_helpers, sh
+
 from brewblox_ctl_lib import utils
 
 
@@ -63,7 +63,7 @@ def discover_spark(discovery, release):
     """
     Discover available Spark controllers.
 
-    This yields device ID for all devices, and IP address for Wifi devices.
+    This prints device ID for all devices, and IP address for Wifi devices.
     If a device is connected over USB, and has Wifi active, it may show up twice.
 
     Multicast DNS (mDNS) is used for Wifi discovery. Whether this works is dependent on your router's configuration.
@@ -156,6 +156,6 @@ def add_spark(name, discover_now, device_id, discovery, device_host, command, fo
 
     utils.write_compose(config)
     click.echo('Added Spark service \'{}\'.'.format(name))
-    click.echo('You can now add it as service in the UI.\n')
+    click.echo('It will automatically show up in the UI.\n')
     if utils.confirm('Do you want to run \'brewblox-ctl up\' now?'):
         sh('{}docker-compose up -d --remove-orphans'.format(sudo))

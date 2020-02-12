@@ -55,16 +55,15 @@ As it does not contain executable code, we don't need to build separate images f
 
 `./dev/` and `./brewblox/` are added to `.gitignore`. To create a dev environment, run the following commands:
 
-```
+```bash
 brewblox-ctl install
 cd brewblox
-bash ../dev-deploy.sh
+ln -s ../brewblox_ctl_lib brewblox_ctl_lib
+
+# Optional
+ln -s <BREWBLOX_CTL_REPO_DIR>/brewblox_ctl brewblox_ctl
 ```
 
-Re-run `../dev-deploy.sh` any time you want to test new changes in a `brewblox-ctl` CLI context.
+Creating links to the source code of brewblox_ctl and brewblox_ctl_lib allows you to make changes, and use them in a brewblox install dir without having to go through any deployment steps.
 
-When making simultaneous changes to `brewblox-ctl` and `brewblox-ctl-lib`, it is often easiest to create a link to `brewblox-ctl`.
-
-In either or both the `brewblox-ctl-lib` and the `brewblox-ctl-lib/brewblox` directory, run `ln -s <REPO_DIR>/brewblox_ctl brewblox_ctl`.
-
-Then invoke ctl by using `python -m brewblox_ctl`.
+The link to brewblox_ctl is only required if you're simultaneously making changes to brewblox_ctl and brewblox_ctl_lib.

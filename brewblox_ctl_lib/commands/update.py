@@ -5,8 +5,8 @@ Migration scripts
 from distutils.version import StrictVersion
 
 import click
-
 from brewblox_ctl import click_helpers, sh
+
 from brewblox_ctl_lib import const, utils
 
 
@@ -58,12 +58,12 @@ def downed_migrate(prev_version):
 def upped_migrate(prev_version):
     """Migration commands to be executed after the services have been started"""
     # Always run history configure
-    history_url = utils.get_history_url()
+    history_url = utils.history_url()
     sh('{} http wait {}/ping'.format(const.CLI, history_url))
     sh('{} http post {}/query/configure'.format(const.CLI, history_url))
 
     # Ensure datastore system databases
-    datastore_url = utils.get_datastore_url()
+    datastore_url = utils.datastore_url()
     sh('{} http wait {}'.format(const.CLI, datastore_url))
     sh('{} http put --allow-fail --quiet {}/_users'.format(const.CLI, datastore_url))
     sh('{} http put --allow-fail --quiet {}/_replicator'.format(const.CLI, datastore_url))
@@ -79,7 +79,7 @@ def upped_migrate(prev_version):
               hidden=True)
 @click.option('--pull/--no-pull',
               default=True,
-              help='Update Docker service images.')
+              help='Update docker service images.')
 @click.option('--migrate/--no-migrate',
               default=True,
               help='Migrate Brewblox configuration and service settings.')
@@ -88,8 +88,8 @@ def upped_migrate(prev_version):
               help='Reset docker-compose.shared.yml file to defaults.')
 @click.option('--prune/--no-prune',
               default=True,
-              prompt='Do you want to remove old Docker images to free disk space?',
-              help='Remove unused Docker images.')
+              prompt='Do you want to remove old docker images to free disk space?',
+              help='Remove unused docker images.')
 @click.option('--from-version',
               default='0.0.0',
               envvar=const.CFG_VERSION_KEY,
@@ -110,7 +110,7 @@ def update(ctx, update_ctl, update_ctl_done, pull, migrate, copy_shared, prune, 
     If you're using dry run mode, you'll notice the hidden option --update-ctl-done.
     You can use it to watch the rest of the update: it\'s a flag to avoid endless loops.
 
-    --pull/--no-pull governs whether new Docker images are pulled.
+    --pull/--no-pull governs whether new docker images are pulled.
     This is useful if any of your services is using a local image (not from Docker Hub).
 
     --copy-shared/--no-copy-shared. By default, docker-compose.shared.yml is recreated every update.
@@ -118,10 +118,10 @@ def update(ctx, update_ctl, update_ctl_done, pull, migrate, copy_shared, prune, 
     Consider using docker-compose.override.yml instead.
 
     --migrate/--no-migrate. Updates regularly require changes to configuration.
-    To do this, services are stopped. If the update only requires pulling Docker images,
+    To do this, services are stopped. If the update only requires pulling docker images,
     you can disable migration to avoid the docker-compose down/up.
 
-    --prune/--no-prune (prompts if not set). Updates to Docker images can leave unused old versions
+    --prune/--no-prune (prompts if not set). Updates to docker images can leave unused old versions
     on your system. These can be pruned to free up disk space.
     Do note that this includes all images on your system, not just those created by Brewblox.
 
@@ -129,7 +129,7 @@ def update(ctx, update_ctl, update_ctl_done, pull, migrate, copy_shared, prune, 
     Steps:
         - Update brewblox-ctl and extensions.
         - Restart update command to run with updated brewblox-ctl.
-        - Pull Docker images.
+        - Pull docker images.
         - Stop services.
         - Migrate configuration files.
         - Copy docker-compose.shared.yml from defaults.
@@ -175,8 +175,8 @@ def update(ctx, update_ctl, update_ctl_done, pull, migrate, copy_shared, prune, 
         downed_migrate(prev_version)
 
     if copy_shared:
-        sh('cp -f {}/{}/docker-compose.shared.yml ./'.format(
-            const.CONFIG_SRC, utils.config_name()))
+        sh('cp -f {}/docker-compose.shared.yml ./'.format(
+            const.CONFIG_DIR))
 
     utils.info('Starting services...')
     sh('{}docker-compose up -d --remove-orphans'.format(sudo))
@@ -196,7 +196,7 @@ def update(ctx, update_ctl, update_ctl_done, pull, migrate, copy_shared, prune, 
 @cli.command(hidden=True)
 @click.option('--prune/--no-prune',
               default=True,
-              prompt='Do you want to remove old Docker images to free disk space?',
+              prompt='Do you want to remove old docker images to free disk space?',
               help='Prune docker images.')
 def migrate(prune):
     """Backwards compatibility implementation to not break brewblox-ctl update"""
