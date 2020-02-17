@@ -13,6 +13,7 @@ pytest-cov = "*"
 "autopep8" = "*"
 pytest-mock = "*"
 pytest-sugar = "*"
+flake8-quotes = "*"
 
 [requires]
 python_version = "3.5"

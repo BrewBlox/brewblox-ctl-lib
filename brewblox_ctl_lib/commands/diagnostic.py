@@ -6,8 +6,8 @@ import shlex
 from os import path
 
 import click
-
 from brewblox_ctl import click_helpers, sh
+
 from brewblox_ctl_lib import const, utils
 
 ENV_KEYS = [
@@ -82,7 +82,7 @@ def log(add_compose, upload):
         names = list(utils.read_compose()['services'].keys())
         names += list(utils.read_shared_compose()['services'].keys())
         raw_cmd = '{}docker-compose logs --timestamps --no-color --tail 200 {} >> brewblox.log; ' + \
-            'echo \'\\n\' >> brewblox.log'
+            "echo '\\n' >> brewblox.log"
         sh(raw_cmd.format(sudo, name) for name in names)
     except Exception as ex:
         sh('echo {} >> brewblox.log'.format(shlex.quote(type(ex).__name__ + ': ' + str(ex))))
