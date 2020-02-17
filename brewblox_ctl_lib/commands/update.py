@@ -21,7 +21,7 @@ def downed_migrate(prev_version):
         # Breaking changes: Influx downsampling model overhaul
         # Old data is completely incompatible
         utils.select('Upgrading to version >=0.2.0 requires a complete reset of your history data. ' +
-                     'We\'ll be deleting it now')
+                     "We'll be deleting it now")
         sh('sudo rm -rf ./influxdb')
 
     if prev_version < StrictVersion('0.3.0'):

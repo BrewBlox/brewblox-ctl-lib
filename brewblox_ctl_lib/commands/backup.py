@@ -99,7 +99,7 @@ def save(save_compose):
         zipf.writestr(db + '.datastore.json', json.dumps(docs))
 
     for spark in sparks:
-        utils.info('Exporting Spark blocks from \'{}\''.format(spark))
+        utils.info("Exporting Spark blocks from '{}'".format(spark))
         resp = requests.get('{}/{}/export_objects'.format(utils.host_url(), spark), verify=False)
         resp.raise_for_status()
         zipf.writestr(spark + '.spark.json', resp.text)

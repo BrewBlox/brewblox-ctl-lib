@@ -155,7 +155,7 @@ def add_spark(name, discover_now, device_id, discovery, device_host, command, fo
     }
 
     utils.write_compose(config)
-    click.echo('Added Spark service \'{}\'.'.format(name))
+    click.echo("Added Spark service '{}'.".format(name))
     click.echo('It will automatically show up in the UI.\n')
-    if utils.confirm('Do you want to run \'brewblox-ctl up\' now?'):
+    if utils.confirm("Do you want to run 'brewblox-ctl up' now?"):
         sh('{}docker-compose up -d --remove-orphans'.format(sudo))

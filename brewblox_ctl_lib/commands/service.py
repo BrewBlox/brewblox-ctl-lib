@@ -50,11 +50,11 @@ def remove(ctx, name):
     config = utils.read_compose()
     try:
         del config['services'][name]
-        utils.info('Removing service \'{}\''.format(name))
+        utils.info("Removing service '{}'".format(name))
         utils.write_compose(config)
         restart_services(ctx)
     except KeyError:
-        click.echo('Service \'{}\' not found'.format(name))
+        click.echo("Service '{}' not found".format(name))
 
 
 @service.command()

@@ -42,7 +42,7 @@ def check_ports():
 
     if used_ports:
         utils.warn('Port(s) {} already in use. '.format(', '.join(used_ports)) +
-                   'Run \'brewblox-ctl service ports\' to configure Brewblox ports.')
+                   "Run 'brewblox-ctl service ports' to configure Brewblox ports.")
         for line in used_lines:
             utils.warn(line)
         if not utils.confirm('Do you want to continue?'):

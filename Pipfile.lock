@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "a26bd710a2658c4ca931ea6c79dc7648d363a6ffad9f0f576df46b6a068073ad"
+            "sha256": "3acbe4fb199868a7a56e26d1c14406d3895206928be34bdb1ef5466e36938a33"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -18,10 +18,10 @@
     "default": {
         "brewblox-ctl": {
             "hashes": [
-                "sha256:4e9c7a0a74432dee5d8586267b013d0c508cdf4c1e08d085148718da579d927c"
+                "sha256:30ec00107a514daa393aa7a96e67a3f9f907946834961c02b5b70ed8eba80941"
             ],
             "index": "pypi",
-            "version": "==0.14.2.dev20"
+            "version": "==0.15.0"
         },
         "certifi": {
             "hashes": [
@@ -163,6 +163,13 @@
             ],
             "index": "pypi",
             "version": "==3.7.9"
+        },
+        "flake8-quotes": {
+            "hashes": [
+                "sha256:11a15d30c92ca5f04c2791bd7019cf62b6f9d3053eb050d02a135557eb118bfc"
+            ],
+            "index": "pypi",
+            "version": "==2.1.1"
         },
         "importlib-metadata": {
             "hashes": [
