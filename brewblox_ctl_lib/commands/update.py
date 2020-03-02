@@ -21,7 +21,7 @@ def downed_migrate(prev_version):
         # Breaking changes: Influx downsampling model overhaul
         # Old data is completely incompatible
         utils.select('Upgrading to version >=0.2.0 requires a complete reset of your history data. ' +
-                     'We\'ll be deleting it now')
+                     "We'll be deleting it now")
         sh('sudo rm -rf ./influxdb')
 
     if prev_version < StrictVersion('0.3.0'):
@@ -53,6 +53,18 @@ def downed_migrate(prev_version):
             const.MDNS_PORT_KEY,
         ]:
             utils.setenv(key, utils.getenv(key, const.ENV_DEFAULTS[key]))
+
+    if prev_version < StrictVersion('0.5.0'):
+        # Updating used version of compose configuration to 3.7
+        utils.info('Updating compose version to 3.7')
+        config = utils.read_compose()
+        config['version'] = '3.7'
+        utils.write_compose(config)
+
+        # Also write shared compose, in case the user chose not to copy
+        config = utils.read_shared_compose()
+        config['version'] = '3.7'
+        utils.write_shared_compose(config)
 
 
 def upped_migrate(prev_version):
