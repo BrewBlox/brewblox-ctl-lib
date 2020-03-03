@@ -9,8 +9,8 @@ from unittest.mock import call
 
 import pytest
 import yaml
-
 from brewblox_ctl.testing import check_sudo, invoke, matching
+
 from brewblox_ctl_lib.commands import backup
 
 TESTED = backup.__name__
@@ -32,6 +32,7 @@ def m_sh(mocker):
 
 def zipf_names():
     return [
+        '.env',
         'docker-compose.yml',
         'spark-one.spark.json',
         'db1.datastore.json',
@@ -41,6 +42,7 @@ def zipf_names():
 
 def zipf_read():
     return [
+        'BREWBLOX_RELEASE=9001'.encode(),
         yaml.safe_dump({'services': {}}).encode(),
         json.dumps([{'doc1': {}}]).encode(),
         json.dumps({'blocks': []}).encode(),
@@ -94,7 +96,7 @@ def test_save_backup(mocker, m_utils, f_save_backup):
     m_mkdir.assert_called_once_with(path.abspath('backup/'))
     m_zipfile.assert_called_once_with(
         matching(r'^backup/brewblox_backup_\d{8}_\d{4}.zip'), 'w', zipfile.ZIP_DEFLATED)
-    m_zipfile.return_value.write.assert_called_once_with('docker-compose.yml')
+    m_zipfile.return_value.write.assert_called_with('docker-compose.yml')
     assert m_zipfile.return_value.writestr.call_args_list == [
         call('brewblox-ui-store.datastore.json', json.dumps([{'id': 1}, {'id': 2}, {'id': 3}])),
         call('brewblox-automation.datastore.json', json.dumps([{'id': 4}, {'id': 5}, {'id': 6}])),
@@ -105,7 +107,7 @@ def test_save_backup(mocker, m_utils, f_save_backup):
 def test_save_backup_no_compose(mocker, m_zipf, m_utils, f_save_backup):
     mocker.patch(TESTED + '.mkdir')
     invoke(backup.save, '--no-save-compose')
-    m_zipf.write.assert_not_called()
+    m_zipf.write.assert_called_once_with('.env')
 
 
 def test_load_backup_empty(m_utils, m_sh, m_zipf):
@@ -118,20 +120,20 @@ def test_load_backup_empty(m_utils, m_sh, m_zipf):
 def test_load_backup(m_utils, m_sh, mocker, m_zipf):
     m_tmp = mocker.patch(TESTED + '.NamedTemporaryFile', wraps=backup.NamedTemporaryFile)
     invoke(backup.load, 'fname')
-    assert m_zipf.read.call_count == 4
-    assert m_tmp.call_count == 3
+    assert m_zipf.read.call_count == 5
+    assert m_tmp.call_count == 4
 
 
 def test_load_backup_none(m_utils, m_sh, m_zipf):
     invoke(backup.load, 'fname --no-load-compose --no-load-datastore --no-load-spark')
-    assert m_zipf.read.call_count == 0
-    assert m_sh.call_count == 0
+    assert m_zipf.read.call_count == 1
+    assert m_sh.call_count == 1
 
 
-def test_load_backup_compose_missing(m_utils, m_sh, m_zipf, mocker):
+def test_load_backup_missing(m_utils, m_sh, m_zipf, mocker):
     m_tmp = mocker.patch(TESTED + '.NamedTemporaryFile', wraps=backup.NamedTemporaryFile)
-    m_zipf.namelist.return_value = zipf_names()[1:]
-    m_zipf.read.side_effect = zipf_read()[1:]
+    m_zipf.namelist.return_value = zipf_names()[2:]
+    m_zipf.read.side_effect = zipf_read()[2:]
     invoke(backup.load, 'fname')
     assert m_zipf.read.call_count == 3
     assert m_tmp.call_count == 3
