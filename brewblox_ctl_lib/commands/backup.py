@@ -52,6 +52,7 @@ def save(save_compose):
 
     \b
     Stored data:
+    - .env
     - docker-compose.yml.   (Optional)
     - Datastore databases.
     - Spark service blocks.
@@ -137,6 +138,7 @@ def load(archive, load_compose, load_datastore, load_spark):
     If dry-run is enabled, it will echo all configuration from the backup archive.
 
     Steps:
+        - Write .env
         - Write docker-compose.yml, run `docker-compose up`.
         - Write all datastore files found in backup.
         - Write all Spark blocks found in backup.
