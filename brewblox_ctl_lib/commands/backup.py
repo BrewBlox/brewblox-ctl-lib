@@ -83,6 +83,9 @@ def save(save_compose):
     ]
     zipf = zipfile.ZipFile(file, 'w', zipfile.ZIP_DEFLATED)
 
+    utils.info('Exporting .env')
+    zipf.write('.env')
+
     if save_compose:
         utils.info('Exporting docker-compose.yml')
         zipf.write('docker-compose.yml')
@@ -151,9 +154,18 @@ def load(archive, load_compose, load_datastore, load_spark):
     datastore_files = [v for v in available if v.endswith('.datastore.json')]
     spark_files = [v for v in available if v.endswith('.spark.json')]
 
+    if '.env' in available:
+        with NamedTemporaryFile('w') as tmp:
+            data = zipf.read('.env').decode()
+            utils.info('Writing .env')
+            utils.show_data(data)
+            tmp.write(data)
+            tmp.flush()
+            sh('cp -f {} .env'.format(tmp.name))
+
     if load_compose:
         if 'docker-compose.yml' in available:
-            utils.info('Writing docker-compose.yml...')
+            utils.info('Writing docker-compose.yml')
             utils.write_compose(yaml.safe_load(zipf.read('docker-compose.yml')))
             sh('{} docker-compose up -d --remove-orphans'.format(sudo))
         else:
@@ -169,11 +181,11 @@ def load(archive, load_compose, load_datastore, load_spark):
         for f in datastore_files:
             db = f[:-len('.datastore.json')]
 
-            utils.info('Recreating database {}...'.format(db))
+            utils.info('Recreating database {}'.format(db))
             sh('{} http delete {}/{} --allow-fail'.format(const.CLI, store_url, db))
             sh('{} http put {}/{}'.format(const.CLI, store_url, db))
 
-            utils.info('Writing database {}...'.format(db))
+            utils.info('Writing database {}'.format(db))
             with NamedTemporaryFile('w') as tmp:
                 data = {'docs': json.loads(zipf.read(f).decode())}
                 utils.show_data(data)
@@ -187,7 +199,7 @@ def load(archive, load_compose, load_datastore, load_spark):
 
         for f in spark_files:
             spark = f[:-len('.spark.json')]
-            utils.info('Writing blocks to Spark service {}...'.format(spark))
+            utils.info('Writing blocks to Spark service {}'.format(spark))
             with NamedTemporaryFile('w') as tmp:
                 data = json.loads(zipf.read(f).decode())
                 utils.show_data(data)
