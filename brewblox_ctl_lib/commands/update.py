@@ -61,11 +61,6 @@ def downed_migrate(prev_version):
         config['version'] = '3.7'
         utils.write_compose(config)
 
-        # Also write shared compose, in case the user chose not to copy
-        config = utils.read_shared_compose()
-        config['version'] = '3.7'
-        utils.write_shared_compose(config)
-
 
 def upped_migrate(prev_version):
     """Migration commands to be executed after the services have been started"""
@@ -95,9 +90,6 @@ def upped_migrate(prev_version):
 @click.option('--migrate/--no-migrate',
               default=True,
               help='Migrate Brewblox configuration and service settings.')
-@click.option('--copy-shared/--no-copy-shared',
-              default=True,
-              help='Reset docker-compose.shared.yml file to defaults.')
 @click.option('--prune/--no-prune',
               default=True,
               prompt='Do you want to remove old docker images to free disk space?',
@@ -107,7 +99,7 @@ def upped_migrate(prev_version):
               envvar=const.CFG_VERSION_KEY,
               help='[ADVANCED] Override current version number.')
 @click.pass_context
-def update(ctx, update_ctl, update_ctl_done, pull, migrate, copy_shared, prune, from_version):
+def update(ctx, update_ctl, update_ctl_done, pull, migrate, prune, from_version):
     """Download and apply updates.
 
     This is the one-stop-shop for updating your Brewblox install.
@@ -174,10 +166,6 @@ def update(ctx, update_ctl, update_ctl_done, pull, migrate, copy_shared, prune, 
         sh(' '.join([const.PY, *const.ARGS, '--update-ctl-done', '--prune' if prune else '--no-prune']))
         return
 
-    if pull:
-        utils.info('Pulling docker images...')
-        sh('{}docker-compose pull'.format(sudo))
-
     if migrate:
         # Everything except downed_migrate can be done with running services
         utils.info('Stopping services...')
@@ -186,9 +174,12 @@ def update(ctx, update_ctl, update_ctl_done, pull, migrate, copy_shared, prune, 
         utils.info('Migrating configuration files...')
         downed_migrate(prev_version)
 
-    if copy_shared:
-        sh('cp -f {}/docker-compose.shared.yml ./'.format(
-            const.CONFIG_DIR))
+    sh('cp -f {}/docker-compose.shared.yml ./'.format(
+        const.CONFIG_DIR))
+
+    if pull:
+        utils.info('Pulling docker images...')
+        sh('{}docker-compose pull'.format(sudo))
 
     utils.info('Starting services...')
     sh('{}docker-compose up -d --remove-orphans'.format(sudo))

@@ -3,8 +3,8 @@ Tests brewblox_ctl_lib.commands.update
 """
 
 import pytest
-
 from brewblox_ctl.testing import check_sudo, invoke
+
 from brewblox_ctl_lib import const
 from brewblox_ctl_lib.commands import update
 
@@ -37,4 +37,4 @@ def test_update(m_utils, m_sh):
     invoke(update.update, _err=True)
     invoke(update.update, '--from-version 0.0.0 --prune', _err=True)
     invoke(update.update, '--from-version 9001.0.0 --prune', _err=True)
-    invoke(update.update, '--from-version 0.0.1 --no-pull --no-update-ctl --no-migrate --no-prune --no-copy-shared')
+    invoke(update.update, '--from-version 0.0.1 --no-pull --no-update-ctl --no-migrate --no-prune')
