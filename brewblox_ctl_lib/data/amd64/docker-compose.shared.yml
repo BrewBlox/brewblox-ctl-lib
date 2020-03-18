@@ -69,9 +69,3 @@ services:
     labels:
       - "traefik.port=80"
       - "traefik.frontend.rule=Path:/, /ui, /ui/{sub:(.*)?}"
-
-networks:
-  default:
-    driver: bridge
-    driver_opts:
-      com.docker.network.bridge.name: brewblox_bridge
