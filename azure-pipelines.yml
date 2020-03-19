@@ -1,5 +1,5 @@
 pool:
-  vmImage: 'Ubuntu-16.04'
+  vmImage: 'Ubuntu-18.04'
 
 trigger:
   tags:
@@ -13,9 +13,12 @@ variables:
   # Variables imported from brewblox group:
   # DOCKER_USER
   # DOCKER_PASSWORD
-  # PYPI_USER
-  # PYPI_PASSWORD
   - group: brewblox
+
+pr:
+  branches:
+    include:
+      - '*'
 
 steps:
 - task: UsePythonVersion@0
@@ -25,37 +28,36 @@ steps:
     architecture: 'x64'
 
 - bash: |
+    RELEASE=$(git describe --tags | grep "^[[:digit:]]*\.[[:digit:]]*\.[[:digit:]]$")
     BRANCH=$(echo $(Build.SourceBranch) | grep -oP "^refs/heads/\K.*")
-    TAG=$(git describe --tags | grep "^[[:digit:]]*\.[[:digit:]]*\.[[:digit:]]$")
-    echo "##vso[task.setvariable variable=brewblox.branch]$BRANCH"
-    echo "##vso[task.setvariable variable=brewblox.tag]$TAG"
-  displayName: export build variables
+    TAG=$(echo $BRANCH | tr '/' '-' | tr '[:upper:]' '[:lower:]')
+    echo "##vso[task.setvariable variable=RELEASE]$RELEASE"
+    echo "##vso[task.setvariable variable=BRANCH]$BRANCH"
+    echo "##vso[task.setvariable variable=TAG]$TAG"
+  displayName: Export build variables
 
 - bash: |
     pip install pipenv
     pipenv install --system --dev --deploy
-    pytest
+  displayName: Install packages
+
+- bash: pytest
   displayName: Run Pytest
 
-- bash: |
-    echo $(DOCKER_PASSWORD) | docker login -u $(DOCKER_USER) --password-stdin
+- bash: echo $(DOCKER_PASSWORD) | docker login -u $(DOCKER_USER) --password-stdin
   displayName: Docker login
   condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
 
+- bash: bash ./build-docker.sh
+  displayName: Build Docker images
+  
 - bash: |
-    bash ./build-docker.sh
-  displayName: Build docker containers
+    bash ./push-docker.sh $(TAG)
+  displayName: Deploy Docker images with branch tags
+  condition: and(succeeded(), variables['BRANCH'], not(variables['RELEASE']))
 
 - bash: |
-    bash ./push-docker.sh $(brewblox.tag)
+    bash ./push-docker.sh $(RELEASE)
     bash ./push-docker.sh newest-tag
-  displayName: Deploy newest-tag and version tag to Docker Hub on tagged commits
-  condition: and(succeeded(), variables['brewblox.tag'])
-
-- bash: |
-    bash ./push-docker.sh
-  displayName: Deploy branch to Docker Hub on any push to the GitHub repository
-  condition: and(succeeded(), variables['brewblox.branch'], not(variables['brewblox.tag']))
-  env:
-  # the script looks for $TRAVIS_BRANCH to determine branch tag
-    TRAVIS_BRANCH: $(brewblox.branch)
+  displayName: Deploy Docker images with release tags
+  condition: and(succeeded(), variables['RELEASE'])
