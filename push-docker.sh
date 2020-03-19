@@ -14,9 +14,9 @@ TAG=${1:-${CLEAN_BRANCH_NAME}}
 
 # rpi- tags are no longer needed for ctl-lib
 # Keep them around for backwards compatibility
-docker tag ${REPO}:local ${REPO}:${TAG}
-docker tag ${REPO}:local ${REPO}:rpi-${TAG}
+docker tag ${REPO}:local ${REPO}:"${TAG}"
+docker tag ${REPO}:local ${REPO}:rpi-"${TAG}"
 
-docker push ${REPO}:${TAG}
-docker push ${REPO}:rpi-${TAG}
+docker push ${REPO}:"${TAG}"
+docker push ${REPO}:rpi-"${TAG}"
 echo "pushed ${TAG} / rpi-${TAG}"

@@ -10,12 +10,12 @@ version: "3.7"
 
 services:
   mdns:
-    image: brewblox/brewblox-mdns:rpi-${BREWBLOX_RELEASE}
+    image: brewblox/brewblox-mdns:${BREWBLOX_RELEASE}
     network_mode: host
     restart: unless-stopped
     command: --port=${BREWBLOX_PORT_MDNS}
   eventbus:
-    image: arm32v6/rabbitmq:alpine
+    image: rabbitmq:alpine
     restart: unless-stopped
   influx:
     image: influxdb
@@ -36,13 +36,13 @@ services:
     volumes:
       - ./couchdb/:/opt/couchdb/data/
   history:
-    image: brewblox/brewblox-history:rpi-${BREWBLOX_RELEASE}
+    image: brewblox/brewblox-history:${BREWBLOX_RELEASE}
     restart: unless-stopped
     labels:
       - "traefik.port=5000"
       - "traefik.frontend.rule=PathPrefix: /history"
   emitter:
-    image: brewblox/brewblox-emitter:rpi-${BREWBLOX_RELEASE}
+    image: brewblox/brewblox-emitter:${BREWBLOX_RELEASE}
     restart: unless-stopped
     labels:
       - "traefik.port=5000"
@@ -56,7 +56,7 @@ services:
     volumes:
       - ./traefik:/config
       - /var/run/docker.sock:/var/run/docker.sock
-    command: >
+    command: >-
       -c /dev/null
       --docker 
       --docker.domain=brewblox.local
@@ -64,7 +64,7 @@ services:
       --entrypoints='name:https Address::${BREWBLOX_PORT_HTTPS} TLS:config/brewblox.crt,config/brewblox.key'
       --defaultentrypoints="http,https"
   ui:
-    image: brewblox/brewblox-ui:rpi-${BREWBLOX_RELEASE}
+    image: brewblox/brewblox-ui:${BREWBLOX_RELEASE}
     restart: unless-stopped
     labels:
       - "traefik.port=80"
