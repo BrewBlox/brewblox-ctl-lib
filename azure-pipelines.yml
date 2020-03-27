@@ -49,6 +49,17 @@ steps:
 - bash: poetry run pytest
   displayName: Run Pytest
 
+- bash: |
+    curl -L -o ~/.docker/cli-plugins/docker-buildx --create-dirs ${BUILDX_URL}
+    chmod a+x ~/.docker/cli-plugins/docker-buildx
+    docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+    docker buildx create --use
+    docker buildx inspect --bootstrap
+  displayName: Prepare buildx
+  condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
+  env:
+    BUILDX_URL: https://github.com/docker/buildx/releases/download/v0.3.1/buildx-v0.3.1.linux-amd64
+
 - bash: echo $(DOCKER_PASSWORD) | docker login -u $(DOCKER_USER) --password-stdin
   displayName: Docker login
   condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
@@ -59,7 +70,7 @@ steps:
   condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
   
 - bash: >-
-    docker build
+    docker buildx build
     --tag $(DOCKER_REPO):$(TAG)
     --push
     docker
@@ -67,7 +78,7 @@ steps:
   condition: and(succeeded(), variables['BRANCH'], not(variables['RELEASE']))
 
 - bash: >-
-    docker build
+    docker buildx build
     --tag $(DOCKER_REPO):$(RELEASE)
     --tag $(DOCKER_REPO):newest-tag
     --push
