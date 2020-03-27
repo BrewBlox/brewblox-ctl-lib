@@ -203,6 +203,8 @@ def load(archive, load_env, load_compose, load_datastore, load_spark):
                 sh('{} http post {}/{}/_bulk_docs -f {}'.format(const.CLI, store_url, db, tmp.name))
 
     if load_spark:
+        sudo = utils.optsudo()
+
         if not spark_files:
             utils.info('No Spark files found in backup archive')
 
@@ -215,6 +217,7 @@ def load(archive, load_env, load_compose, load_datastore, load_spark):
                 json.dump(data, tmp)
                 tmp.flush()
                 sh('{} http post {}/{}/import_objects -f {}'.format(const.CLI, host_url, spark, tmp.name))
+                sh('{} docker-compose restart {}'.format(sudo, spark))
 
     zipf.close()
     utils.info('Done!')
