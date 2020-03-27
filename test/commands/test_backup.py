@@ -16,6 +16,12 @@ from brewblox_ctl_lib.commands import backup
 TESTED = backup.__name__
 
 
+@pytest.fixture(autouse=True)
+def m_load_dotenv(mocker):
+    m = mocker.patch(TESTED + '.load_dotenv')
+    return m
+
+
 @pytest.fixture
 def m_utils(mocker):
     m = mocker.patch(TESTED + '.utils')
