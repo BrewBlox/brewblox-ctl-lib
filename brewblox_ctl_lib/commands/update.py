@@ -15,6 +15,16 @@ def cli():
     """Global command group"""
 
 
+def apply_shared():
+    """Apply docker-compose.shared.yml from data directory"""
+    sh('cp -f {}/docker-compose.shared.yml ./'.format(const.CONFIG_DIR))
+    shared_cfg = utils.read_shared_compose()
+    usr_cfg = utils.read_compose()
+
+    usr_cfg['version'] = shared_cfg['version']
+    utils.write_compose(usr_cfg)
+
+
 def downed_migrate(prev_version):
     """Migration commands to be executed without any running services"""
     if prev_version < StrictVersion('0.2.0'):
@@ -53,13 +63,6 @@ def downed_migrate(prev_version):
             const.MDNS_PORT_KEY,
         ]:
             utils.setenv(key, utils.getenv(key, const.ENV_DEFAULTS[key]))
-
-    if prev_version < StrictVersion('0.5.0'):
-        # Updating used version of compose configuration to 3.7
-        utils.info('Updating compose version to 3.7')
-        config = utils.read_compose()
-        config['version'] = '3.7'
-        utils.write_compose(config)
 
 
 def upped_migrate(prev_version):
@@ -166,16 +169,16 @@ def update(ctx, update_ctl, update_ctl_done, pull, migrate, prune, from_version)
         sh(' '.join([const.PY, *const.ARGS, '--update-ctl-done', '--prune' if prune else '--no-prune']))
         return
 
+    utils.info('Updating docker-compose.shared.yml...')
+    apply_shared()
+
     if migrate:
         # Everything except downed_migrate can be done with running services
         utils.info('Stopping services...')
-        sh('{}docker-compose down'.format(sudo))
+        sh('{}docker-compose down --remove-orphans'.format(sudo))
 
         utils.info('Migrating configuration files...')
         downed_migrate(prev_version)
-
-    sh('cp -f {}/docker-compose.shared.yml ./'.format(
-        const.CONFIG_DIR))
 
     if pull:
         utils.info('Pulling docker images...')
