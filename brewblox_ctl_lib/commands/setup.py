@@ -139,7 +139,7 @@ def setup(port_check):
         sh('sudo rm -rf ./traefik/; mkdir ./traefik/')
 
         utils.info('Creating SSL certificate...')
-        sh('{}docker run --rm -v "$(pwd)"/traefik:/certs/ '.format(sudo) +
+        sh('{}docker run --rm -v "$(pwd)"/traefik/:/certs/ '.format(sudo) +
            'brewblox/omgwtfssl:{}'.format(utils.docker_tag()))
         sh('sudo chmod 644 traefik/brewblox.crt')
         sh('sudo chmod 600 traefik/brewblox.key')
