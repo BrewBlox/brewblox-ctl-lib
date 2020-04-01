@@ -79,8 +79,9 @@ def log(add_compose, upload):
     utils.info('Writing service logs...')
     sh('echo "==============LOGS==============" >> brewblox.log')
     try:
-        names = list(utils.read_compose()['services'].keys())
-        names += list(utils.read_shared_compose()['services'].keys())
+        config_names = list(utils.read_compose()['services'].keys())
+        shared_names = list(utils.read_shared_compose()['services'].keys())
+        names = [n for n in config_names if n not in shared_names] + shared_names
         raw_cmd = '{}docker-compose logs --timestamps --no-color --tail 200 {} >> brewblox.log; ' + \
             "echo '\\n' >> brewblox.log"
         sh(raw_cmd.format(sudo, name) for name in names)
