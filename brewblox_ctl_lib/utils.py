@@ -28,7 +28,6 @@ is_root = utils.is_root
 is_docker_user = utils.is_docker_user
 is_brewblox_cwd = utils.is_brewblox_cwd
 optsudo = utils.optsudo
-tag_prefix = utils.tag_prefix
 docker_tag = utils.docker_tag
 check_config = utils.check_config
 sh = utils.sh

@@ -62,13 +62,13 @@ def test_host_ip(m_getenv):
 def test_list_services():
     services = utils.list_services(
         'brewblox/brewblox-devcon-spark',
-        'brewblox_ctl_lib/data/amd64/docker-compose.yml')
+        'brewblox_ctl_lib/data/config/docker-compose.yml')
     assert services == ['spark-one']
 
 
 def test_read_shared():
     cfg = utils.read_shared_compose(
-        'brewblox_ctl_lib/data/amd64/docker-compose.shared.yml')
+        'brewblox_ctl_lib/data/config/docker-compose.shared.yml')
     assert 'mdns' in cfg['services']
 
 

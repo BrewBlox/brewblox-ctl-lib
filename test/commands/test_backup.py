@@ -16,6 +16,12 @@ from brewblox_ctl_lib.commands import backup
 TESTED = backup.__name__
 
 
+@pytest.fixture(autouse=True)
+def m_load_dotenv(mocker):
+    m = mocker.patch(TESTED + '.load_dotenv')
+    return m
+
+
 @pytest.fixture
 def m_utils(mocker):
     m = mocker.patch(TESTED + '.utils')
@@ -114,7 +120,7 @@ def test_load_backup_empty(m_utils, m_sh, m_zipf):
     m_zipf.namelist.return_value = []
 
     invoke(backup.load, 'fname')
-    assert m_sh.call_count == 0
+    assert m_sh.call_count == 1  # Only the update
 
 
 def test_load_backup(m_utils, m_sh, mocker, m_zipf):
@@ -125,7 +131,7 @@ def test_load_backup(m_utils, m_sh, mocker, m_zipf):
 
 
 def test_load_backup_none(m_utils, m_sh, m_zipf):
-    invoke(backup.load, 'fname --no-load-compose --no-load-datastore --no-load-spark')
+    invoke(backup.load, 'fname --no-load-compose --no-load-datastore --no-load-spark --no-update')
     assert m_zipf.read.call_count == 1
     assert m_sh.call_count == 1
 
