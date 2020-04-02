@@ -34,21 +34,21 @@ pycodestyle = ">=2.5.0"
 
 [[package]]
 category = "main"
-description = ""
+description = "Brewblox management tool"
 name = "brewblox-ctl"
 optional = false
 python-versions = ">=3.5"
-version = "0.16.0"
+version = "0.17.0"
 
 [package.dependencies]
-click = "*"
-pprint = "*"
-pyyaml = "*"
-requests = "*"
+click = ">=7.1.1,<8.0.0"
+pprint = ">=0.1,<0.2"
+pyyaml = ">=5.3.1,<6.0.0"
+requests = ">=2.23.0,<3.0.0"
 
 [package.dependencies.python-dotenv]
 extras = ["cli"]
-version = "*"
+version = ">=0.12.0,<0.13.0"
 
 [[package]]
 category = "main"
@@ -139,7 +139,7 @@ marker = "python_version < \"3.8\""
 name = "importlib-metadata"
 optional = false
 python-versions = "!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*,>=2.7"
-version = "1.5.2"
+version = "1.6.0"
 
 [package.dependencies]
 zipp = ">=0.5"
@@ -399,7 +399,7 @@ docs = ["sphinx", "jaraco.packaging (>=3.2)", "rst.linker (>=1.9)"]
 testing = ["pathlib2", "unittest2", "jaraco.itertools", "func-timeout"]
 
 [metadata]
-content-hash = "bfb745c651b1eb0115900290b2801557f8c303c9be09c30d9a1bcd009f0e4e85"
+content-hash = "1e7ae57e94e2b4bad0d585e182cfa07aba0a44155869c7ab66eda9f330cbca28"
 python-versions = ">=3.5"
 
 [metadata.files]
@@ -415,7 +415,8 @@ autopep8 = [
     {file = "autopep8-1.5.tar.gz", hash = "sha256:0f592a0447acea0c2b0a9602be1e4e3d86db52badd2e3c84f0193bfd89fd3a43"},
 ]
 brewblox-ctl = [
-    {file = "brewblox-ctl-0.16.0.tar.gz", hash = "sha256:b00fe37f80baaed4da3e1522ea4e81418d8b158246f0d29c22ee2c8f377ba29c"},
+    {file = "brewblox-ctl-0.17.0.tar.gz", hash = "sha256:34283ecabac451273f6081eef7025a8fc159e041b02f5ff2e31ed4da83156896"},
+    {file = "brewblox_ctl-0.17.0-py3-none-any.whl", hash = "sha256:91817123fe8966b48ae541768c341549bde12c93c6e01898b30e9af9ef43b4a2"},
 ]
 certifi = [
     {file = "certifi-2019.11.28-py2.py3-none-any.whl", hash = "sha256:017c25db2a153ce562900032d5bc68e9f191e44e9a0f762f373977de9df1fbb3"},
@@ -491,8 +492,8 @@ idna = [
     {file = "idna-2.9.tar.gz", hash = "sha256:7588d1c14ae4c77d74036e8c22ff447b26d0fde8f007354fd48a7814db15b7cb"},
 ]
 importlib-metadata = [
-    {file = "importlib_metadata-1.5.2-py2.py3-none-any.whl", hash = "sha256:298a914c82144c6b3b06c568a8973b89ad2176685f43cd1ea9ba968307300fa9"},
-    {file = "importlib_metadata-1.5.2.tar.gz", hash = "sha256:dfc83688553a91a786c6c91eeb5f3b1d31f24d71877bbd94ecbf5484e57690a2"},
+    {file = "importlib_metadata-1.6.0-py2.py3-none-any.whl", hash = "sha256:2a688cbaa90e0cc587f1df48bdc97a6eadccdcd9c35fb3f976a09e3b5016d90f"},
+    {file = "importlib_metadata-1.6.0.tar.gz", hash = "sha256:34513a8a0c4962bc66d35b359558fd8a5e10cd472d37aec5f66858addef32c1e"},
 ]
 mccabe = [
     {file = "mccabe-0.6.1-py2.py3-none-any.whl", hash = "sha256:ab8a6258860da4b6677da4bd2fe5dc2c659cff31b3ee4f7f5d64e79735b80d42"},
