@@ -35,7 +35,10 @@ def backup():
 @click.option('--save-compose/--no-save-compose',
               default=True,
               help='Include docker-compose.yml in backup.')
-def save(save_compose):
+@click.option('--ignore-spark-error',
+              is_flag=True,
+              help='Skip unreachable or disconnected Spark services')
+def save(save_compose, ignore_spark_error):
     """Create a backup of Brewblox settings.
 
     A zip archive containing JSON/YAML files is created in the ./backup/ directory.
@@ -106,8 +109,14 @@ def save(save_compose):
     for spark in sparks:
         utils.info("Exporting Spark blocks from '{}'".format(spark))
         resp = requests.get('{}/{}/export_objects'.format(utils.host_url(), spark), verify=False)
-        resp.raise_for_status()
-        zipf.writestr(spark + '.spark.json', resp.text)
+        try:
+            resp.raise_for_status()
+            zipf.writestr(spark + '.spark.json', resp.text)
+        except Exception as ex:
+            if ignore_spark_error:
+                utils.info("Skipping '{}' due to error: {}".format(spark, str(ex)))
+            else:
+                raise ex
 
     zipf.close()
     click.echo(path.abspath(file))
