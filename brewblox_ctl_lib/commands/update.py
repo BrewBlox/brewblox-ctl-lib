@@ -197,6 +197,8 @@ def update(ctx, update_ctl, update_ctl_done, pull, migrate, prune, from_version)
     if prune:
         utils.info('Pruning unused images...')
         sh('{}docker image prune -f'.format(sudo))
+        utils.info('Pruning unused volumes...')
+        sh('{}docker volume prune -f'.format(sudo))
 
 
 @cli.command(hidden=True)

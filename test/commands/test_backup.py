@@ -116,6 +116,42 @@ def test_save_backup_no_compose(mocker, m_zipf, m_utils, f_save_backup):
     m_zipf.write.assert_called_once_with('.env')
 
 
+def test_save_backup_ignore_err(mocker, m_zipf, m_utils):
+    mocker.patch(TESTED + '.http.wait')
+    m_get = mocker.patch(TESTED + '.requests.get')
+    m_get.return_value.json.return_value = []
+    m_get.return_value.text = 'resp_text'
+    m_get.return_value.raise_for_status.side_effect = [
+        True,
+        RuntimeError('meep'),
+    ]
+    m_utils.read_compose.return_value = {'services': {
+        'spark-one': {
+            'image': 'brewblox/brewblox-devcon-spark:rpi-edge',
+        },
+    }}
+
+    invoke(backup.save, '--no-save-compose --ignore-spark-error')
+
+
+def test_save_backup_err(mocker, m_zipf, m_utils):
+    mocker.patch(TESTED + '.http.wait')
+    m_get = mocker.patch(TESTED + '.requests.get')
+    m_get.return_value.json.return_value = []
+    m_get.return_value.text = 'resp_text'
+    m_get.return_value.raise_for_status.side_effect = [
+        True,
+        RuntimeError('meep'),
+    ]
+    m_utils.read_compose.return_value = {'services': {
+        'spark-one': {
+            'image': 'brewblox/brewblox-devcon-spark:rpi-edge',
+        },
+    }}
+
+    invoke(backup.save, '--no-save-compose', _err=RuntimeError)
+
+
 def test_load_backup_empty(m_utils, m_sh, m_zipf):
     m_zipf.namelist.return_value = []
 
