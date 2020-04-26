@@ -32,6 +32,7 @@ docker_tag = utils.docker_tag
 check_config = utils.check_config
 sh = utils.sh
 check_ok = utils.check_ok
+pip_install = utils.pip_install
 info = utils.info
 warn = utils.warn
 error = utils.error
