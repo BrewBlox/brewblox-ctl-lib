@@ -163,7 +163,7 @@ def update(ctx, update_ctl, update_ctl_done, pull, migrate, prune, from_version)
 
     if update_ctl and not update_ctl_done:
         utils.info('Updating brewblox-ctl...')
-        sh('sudo {} -m pip install --no-cache-dir -U brewblox-ctl'.format(const.PY))
+        utils.pip_install('brewblox-ctl')
         utils.load_ctl_lib()
         # Restart ctl - we just replaced the source code
         sh(' '.join([const.PY, *const.ARGS, '--update-ctl-done', '--prune' if prune else '--no-prune']))
