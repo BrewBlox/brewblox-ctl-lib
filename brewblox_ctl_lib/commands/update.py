@@ -163,7 +163,7 @@ def update(ctx, update_ctl, update_ctl_done, pull, migrate, prune, from_version)
         raise SystemExit(1)
 
     if Path.home().name != 'root' and Path('/usr/local/bin/brewblox-ctl').exists():  # pragma: no cover
-        click.echo('brewblox-ctl appears to have been installed using sudo.')
+        utils.warn('brewblox-ctl appears to have been installed using sudo.')
         if utils.confirm('Do you want to fix this now?'):
             sh('sudo {} -m pip uninstall -y brewblox-ctl docker-compose'.format(const.PY), check=False)
             utils.pip_install('brewblox-ctl', 'docker-compose')
