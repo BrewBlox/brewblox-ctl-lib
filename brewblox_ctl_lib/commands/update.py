@@ -3,6 +3,7 @@ Migration scripts
 """
 
 from distutils.version import StrictVersion
+from pathlib import Path
 
 import click
 from brewblox_ctl import click_helpers, sh
@@ -160,6 +161,14 @@ def update(ctx, update_ctl, update_ctl_done, pull, migrate, prune, from_version)
                    'This may be due to switching release tracks.' +
                    'You can use the --from-version flag if you know what you are doing.')
         raise SystemExit(1)
+
+    if Path.home().name != 'root' and Path('/usr/local/bin/brewblox-ctl').exists():  # pragma: no cover
+        click.echo('brewblox-ctl appears to have been installed using sudo.')
+        if utils.confirm('Do you want to fix this now?'):
+            sh('sudo {} -m pip uninstall -y brewblox-ctl docker-compose'.format(const.PY), check=False)
+            utils.pip_install('brewblox-ctl', 'docker-compose')
+            utils.info('Please run ` source ~/.bashrc ` and restart the update')
+            return
 
     if update_ctl and not update_ctl_done:
         utils.info('Updating brewblox-ctl...')
