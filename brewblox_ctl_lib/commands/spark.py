@@ -173,7 +173,7 @@ def add_spark(name,
     }
 
     if simulation:
-        volume_dir = 'simulator__{}:'.format(name)
+        volume_dir = 'simulator__{}'.format(name)
         config['services'][name]['volumes'] = [
             './{}:/app/simulator'.format(volume_dir)
         ]
