@@ -92,3 +92,17 @@ def test_check_service_name(name):
 def test_check_service_name_err(name):
     with pytest.raises(click.BadParameter):
         utils.check_service_name(None, 'name', name)
+
+
+def test_pip_install(mocker, m_getenv):
+    m_sh = mocker.patch(TESTED + '.sh')
+    mocker.patch(TESTED + '.Path')
+    mocker.patch(TESTED + '.const.PY', '/PY')
+
+    m_getenv.return_value = 'ussr'
+    utils.pip_install('lib')
+    m_sh.assert_called_with('/PY -m pip install --user --upgrade --no-cache-dir lib')
+
+    m_getenv.return_value = None
+    utils.pip_install('lib')
+    m_sh.assert_called_with('sudo /PY -m pip install --upgrade --no-cache-dir lib')

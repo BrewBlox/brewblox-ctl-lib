@@ -11,6 +11,12 @@ from brewblox_ctl_lib.commands import update
 TESTED = update.__name__
 
 
+@pytest.fixture(autouse=True)
+def m_path(mocker):
+    m = mocker.patch(TESTED + '.Path')
+    m.home.return_value.name = 'root'
+
+
 @pytest.fixture
 def m_utils(mocker):
     m = mocker.patch(TESTED + '.utils')
