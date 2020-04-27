@@ -98,9 +98,21 @@ def discover_spark(discovery, release):
 @click.option('--release',
               default='${BREWBLOX_RELEASE}',
               help='Brewblox release track used by the Spark service.')
+@click.option('--simulation',
+              is_flag=True,
+              help='Add a simulation service. This will override discovery and connection settings.')
 @click.option('--discovery-release',
               help='Brewblox release track used by the discovery container.')
-def add_spark(name, discover_now, device_id, discovery, device_host, command, force, release, discovery_release):
+def add_spark(name,
+              discover_now,
+              device_id,
+              discovery,
+              device_host,
+              command,
+              force,
+              release,
+              simulation,
+              discovery_release):
     """
     Create or update a Spark service.
 
@@ -121,7 +133,7 @@ def add_spark(name, discover_now, device_id, discovery, device_host, command, fo
         click.echo('Service "{}" already exists. Use the --force flag if you want to overwrite it'.format(name))
         raise SystemExit(1)
 
-    if device_id is None and discover_now:
+    if device_id is None and discover_now and not simulation:
         dev = find_device(discovery, discovery_release, device_host)
 
         if dev:
@@ -142,6 +154,9 @@ def add_spark(name, discover_now, device_id, discovery, device_host, command, fo
 
     if device_host:
         commands += ['--device-host=' + device_host]
+
+    if simulation:
+        commands += ['--simulation']
 
     if command:
         commands += [command]

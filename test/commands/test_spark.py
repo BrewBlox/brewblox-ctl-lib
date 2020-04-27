@@ -3,8 +3,8 @@ Tests brewblox_ctl_lib.commands.spark
 """
 
 import pytest
-
 from brewblox_ctl.testing import check_sudo, invoke, matching
+
 from brewblox_ctl_lib.commands import spark
 
 TESTED = spark.__name__
@@ -76,4 +76,4 @@ def test_add_spark(m_utils, m_sh, mocker):
     m_find.return_value = None
     invoke(spark.add_spark, '--name testey --discovery wifi', _err=True)
     invoke(spark.add_spark, '--name testey --device-host 1234')
-    invoke(spark.add_spark, '--name testey --device-id 12345')
+    invoke(spark.add_spark, '--name testey --device-id 12345 --simulation')
