@@ -1,4 +1,6 @@
 
+from pathlib import Path
+
 import click
 from brewblox_ctl import click_helpers, sh
 
@@ -171,6 +173,18 @@ def add_spark(name,
         ],
         'command': ' '.join(commands)
     }
+
+    if simulation:
+        volume_dir = 'simulator__{}:'.format(name)
+        config['services'][name]['volumes'] = [
+            '{}:/app/simulator'.format(volume_dir)
+        ]
+
+        dir = Path(volume_dir).resolve()
+        dir.mkdir(mode=0o777, exist_ok=True)
+        dir.joinpath('device_key.der').touch(mode=0o777, exist_ok=True)
+        dir.joinpath('server_key.der').touch(mode=0o777, exist_ok=True)
+        dir.joinpath('eeprom.bin').touch(mode=0o777, exist_ok=True)
 
     utils.write_compose(config)
     click.echo("Added Spark service '{}'.".format(name))
