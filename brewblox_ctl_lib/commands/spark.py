@@ -96,8 +96,11 @@ def discover_spark(discovery, release):
               is_flag=True,
               help='Allow overwriting an existing service')
 @click.option('--release',
+              default='${BREWBLOX_RELEASE}',
+              help='Brewblox release track used by the Spark service.')
+@click.option('--discovery-release',
               help='Brewblox release track used by the discovery container.')
-def add_spark(name, discover_now, device_id, discovery, device_host, command, force, release):
+def add_spark(name, discover_now, device_id, discovery, device_host, command, force, release, discovery_release):
     """
     Create or update a Spark service.
 
@@ -119,7 +122,7 @@ def add_spark(name, discover_now, device_id, discovery, device_host, command, fo
         raise SystemExit(1)
 
     if device_id is None and discover_now:
-        dev = find_device(discovery, release, device_host)
+        dev = find_device(discovery, discovery_release, device_host)
 
         if dev:
             device_id = dev.split(' ')[1]
@@ -144,7 +147,7 @@ def add_spark(name, discover_now, device_id, discovery, device_host, command, fo
         commands += [command]
 
     config['services'][name] = {
-        'image': 'brewblox/brewblox-devcon-spark:{}'.format(utils.docker_tag('${BREWBLOX_RELEASE}')),
+        'image': 'brewblox/brewblox-devcon-spark:{}'.format(utils.docker_tag(release)),
         'privileged': True,
         'restart': 'unless-stopped',
         'labels': [
