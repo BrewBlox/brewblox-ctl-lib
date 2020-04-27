@@ -1,4 +1,6 @@
 
+from pathlib import Path
+
 import click
 from brewblox_ctl import click_helpers, sh
 
@@ -98,9 +100,21 @@ def discover_spark(discovery, release):
 @click.option('--release',
               default='${BREWBLOX_RELEASE}',
               help='Brewblox release track used by the Spark service.')
+@click.option('--simulation',
+              is_flag=True,
+              help='Add a simulation service. This will override discovery and connection settings.')
 @click.option('--discovery-release',
               help='Brewblox release track used by the discovery container.')
-def add_spark(name, discover_now, device_id, discovery, device_host, command, force, release, discovery_release):
+def add_spark(name,
+              discover_now,
+              device_id,
+              discovery,
+              device_host,
+              command,
+              force,
+              release,
+              simulation,
+              discovery_release):
     """
     Create or update a Spark service.
 
@@ -121,7 +135,7 @@ def add_spark(name, discover_now, device_id, discovery, device_host, command, fo
         click.echo('Service "{}" already exists. Use the --force flag if you want to overwrite it'.format(name))
         raise SystemExit(1)
 
-    if device_id is None and discover_now:
+    if device_id is None and discover_now and not simulation:
         dev = find_device(discovery, discovery_release, device_host)
 
         if dev:
@@ -143,6 +157,9 @@ def add_spark(name, discover_now, device_id, discovery, device_host, command, fo
     if device_host:
         commands += ['--device-host=' + device_host]
 
+    if simulation:
+        commands += ['--simulation']
+
     if command:
         commands += [command]
 
@@ -156,6 +173,18 @@ def add_spark(name, discover_now, device_id, discovery, device_host, command, fo
         ],
         'command': ' '.join(commands)
     }
+
+    if simulation:
+        volume_dir = 'simulator__{}:'.format(name)
+        config['services'][name]['volumes'] = [
+            '{}:/app/simulator'.format(volume_dir)
+        ]
+
+        dir = Path(volume_dir).resolve()
+        dir.mkdir(mode=0o777, exist_ok=True)
+        dir.joinpath('device_key.der').touch(mode=0o777, exist_ok=True)
+        dir.joinpath('server_key.der').touch(mode=0o777, exist_ok=True)
+        dir.joinpath('eeprom.bin').touch(mode=0o777, exist_ok=True)
 
     utils.write_compose(config)
     click.echo("Added Spark service '{}'.".format(name))
