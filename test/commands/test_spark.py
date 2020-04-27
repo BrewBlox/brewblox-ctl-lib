@@ -63,7 +63,6 @@ def test_add_spark_force(m_utils, m_sh, mocker):
 
 
 def test_add_spark(m_utils, m_sh, mocker):
-    mocker.patch(TESTED + '.Path')
     m_find = mocker.patch(TESTED + '.find_device')
     m_find.return_value = '280038000847343337373738 192.168.0.55 8332'
     m_utils.read_compose.side_effect = lambda: {'services': {}}
