@@ -21,6 +21,7 @@ def m_path(mocker):
 def m_utils(mocker):
     m = mocker.patch(TESTED + '.utils')
     m.optsudo.return_value = 'SUDO '
+    m.getenv.return_value = '/usr/local/bin'
     return m
 
 
