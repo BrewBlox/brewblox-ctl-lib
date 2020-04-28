@@ -168,7 +168,12 @@ def update(ctx, update_ctl, update_ctl_done, pull, migrate, prune, from_version)
         if utils.confirm('Do you want to fix this now?'):
             sh('sudo {} -m pip uninstall -y brewblox-ctl docker-compose'.format(const.PY), check=False)
             utils.pip_install('brewblox-ctl', 'docker-compose')
-            utils.info('Please run ` source ~/.profile ` and restart the update')
+
+            # Debian stretch still has the bug where ~/.local/bin is not included in $PATH
+            if '.local/bin' not in utils.getenv('PATH'):
+                sh('echo \'export PATH="$HOME/.local/bin:$PATH"\' >> ~/.bashrc')
+
+            utils.info('Please reboot your Pi and restart the update')
             return
 
     if update_ctl and not update_ctl_done:
