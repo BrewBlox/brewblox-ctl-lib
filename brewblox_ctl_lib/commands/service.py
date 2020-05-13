@@ -2,6 +2,8 @@
 User service management
 """
 
+import re
+
 import click
 from brewblox_ctl import click_helpers, sh
 from brewblox_ctl.commands.docker import restart
@@ -121,3 +123,52 @@ def ports(http, https, mdns):
     utils.info('Writing port settings to .env...')
     for key, val in cfg.items():
         utils.setenv(key, val)
+
+
+def nested_setdefault(parent, lookups):
+    obj = parent
+    for (key, default) in lookups:
+        obj.setdefault(key, default)
+        obj = obj[key]
+    return obj
+
+
+def clean_empty(d):
+    if isinstance(d, list):
+        return [v for v in (clean_empty(v) for v in d) if v]
+    if isinstance(d, dict):
+        return {k: v for k, v in ((k, clean_empty(v)) for k, v in d.items()) if v}
+    return d
+
+
+def check_port_value(ctx, param, value):
+    if not re.match(r'^(\d+:\d+|\d+)$', value):
+        raise click.BadParameter('Port value must either be an integer, or formatted as int:int')
+    return value
+
+
+@service.command()
+@click.option('-d', '--delete', is_flag=True,
+              help='Remove exposed port from configuration.')
+@click.argument('service', type=str)
+@click.argument('value', type=str, callback=check_port_value)
+def expose(delete, service, value):
+    """Add exposed port to docker-compose.yml for backend service"""
+    config = utils.read_compose()
+
+    ports = nested_setdefault(config, [
+        ('services', {}),
+        (service, {}),
+        ('ports', [])
+    ])
+
+    if (value in ports) ^ delete:
+        return  # already in desired state
+
+    if delete:
+        ports.remove(value)
+    else:
+        ports.append(value)
+
+    config['services'] = clean_empty(config['services'])
+    utils.write_compose(config)
