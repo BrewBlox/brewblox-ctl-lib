@@ -150,7 +150,7 @@ def check_port_value(ctx, param, value):
 @service.command()
 @click.option('-d', '--delete', is_flag=True,
               help='Remove exposed port from configuration.')
-@click.argument('service', type=str)
+@click.argument('service', type=str, callback=utils.check_service_name)
 @click.argument('value', type=str, callback=check_port_value)
 def expose(delete, service, value):
     """Add exposed port to docker-compose.yml for backend service"""
