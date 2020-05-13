@@ -6,7 +6,7 @@ import re
 
 import click
 from brewblox_ctl import click_helpers, sh
-from brewblox_ctl.commands.docker import restart
+from brewblox_ctl.commands.docker import up
 
 from brewblox_ctl_lib import const, utils
 
@@ -23,7 +23,7 @@ def service():
 
 def restart_services(ctx):
     if utils.confirm('Do you want to restart your Brewblox services?'):
-        ctx.invoke(restart)
+        ctx.invoke(up)
 
 
 @service.command()
