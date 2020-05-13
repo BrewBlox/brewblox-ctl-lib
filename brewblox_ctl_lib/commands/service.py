@@ -152,7 +152,8 @@ def check_port_value(ctx, param, value):
               help='Remove exposed port from configuration.')
 @click.argument('service', type=str, callback=utils.check_service_name)
 @click.argument('value', type=str, callback=check_port_value)
-def expose(delete, service, value):
+@click.pass_context
+def expose(ctx, delete, service, value):
     """Add exposed port to docker-compose.yml for backend service"""
     config = utils.read_compose()
 
@@ -172,3 +173,4 @@ def expose(delete, service, value):
 
     config['services'] = clean_empty(config['services'])
     utils.write_compose(config)
+    restart_services(ctx)

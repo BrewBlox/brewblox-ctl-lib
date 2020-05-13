@@ -86,6 +86,7 @@ def test_ports(m_utils, m_sh):
 
 
 def test_expose_from_empty(m_utils, m_sh):
+    m_utils.confirm.return_value = False
     m_utils.read_compose.side_effect = lambda: {
         'services': {
             'testey': {}
@@ -123,6 +124,7 @@ def test_expose_from_empty(m_utils, m_sh):
 
 
 def test_expose_from_set(m_utils, m_sh):
+    m_utils.confirm.return_value = False
     m_utils.read_compose.side_effect = lambda: {
         'services': {
             'eventbus': {
@@ -157,6 +159,7 @@ def test_expose_from_set(m_utils, m_sh):
 
 
 def test_expose_from_full(m_utils, m_sh):
+    m_utils.confirm.return_value = False
     m_utils.read_compose.side_effect = lambda: {
         'services': {
             'eventbus': {
