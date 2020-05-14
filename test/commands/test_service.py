@@ -5,8 +5,8 @@ Tests brewblox_ctl_lib.commands.service
 from unittest.mock import Mock
 
 import pytest
-
 from brewblox_ctl.testing import check_sudo, invoke
+
 from brewblox_ctl_lib.commands import service
 
 TESTED = service.__name__
@@ -16,7 +16,7 @@ TESTED = service.__name__
 def m_utils(mocker):
     m = mocker.patch(TESTED + '.utils')
     m.optsudo.return_value = 'SUDO '
-    m.read_compose.return_value = {
+    m.read_compose.side_effect = lambda: {
         'services': {
             'spark-one': {},
         }
@@ -83,3 +83,97 @@ def test_editor(m_utils, m_sh, mocker):
 def test_ports(m_utils, m_sh):
     invoke(service.ports)
     assert m_utils.setenv.call_count == 3
+
+
+def test_expose_from_empty(m_utils, m_sh):
+    m_utils.confirm.return_value = False
+    m_utils.read_compose.side_effect = lambda: {
+        'services': {
+            'testey': {}
+        }
+    }
+
+    invoke(service.expose, '-d eventbus 5672:5672')
+    m_utils.write_compose.assert_not_called()
+    invoke(service.expose, _err=True)  # missing argument
+    invoke(service.expose, 'eventbus 1234.5', _err=True)  # Invalid value
+    invoke(service.expose, 'eventbus 123:', _err=True)  # Invalid value
+    invoke(service.expose, 'eventbus global', _err=True)  # Invalid value
+
+    invoke(service.expose, 'eventbus 5672:5672')
+    m_utils.write_compose.assert_called_with({
+        'services': {
+            'eventbus': {
+                'ports': [
+                    '5672:5672'
+                ]
+            }
+        }
+    })
+
+    invoke(service.expose, 'influx 8086:8086')
+    m_utils.write_compose.assert_called_with({
+        'services': {
+            'influx': {
+                'ports': [
+                    '8086:8086'
+                ]
+            }
+        }
+    })
+
+
+def test_expose_from_set(m_utils, m_sh):
+    m_utils.confirm.return_value = False
+    m_utils.read_compose.side_effect = lambda: {
+        'services': {
+            'eventbus': {
+                'ports': ['5672:5672']
+            }
+        }
+    }
+
+    invoke(service.expose, 'eventbus 5672:5672')
+    m_utils.write_compose.assert_not_called()
+
+    invoke(service.expose, '-d eventbus 5672:5672')
+    m_utils.write_compose.assert_called_with({
+        'services': {}
+    })
+
+    invoke(service.expose, 'influx 8086:8086')
+    m_utils.write_compose.assert_called_with({
+        'services': {
+            'influx': {
+                'ports': [
+                    '8086:8086'
+                ]
+            },
+            'eventbus': {
+                'ports': [
+                    '5672:5672'
+                ]
+            }
+        }
+    })
+
+
+def test_expose_from_full(m_utils, m_sh):
+    m_utils.confirm.return_value = False
+    m_utils.read_compose.side_effect = lambda: {
+        'services': {
+            'eventbus': {
+                'other': True,
+                'ports': ['5672:5672']
+            }
+        }
+    }
+
+    invoke(service.expose, '-d eventbus 5672:5672')
+    m_utils.write_compose.assert_called_with({
+        'services': {
+            'eventbus': {
+                'other': True,
+            }
+        }
+    })
