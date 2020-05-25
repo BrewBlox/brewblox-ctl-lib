@@ -173,7 +173,7 @@ def update(ctx, update_ctl, update_ctl_done, pull, migrate, prune, from_version)
             if '.local/bin' not in utils.getenv('PATH'):
                 sh('echo \'export PATH="$HOME/.local/bin:$PATH"\' >> ~/.bashrc')
 
-            utils.info('Please reboot your Pi and restart the update')
+            utils.info('Please run "sudo reboot" to apply the changes to $PATH')
             return
 
     if update_ctl and not update_ctl_done:
