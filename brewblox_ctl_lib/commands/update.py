@@ -71,7 +71,7 @@ def upped_migrate(prev_version):
     # Always run history configure
     history_url = utils.history_url()
     sh('{} http wait {}/ping'.format(const.CLI, history_url))
-    sh('{} http post {}/query/configure'.format(const.CLI, history_url))
+    sh('{} http post --quiet {}/query/configure'.format(const.CLI, history_url))
 
     # Ensure datastore system databases
     datastore_url = utils.datastore_url()

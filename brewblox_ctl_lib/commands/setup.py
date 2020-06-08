@@ -152,9 +152,9 @@ def setup(port_check):
         # Generic datastore setup
         utils.info('Configuring datastore settings...')
         sh('{} http wait {}'.format(const.CLI, datastore_url))
-        sh('{} http put {}/_users'.format(const.CLI, datastore_url))
-        sh('{} http put {}/_replicator'.format(const.CLI, datastore_url))
-        sh('{} http put {}/_global_changes'.format(const.CLI, datastore_url))
+        sh('{} http put --allow-fail --quiet {}/_users'.format(const.CLI, datastore_url))
+        sh('{} http put --allow-fail --quiet {}/_replicator'.format(const.CLI, datastore_url))
+        sh('{} http put --allow-fail --quiet {}/_global_changes'.format(const.CLI, datastore_url))
         sh('{} http put {}/{}'.format(const.CLI, datastore_url, const.UI_DATABASE))
         # Load presets
         utils.info('Loading preset data...')
@@ -165,7 +165,7 @@ def setup(port_check):
     # Always setup history
     utils.info('Configuring history settings...')
     sh('{} http wait {}/ping'.format(const.CLI, history_url))
-    sh('{} http post {}/query/configure'.format(const.CLI, history_url))
+    sh('{} http post --quiet {}/query/configure'.format(const.CLI, history_url))
 
     # Setup is done - leave system in stable state
     utils.info('Stopping services...')
