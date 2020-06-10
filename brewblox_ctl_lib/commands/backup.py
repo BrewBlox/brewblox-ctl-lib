@@ -108,7 +108,7 @@ def save(save_compose, ignore_spark_error):
 
     for spark in sparks:
         utils.info("Exporting Spark blocks from '{}'".format(spark))
-        resp = requests.post('{}/{}/backup/save'.format(utils.host_url(), spark), verify=False)
+        resp = requests.post('{}/{}/blocks/backup/save'.format(utils.host_url(), spark), verify=False)
         try:
             resp.raise_for_status()
             zipf.writestr(spark + '.spark.json', resp.text)
@@ -230,7 +230,7 @@ def load(archive, load_env, load_compose, load_datastore, load_spark, update):
                 utils.show_data(data)
                 json.dump(data, tmp)
                 tmp.flush()
-                sh('{} http post {}/{}/backup/load -f {}'.format(const.CLI, host_url, spark, tmp.name))
+                sh('{} http post {}/{}/blocks/backup/load -f {}'.format(const.CLI, host_url, spark, tmp.name))
                 sh('{} docker-compose restart {}'.format(sudo, spark))
 
     zipf.close()
