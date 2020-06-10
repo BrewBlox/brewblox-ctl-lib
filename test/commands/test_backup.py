@@ -67,8 +67,9 @@ def m_zipf(mocker):
 @pytest.fixture
 def f_save_backup(mocker, m_utils):
     mocker.patch(TESTED + '.http.wait')
+    m_post = mocker.patch(TESTED + '.requests.post')
     m_get = mocker.patch(TESTED + '.requests.get')
-    m_get.return_value.text = 'resp_text'  # Used for getting Spark blocks
+    m_post.return_value.text = 'resp_text'  # Used for getting Spark blocks
     m_get.return_value.json.side_effect = [
         ['_system', 'brewblox-ui-store', 'brewblox-automation'],
         {'rows': [
@@ -118,11 +119,11 @@ def test_save_backup_no_compose(mocker, m_zipf, m_utils, f_save_backup):
 
 def test_save_backup_ignore_err(mocker, m_zipf, m_utils):
     mocker.patch(TESTED + '.http.wait')
+    m_post = mocker.patch(TESTED + '.requests.post')
+    m_post.return_value.text = 'resp_text'
     m_get = mocker.patch(TESTED + '.requests.get')
     m_get.return_value.json.return_value = []
-    m_get.return_value.text = 'resp_text'
-    m_get.return_value.raise_for_status.side_effect = [
-        True,
+    m_post.return_value.raise_for_status.side_effect = [
         RuntimeError('meep'),
     ]
     m_utils.read_compose.return_value = {'services': {
@@ -136,11 +137,11 @@ def test_save_backup_ignore_err(mocker, m_zipf, m_utils):
 
 def test_save_backup_err(mocker, m_zipf, m_utils):
     mocker.patch(TESTED + '.http.wait')
+    m_post = mocker.patch(TESTED + '.requests.post')
+    m_post.return_value.text = 'resp_text'
     m_get = mocker.patch(TESTED + '.requests.get')
     m_get.return_value.json.return_value = []
-    m_get.return_value.text = 'resp_text'
-    m_get.return_value.raise_for_status.side_effect = [
-        True,
+    m_post.return_value.raise_for_status.side_effect = [
         RuntimeError('meep'),
     ]
     m_utils.read_compose.return_value = {'services': {

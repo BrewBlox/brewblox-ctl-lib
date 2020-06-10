@@ -92,9 +92,9 @@ def log(add_compose, upload):
     if add_compose:
         utils.info('Writing docker-compose configuration...')
         sh('echo "==============COMPOSE==============" >> brewblox.log')
-        sh('cat docker-compose.yml >> brewblox.log')
+        sh('cat docker-compose.yml >> brewblox.log || echo "docker-compose.yml not found"')
         sh('echo "==============SHARED===============" >> brewblox.log')
-        sh('cat docker-compose.shared.yml >> brewblox.log')
+        sh('cat docker-compose.shared.yml >> brewblox.log || echo "docker-compose.shared.yml not found"')
     else:
         utils.info('Skipping docker-compose configuration...')
 
@@ -103,7 +103,7 @@ def log(add_compose, upload):
     sh('echo "==============BLOCKS==============" >> brewblox.log')
     host_url = utils.host_url()
     services = utils.list_services('brewblox/brewblox-devcon-spark')
-    query = '{} http get --pretty {}/{}/objects >> brewblox.log || echo "{} not found" >> brewblox.log'
+    query = '{} http post --pretty {}/{}/blocks/all >> brewblox.log || echo "{} not found" >> brewblox.log'
     sh(query.format(const.CLI, host_url, svc, svc) for svc in services)
 
     # Upload
