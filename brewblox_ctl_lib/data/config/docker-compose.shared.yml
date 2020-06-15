@@ -15,10 +15,14 @@ services:
     restart: unless-stopped
     command: --port=${BREWBLOX_PORT_MDNS}
   eventbus:
-    image: rabbitmq:alpine
+    image: brewblox/rabbitmq:${BREWBLOX_RELEASE}
     restart: unless-stopped
+    labels:
+      - "traefik.port=15675"
+      - "traefik.protocol=ws"
+      - "traefik.frontend.rule=PathPrefix: /eventbus"
   influx:
-    image: influxdb
+    image: influxdb:1.8
     restart: unless-stopped
     volumes:
       - ./influxdb:/var/lib/influxdb
@@ -41,12 +45,6 @@ services:
     labels:
       - "traefik.port=5000"
       - "traefik.frontend.rule=PathPrefix: /history"
-  emitter:
-    image: brewblox/brewblox-emitter:${BREWBLOX_RELEASE}
-    restart: unless-stopped
-    labels:
-      - "traefik.port=5000"
-      - "traefik.frontend.rule=PathPrefix: /emitter"
   traefik:
     image: traefik:v1.7
     restart: unless-stopped

@@ -71,7 +71,7 @@ def upped_migrate(prev_version):
     # Always run history configure
     history_url = utils.history_url()
     sh('{} http wait {}/ping'.format(const.CLI, history_url))
-    sh('{} http post {}/query/configure'.format(const.CLI, history_url))
+    sh('{} http post --quiet {}/query/configure'.format(const.CLI, history_url))
 
     # Ensure datastore system databases
     datastore_url = utils.datastore_url()
@@ -173,7 +173,7 @@ def update(ctx, update_ctl, update_ctl_done, pull, migrate, prune, from_version)
             if '.local/bin' not in utils.getenv('PATH'):
                 sh('echo \'export PATH="$HOME/.local/bin:$PATH"\' >> ~/.bashrc')
 
-            utils.info('Please run "sudo reboot" to apply the changes to $PATH')
+            utils.info('Please run "exec $SHELL --login" to apply the changes to $PATH')
             return
 
     if update_ctl and not update_ctl_done:
