@@ -3,8 +3,8 @@ Tests brewblox_ctl_lib.commands.setup
 """
 
 import pytest
-
 from brewblox_ctl.testing import check_sudo, invoke
+
 from brewblox_ctl_lib.commands import setup
 
 TESTED = setup.__name__
@@ -71,3 +71,14 @@ def test_setup_unconfirmed(m_utils, m_sh, mocker):
     m_utils.confirm.return_value = False
 
     invoke(setup.setup)
+
+
+def test_no_pull(m_utils, m_sh):
+    m_utils.path_exists.return_value = False
+
+    invoke(setup.setup)
+    num_normal = m_sh.call_count
+
+    m_sh.reset_mock()
+    invoke(setup.setup, '--no-pull')
+    assert m_sh.call_count == num_normal - 1
