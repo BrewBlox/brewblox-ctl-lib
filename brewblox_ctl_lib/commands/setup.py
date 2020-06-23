@@ -53,7 +53,10 @@ def check_ports():
 @click.option('--port-check/--no-port-check',
               default=True,
               help='Check whether ports are already in use')
-def setup(port_check):
+@click.option('--pull/--no-pull',
+              default=True,
+              help='Pull docker service images.')
+def setup(pull, port_check):
     """Run first-time setup in Brewblox directory.
 
     Run after brewblox-ctl install, in the newly created Brewblox directory.
@@ -70,7 +73,7 @@ def setup(port_check):
         - Check whether files already exist.
         - Set .env values.
         - Create docker-compose configuration files. (Optional)
-        - Pull docker images.
+        - Pull docker images.                        (Optional)
         - Create datastore (CouchDB) directory.      (Optional)
         - Create history (InfluxDB) directory.       (Optional)
         - Create gateway (Traefik) directory.        (Optional)
@@ -115,15 +118,20 @@ def setup(port_check):
     for key, default_val in const.ENV_DEFAULTS.items():
         utils.setenv(key, utils.getenv(key, default_val))
 
+    utils.info('Copying docker-compose.shared.yml...')
+    sh('cp -f {}/docker-compose.shared.yml ./'.format(const.CONFIG_DIR))
+
     if not skip_compose:
-        utils.info('Copying configuration...')
-        sh('cp -f {}/* ./'.format(const.CONFIG_DIR))
+        utils.info('Copying docker-compose.yml...')
+        sh('cp -f {}/docker-compose.yml ./'.format(const.CONFIG_DIR))
 
     # Stop and pull after we're sure we have a compose file
     utils.info('Stopping services...')
     sh('{}docker-compose down --remove-orphans'.format(sudo))
-    utils.info('Pulling docker images...')
-    sh('{}docker-compose pull'.format(sudo))
+
+    if pull:
+        utils.info('Pulling docker images...')
+        sh('{}docker-compose pull'.format(sudo))
 
     if not skip_datastore:
         utils.info('Creating datastore directory...')
