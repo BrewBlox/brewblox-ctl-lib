@@ -82,6 +82,13 @@ def upped_migrate(prev_version):
 
 
 @cli.command()
+def libs():
+    """Reinstall local libs."""
+    utils.confirm_mode()
+    utils.load_ctl_lib()
+
+
+@cli.command()
 @click.option('--update-ctl/--no-update-ctl',
               default=True,
               help='Update brewblox-ctl.')
@@ -167,7 +174,7 @@ def update(ctx, update_ctl, update_ctl_done, pull, migrate, prune, from_version)
         utils.warn('brewblox-ctl appears to have been installed using sudo.')
         if utils.confirm('Do you want to fix this now?'):
             sh('sudo {} -m pip uninstall -y brewblox-ctl docker-compose'.format(const.PY), check=False)
-            utils.pip_install('brewblox-ctl', 'docker-compose')
+            utils.pip_install('brewblox-ctl')  # docker-compose is a dependency
 
             # Debian stretch still has the bug where ~/.local/bin is not included in $PATH
             if '.local/bin' not in utils.getenv('PATH'):
