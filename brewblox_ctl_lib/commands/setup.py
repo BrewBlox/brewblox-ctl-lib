@@ -3,6 +3,7 @@ Implementation of brewblox-ctl setup
 """
 
 import re
+from pathlib import Path
 
 import click
 from brewblox_ctl import click_helpers, sh
@@ -50,13 +51,39 @@ def check_ports():
 
 
 @cli.command()
+@click.option('--dir',
+              default='./traefik',
+              help='Target directory for generated certs.')
+@click.option('--release',
+              default=None,
+              help='Brewblox release track.')
+def makecert(dir, release):
+    """Generate a self-signed SSL certificate.
+
+    \b
+    Steps:
+        - Create directory if it does not exist.
+        - Create brewblox.crt and brewblox.key files.
+    """
+    utils.confirm_mode()
+    sudo = utils.optsudo()
+    absdir = Path(dir).absolute()
+    sh('mkdir -p "{}"'.format(absdir))
+    sh('{}docker run --rm -v "{}":/certs/ '.format(sudo, absdir) +
+        'brewblox/omgwtfssl:{}'.format(utils.docker_tag(release)))
+    sh('sudo chmod 644 "{}/brewblox.crt"'.format(absdir))
+    sh('sudo chmod 600 "{}/brewblox.key"'.format(absdir))
+
+
+@cli.command()
+@click.pass_context
 @click.option('--port-check/--no-port-check',
               default=True,
               help='Check whether ports are already in use')
 @click.option('--pull/--no-pull',
               default=True,
               help='Pull docker service images.')
-def setup(pull, port_check):
+def setup(ctx, pull, port_check):
     """Run first-time setup in Brewblox directory.
 
     Run after brewblox-ctl install, in the newly created Brewblox directory.
@@ -147,10 +174,7 @@ def setup(pull, port_check):
         sh('sudo rm -rf ./traefik/; mkdir ./traefik/')
 
         utils.info('Creating SSL certificate...')
-        sh('{}docker run --rm -v "$(pwd)"/traefik/:/certs/ '.format(sudo) +
-           'brewblox/omgwtfssl:{}'.format(utils.docker_tag()))
-        sh('sudo chmod 644 traefik/brewblox.crt')
-        sh('sudo chmod 600 traefik/brewblox.key')
+        ctx.invoke(makecert)
 
     # Bring images online that we will send configuration
     utils.info('Starting configured services...')
