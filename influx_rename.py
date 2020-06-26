@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Rename a field in Influx.
+Rename one or more fields in Influx.
 
 Required packages:
     - brewblox-ctl
@@ -9,7 +9,6 @@ Required packages:
 """
 import json
 import re
-from subprocess import CalledProcessError
 
 import click
 from brewblox_ctl import utils
@@ -39,46 +38,50 @@ def get_keys(measurement, pattern):
 
 def read_fields(policy, measurement, keys):
     prefix = 'm_' * POLICIES.index(policy)
-    fields = ['"{}{}"'.format(prefix, k) for k in keys]
-    joined_fields = ','.join(fields)
+    fields = ','.join(['"{}{}"'.format(prefix, k)
+                       for k in keys])
+
     utils.info('Reading {} {}'.format(measurement, policy))
     sh('docker-compose exec influx influx -format csv ' +
-       "-execute 'SELECT {} from brewblox.{}.\"{}\"'".format(joined_fields, policy, measurement) +
+       "-execute 'SELECT {} from brewblox.{}.\"{}\"'".format(fields, policy, measurement) +
        '> /tmp/influx_rename_{}.csv'.format(policy))
 
 
 def write_fields(policy, keys, pattern, replace):
     prefix = 'm_' * POLICIES.index(policy)
-    keys = [prefix + re.sub(pattern, replace, k, count=1)
-            for k in keys]
+    fields = [re.sub(pattern, replace, k, count=1) for k in keys]
+    fields = [re.sub(r' ', r'\\ ', k) for k in fields]
+
     infile = '/tmp/influx_rename_{}.csv'.format(policy)
     outfile = '/tmp/influx_rename_{}.line'.format(policy)
     sh('rm {}'.format(outfile), check=False)
 
     with open(infile) as f_in:
-        escaped = [re.sub(r' ', r'\\ ', k) for k in keys]
         if not f_in.readline():
             utils.info('No values found in policy "{}"'.format(policy))
             return
+
         with open(outfile, 'w') as f_out:
             f_out.write('# DML\n')
             f_out.write('# CONTEXT-DATABASE: brewblox\n')
             f_out.write('# CONTEXT-RETENTION-POLICY: {}\n'.format(policy))
             f_out.write('\n')
+
             while True:
                 line = f_in.readline().strip()
                 if not line:
                     break
-                fields = line.split(',')
-                measurement = fields.pop(0)
-                time = fields.pop(0)
-                data = ','.join(['{}={}'.format(key, value)
-                                 for (key, value) in zip(escaped, fields)
+                values = line.split(',')
+                measurement = values.pop(0)
+                time = values.pop(0)
+                data = ','.join(['{}{}={}'.format(prefix, field, value)
+                                 for (field, value) in zip(fields, values)
                                  if value and value != '0'])
                 if data:
                     f_out.write('{} {} {}\n'.format(measurement, data, time))
-    sh('docker cp {} $(docker-compose ps -q influx):/rename'.format(outfile))
+
     utils.info('Writing {} {}'.format(measurement, policy))
+    sh('docker cp {} $(docker-compose ps -q influx):/rename'.format(outfile))
     sh('docker-compose exec influx influx -import -path=/rename || true')
 
 
