@@ -78,11 +78,8 @@ def write_fields(policy, keys, pattern, replace):
                 if data:
                     f_out.write('{} {} {}\n'.format(measurement, data, time))
     sh('docker cp {} $(docker-compose ps -q influx):/rename'.format(outfile))
-    try:
-        utils.info('Writing {} {}'.format(measurement, policy))
-        sh('docker-compose exec influx influx -import -path=/rename')
-    except CalledProcessError:
-        pass  # Print output, but ignore errors
+    utils.info('Writing {} {}'.format(measurement, policy))
+    sh('docker-compose exec influx influx -import -path=/rename || true')
 
 
 @click.command()
