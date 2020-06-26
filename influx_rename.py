@@ -26,7 +26,7 @@ POLICIES = [
 
 def get_keys(measurement, pattern):
     retv = sh('docker-compose exec influx influx -format json ' +
-              '-execute "SHOW FIELD KEYS ON brewblox FROM brewblox.downsample_1m.\"{}\""'.format(measurement),
+              "-execute 'SHOW FIELD KEYS ON brewblox FROM brewblox.downsample_1m.\"{}\"'".format(measurement),
               capture=True)
     values = json.loads(retv)['results'][0]['series'][0]['values']
     keys = []
@@ -41,6 +41,7 @@ def read_fields(policy, measurement, keys):
     prefix = 'm_' * POLICIES.index(policy)
     fields = ['"{}{}"'.format(prefix, k) for k in keys]
     joined_fields = ','.join(fields)
+    utils.info('Reading {} {}'.format(measurement, policy))
     sh('docker-compose exec influx influx -format csv ' +
        "-execute 'SELECT {} from brewblox.{}.\"{}\"'".format(joined_fields, policy, measurement) +
        '> /tmp/influx_rename_{}.csv'.format(policy))
