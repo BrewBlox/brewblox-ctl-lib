@@ -10,7 +10,6 @@ ARGS = sys.argv
 CLI = '{} -m brewblox_ctl'.format(PY)
 HOST = 'https://localhost'
 DATA_SRC = './brewblox_ctl_lib/data'
-PRESETS_DIR = DATA_SRC + '/presets'
 CONFIG_DIR = DATA_SRC + '/config'
 
 

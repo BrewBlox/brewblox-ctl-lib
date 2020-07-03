@@ -116,7 +116,6 @@ def setup(ctx, pull, port_check):
     datastore_url = utils.datastore_url()
     history_url = utils.history_url()
     upped_services = ['traefik', 'influx', 'history']
-    preset_modules = ['services', 'dashboards', 'dashboard-items']
 
     if port_check:
         check_ports()
@@ -187,12 +186,7 @@ def setup(ctx, pull, port_check):
         sh('{} http put --allow-fail --quiet {}/_users'.format(const.CLI, datastore_url))
         sh('{} http put --allow-fail --quiet {}/_replicator'.format(const.CLI, datastore_url))
         sh('{} http put --allow-fail --quiet {}/_global_changes'.format(const.CLI, datastore_url))
-        sh('{} http put {}/{}'.format(const.CLI, datastore_url, const.UI_DATABASE))
-        # Load presets
-        utils.info('Loading preset data...')
-        for mod in preset_modules:
-            sh('{} http post {}/{}/_bulk_docs -f {}/{}.json'.format(
-                const.CLI, datastore_url, const.UI_DATABASE, const.PRESETS_DIR, mod))
+        sh('{} http put --allow-fail --quiet {}/{}'.format(const.CLI, datastore_url, const.UI_DATABASE))
 
     # Always setup history
     utils.info('Configuring history settings...')
