@@ -103,8 +103,13 @@ def log(add_compose, upload):
     sh('echo "==============BLOCKS==============" >> brewblox.log')
     host_url = utils.host_url()
     services = utils.list_services('brewblox/brewblox-devcon-spark')
-    query = '{} http post --pretty {}/{}/blocks/all >> brewblox.log || echo "{} not found" >> brewblox.log'
+    query = '{} http post --pretty {}/{}/blocks/all/read >> brewblox.log || echo "{} not found" >> brewblox.log'
     sh(query.format(const.CLI, host_url, svc, svc) for svc in services)
+
+    # Add dmesg
+    utils.info('Writing dmesg output...')
+    sh('echo "==============DMESG==============" >> brewblox.log')
+    sh('dmesg >> brewblox.log')
 
     # Upload
     if upload:
