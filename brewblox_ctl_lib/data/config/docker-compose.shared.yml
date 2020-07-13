@@ -15,7 +15,7 @@ services:
     restart: unless-stopped
     command: --port=${BREWBLOX_PORT_MDNS}
   eventbus:
-    image: brewblox/rabbitmq:${BREWBLOX_RELEASE}
+    image: brewblox/mosquitto:${BREWBLOX_RELEASE}
     restart: unless-stopped
     labels:
       - "traefik.port=15675"
