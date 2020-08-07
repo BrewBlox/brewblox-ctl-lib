@@ -126,12 +126,31 @@ def add_spark(name,
     utils.check_config()
     utils.confirm_mode()
 
+    image_name = 'brewblox/brewblox-devcon-spark'
     sudo = utils.optsudo()
     config = utils.read_compose()
 
     if name in config['services'] and not force:
         click.echo('Service "{}" already exists. Use the --force flag if you want to overwrite it'.format(name))
         raise SystemExit(1)
+
+    for (nm, svc) in config['services'].items():
+        img = svc.get('image', '')
+        cmd = svc.get('command', '')
+        if not any([
+            nm == name,
+            not img.startswith(image_name),
+            '--device-id' in cmd,
+            '--device-host' in cmd,
+            '--simulation' in cmd,
+        ]):
+            utils.warn("The Spark service '{}' does not have any connection settings".format(nm))
+            utils.warn('This may cause multiple services to connect to the same controller.')
+            utils.warn('To fix, please run:')
+            utils.warn('')
+            utils.warn('    brewblox-ctl add-spark -f --name {}'.format(nm))
+            utils.warn('')
+            utils.select('Press ENTER to continue')
 
     if device_id is None and discover_now and not simulation:
         dev = find_device(discovery, discovery_release, device_host)
@@ -162,7 +181,7 @@ def add_spark(name,
         commands += [command]
 
     config['services'][name] = {
-        'image': 'brewblox/brewblox-devcon-spark:{}'.format(utils.docker_tag(release)),
+        'image': '{}:{}'.format(image_name, utils.docker_tag(release)),
         'privileged': True,
         'restart': 'unless-stopped',
         'labels': [

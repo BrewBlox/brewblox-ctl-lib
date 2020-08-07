@@ -77,3 +77,19 @@ def test_add_spark(m_utils, m_sh, mocker):
     invoke(spark.add_spark, '--name testey --discovery wifi', _err=True)
     invoke(spark.add_spark, '--name testey --device-host 1234')
     invoke(spark.add_spark, '--name testey --device-id 12345 --simulation')
+
+
+def test_spark_overlap(m_utils, m_sh, mocker):
+    m_find = mocker.patch(TESTED + '.find_device')
+    m_find.return_value = '280038000847343337373738 192.168.0.55 8332'
+    m_utils.read_compose.side_effect = lambda: {
+        'services': {
+            'testey': {
+                'image': 'brewblox/brewblox-devcon-spark:develop'
+            }}}
+
+    invoke(spark.add_spark, '--name testey --force')
+    assert m_utils.warn.call_count == 0
+
+    invoke(spark.add_spark, '--name new-testey')
+    assert m_utils.warn.call_count > 0
