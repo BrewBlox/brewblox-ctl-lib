@@ -106,10 +106,7 @@ def editor(ctx, port):
 @click.option('--https',
               envvar=const.HTTPS_PORT_KEY,
               help='Port used for HTTPS connections.')
-@click.option('--mdns',
-              envvar=const.MDNS_PORT_KEY,
-              help='Port used for mDNS discovery.')
-def ports(http, https, mdns):
+def ports(http, https):
     """Update used ports"""
     utils.check_config()
     utils.confirm_mode()
@@ -117,7 +114,6 @@ def ports(http, https, mdns):
     cfg = {
         const.HTTP_PORT_KEY: http,
         const.HTTPS_PORT_KEY: https,
-        const.MDNS_PORT_KEY: mdns,
     }
 
     utils.info('Writing port settings to .env...')

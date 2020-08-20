@@ -94,6 +94,9 @@ def libs():
 @click.option('--pull/--no-pull',
               default=True,
               help='Update docker service images.')
+@click.option('--avahi-config/--no-avahi-config',
+              default=True,
+              help='Update Avahi config to enable mDNS discovery')
 @click.option('--migrate/--no-migrate',
               default=True,
               help='Migrate Brewblox configuration and service settings.')
@@ -106,7 +109,7 @@ def libs():
               envvar=const.CFG_VERSION_KEY,
               help='[ADVANCED] Override current version number.')
 @click.pass_context
-def update(ctx, update_ctl, update_ctl_done, pull, migrate, prune, from_version):
+def update(ctx, update_ctl, update_ctl_done, pull, avahi_config, migrate, prune, from_version):
     """Download and apply updates.
 
     This is the one-stop-shop for updating your Brewblox install.
@@ -124,9 +127,8 @@ def update(ctx, update_ctl, update_ctl_done, pull, migrate, prune, from_version)
     --pull/--no-pull governs whether new docker images are pulled.
     This is useful if any of your services is using a local image (not from Docker Hub).
 
-    --copy-shared/--no-copy-shared. By default, docker-compose.shared.yml is recreated every update.
-    Manually editing docker-compose.shared.yml is possible, but highly discouraged.
-    Consider using docker-compose.override.yml instead.
+    --avahi-config/--no-avahi-config. Check avahi-daemon configuration.
+    This is required for TCP discovery of Spark controllers.
 
     --migrate/--no-migrate. Updates regularly require changes to configuration.
     To do this, services are stopped. If the update only requires pulling docker images,
@@ -189,6 +191,9 @@ def update(ctx, update_ctl, update_ctl_done, pull, migrate, prune, from_version)
 
     utils.info('Updating docker-compose.shared.yml...')
     apply_shared()
+
+    if avahi_config:
+        utils.update_avahi_config()
 
     if migrate:
         # Everything except downed_migrate can be done with running services

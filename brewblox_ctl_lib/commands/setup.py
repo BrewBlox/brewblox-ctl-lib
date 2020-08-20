@@ -25,7 +25,6 @@ def check_ports():
         utils.getenv(key, const.ENV_DEFAULTS[key]) for key in [
             const.HTTP_PORT_KEY,
             const.HTTPS_PORT_KEY,
-            const.MDNS_PORT_KEY,
         ]]
 
     utils.info('Checking ports...')
@@ -80,10 +79,13 @@ def makecert(dir, release):
 @click.option('--port-check/--no-port-check',
               default=True,
               help='Check whether ports are already in use')
+@click.option('--avahi-config/--no-avahi-config',
+              default=True,
+              help='Update Avahi config to enable mDNS discovery')
 @click.option('--pull/--no-pull',
               default=True,
               help='Pull docker service images.')
-def setup(ctx, pull, port_check):
+def setup(ctx, avahi_config, pull, port_check):
     """Run first-time setup in Brewblox directory.
 
     Run after brewblox-ctl install, in the newly created Brewblox directory.
@@ -99,6 +101,7 @@ def setup(ctx, pull, port_check):
     Steps:
         - Check whether files already exist.
         - Set .env values.
+        - Update avahi-daemon config.                (Optional)
         - Create docker-compose configuration files. (Optional)
         - Pull docker images.                        (Optional)
         - Create datastore (CouchDB) directory.      (Optional)
@@ -143,6 +146,9 @@ def setup(ctx, pull, port_check):
     utils.info('Setting .env values...')
     for key, default_val in const.ENV_DEFAULTS.items():
         utils.setenv(key, utils.getenv(key, default_val))
+
+    if avahi_config:
+        utils.update_avahi_config()
 
     utils.info('Copying docker-compose.shared.yml...')
     sh('cp -f {}/docker-compose.shared.yml ./'.format(const.CONFIG_DIR))

@@ -5,10 +5,12 @@ Utility functions specific to lib
 import json
 import re
 from pathlib import Path
+from tempfile import NamedTemporaryFile
 
 import click
 import yaml
 from brewblox_ctl import utils
+from configobj import ConfigObj
 
 from brewblox_ctl_lib import const
 
@@ -113,8 +115,38 @@ def check_service_name(ctx, param, value):
 
 def pip_install(*libs):
     user = getenv('USER')
-    args = '--upgrade --no-cache-dir ' + ' '.join(libs)
+    args = '--quiet --upgrade --no-cache-dir ' + ' '.join(libs)
     if user and Path('/home/{}'.format(user)).is_dir():
         return sh('{} -m pip install --user {}'.format(const.PY, args))
     else:
         return sh('sudo {} -m pip install {}'.format(const.PY, args))
+
+
+def update_avahi_config():
+    conf = const.AVAHI_CONF
+
+    info('Checking Avahi config...')
+    config = ConfigObj(conf)
+
+    if not config:
+        warn('Avahi config file not found: {}'.format(conf))
+        return
+
+    if config['reflector']['enable-reflector'] == 'yes':
+        info('No changes to Avahi config required')
+        return
+
+    config['reflector']['enable-reflector'] = 'yes'
+    show_data(config.dict())
+
+    with NamedTemporaryFile('w') as tmp:
+        config.filename = None
+        lines = config.write()
+        # avahi-daemon.conf requires a 'key=value' syntax
+        tmp.write('\n'.join(lines).replace(' = ', '='))
+        tmp.flush()
+        sh('sudo chmod --reference={} {}'.format(conf, tmp.name))
+        sh('sudo cp -fp {} {}'.format(tmp.name, conf))
+
+    info('Restarting avahi-daemon service...')
+    sh('sudo service avahi-daemon restart')
