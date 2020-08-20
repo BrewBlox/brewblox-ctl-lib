@@ -132,7 +132,9 @@ def update_avahi_config():
         warn('Avahi config file not found: {}'.format(conf))
         return
 
-    if config['reflector']['enable-reflector'] == 'yes':
+    config.setdefault('reflector', {})
+
+    if config['reflector'].get('enable-reflector') == 'yes':
         info('No changes to Avahi config required')
         return
 
