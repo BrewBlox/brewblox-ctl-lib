@@ -51,3 +51,6 @@ def test_update(m_utils, m_sh):
     invoke(update.update, '--from-version 0.0.0 --prune', _err=True)
     invoke(update.update, '--from-version 9001.0.0 --prune', _err=True)
     invoke(update.update, '--from-version 0.0.1 --no-pull --no-update-ctl --no-migrate --no-prune')
+
+    m_utils.getenv.return_value = None
+    invoke(update.update, '--from-version {} --no-update-ctl --prune'.format(const.CURRENT_VERSION))
