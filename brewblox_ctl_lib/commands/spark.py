@@ -164,7 +164,6 @@ def add_spark(name,
 
     commands = [
         '--name=' + name,
-        '--mdns-port=${BREWBLOX_PORT_MDNS}',
         '--discovery=' + discovery,
     ]
 

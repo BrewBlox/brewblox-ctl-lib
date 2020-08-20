@@ -7,6 +7,7 @@ from unittest.mock import call
 
 import click
 import pytest
+from configobj import ConfigObj
 
 from brewblox_ctl_lib import utils
 from brewblox_ctl_lib.const import HOST, HTTPS_PORT_KEY
@@ -17,6 +18,11 @@ TESTED = utils.__name__
 @pytest.fixture
 def m_getenv(mocker):
     return mocker.patch(TESTED + '.getenv')
+
+
+@pytest.fixture
+def m_sh(mocker):
+    return mocker.patch(TESTED + '.sh')
 
 
 def test_show_data(mocker):
@@ -69,7 +75,7 @@ def test_list_services():
 def test_read_shared():
     cfg = utils.read_shared_compose(
         'brewblox_ctl_lib/data/config/docker-compose.shared.yml')
-    assert 'mdns' in cfg['services']
+    assert 'history' in cfg['services']
 
 
 @pytest.mark.parametrize('name', [
@@ -94,15 +100,43 @@ def test_check_service_name_err(name):
         utils.check_service_name(None, 'name', name)
 
 
-def test_pip_install(mocker, m_getenv):
-    m_sh = mocker.patch(TESTED + '.sh')
+def test_pip_install(mocker, m_getenv, m_sh):
     mocker.patch(TESTED + '.Path')
     mocker.patch(TESTED + '.const.PY', '/PY')
 
     m_getenv.return_value = 'ussr'
     utils.pip_install('lib')
-    m_sh.assert_called_with('/PY -m pip install --user --upgrade --no-cache-dir lib')
+    m_sh.assert_called_with('/PY -m pip install --user --quiet --upgrade --no-cache-dir lib')
 
     m_getenv.return_value = None
     utils.pip_install('lib')
-    m_sh.assert_called_with('sudo /PY -m pip install --upgrade --no-cache-dir lib')
+    m_sh.assert_called_with('sudo /PY -m pip install --quiet --upgrade --no-cache-dir lib')
+
+
+def test_update_avahi_config(mocker, m_sh):
+    m_info = mocker.patch(TESTED + '.info')
+    m_warn = mocker.patch(TESTED + '.warn')
+    mocker.patch(TESTED + '.show_data')
+
+    config = ConfigObj()
+    m_config = mocker.patch(TESTED + '.ConfigObj')
+    m_config.return_value = config
+
+    utils.update_avahi_config()
+    assert m_info.call_count == 1
+    assert m_warn.call_count == 1
+    assert m_sh.call_count == 0
+
+    m_sh.reset_mock()
+    config['reflector'] = {}
+    config['reflector']['enable-reflector'] = 'no'
+
+    utils.update_avahi_config()
+    assert m_sh.call_count == 3
+    assert config['reflector']['enable-reflector'] == 'yes'
+
+    m_sh.reset_mock()
+    config['reflector'] = {}
+    config['reflector']['enable-reflector'] = 'yes'
+    utils.update_avahi_config()
+    assert m_sh.call_count == 0

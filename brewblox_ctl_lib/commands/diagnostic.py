@@ -12,10 +12,10 @@ from brewblox_ctl_lib import const, utils
 
 ENV_KEYS = [
     const.RELEASE_KEY,
+    const.COMPOSE_PROJECT_KEY,
     const.CFG_VERSION_KEY,
     const.HTTP_PORT_KEY,
     const.HTTPS_PORT_KEY,
-    const.MDNS_PORT_KEY,
 ]
 
 

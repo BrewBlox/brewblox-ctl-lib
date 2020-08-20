@@ -39,10 +39,11 @@ description = "Brewblox management tool"
 name = "brewblox-ctl"
 optional = false
 python-versions = ">=3.5"
-version = "0.21.8"
+version = "0.22.0"
 
 [package.dependencies]
 click = ">=7.1.1,<8.0.0"
+configobj = ">=5.0.6,<6.0.0"
 docker = ">=4.2.1,<5.0.0"
 docker-compose = ">=1.26.0,<2.0.0"
 pyyaml = ">=5.3.1,<6.0.0"
@@ -92,6 +93,17 @@ name = "colorama"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
 version = "0.4.3"
+
+[[package]]
+category = "main"
+description = "Config file reading, writing and validation."
+name = "configobj"
+optional = false
+python-versions = "*"
+version = "5.0.6"
+
+[package.dependencies]
+six = "*"
 
 [[package]]
 category = "dev"
@@ -541,7 +553,7 @@ docs = ["sphinx", "jaraco.packaging (>=3.2)", "rst.linker (>=1.9)"]
 testing = ["pathlib2", "unittest2", "jaraco.itertools", "func-timeout"]
 
 [metadata]
-content-hash = "60942cbb07e451c41d089e5bac6322fd56b37cfc0faad8079bee426b34eebab9"
+content-hash = "d1ebbc839c4c42d672df767e524598235543d0838cac018fb8356db1cf1015c7"
 python-versions = ">=3.5"
 
 [metadata.files]
@@ -557,8 +569,8 @@ autopep8 = [
     {file = "autopep8-1.5.4.tar.gz", hash = "sha256:d21d3901cb0da6ebd1e83fc9b0dfbde8b46afc2ede4fe32fbda0c7c6118ca094"},
 ]
 brewblox-ctl = [
-    {file = "brewblox-ctl-0.21.8.tar.gz", hash = "sha256:26827493f77152530fbc7c3bea85e54182b55212a50f08f4b8fbbbeaacb7ea34"},
-    {file = "brewblox_ctl-0.21.8-py3-none-any.whl", hash = "sha256:c2537167fbf3bb50d575f94ec300d5a21a29d010338f9d81832ca1c3b210ca9a"},
+    {file = "brewblox-ctl-0.22.0.tar.gz", hash = "sha256:003cc03cee88eddb0e1346311a2a22b9c6328b416f6850c61b082fc77ded1519"},
+    {file = "brewblox_ctl-0.22.0-py3-none-any.whl", hash = "sha256:cb7d443c01730fdb349ca4e177397d71df3273442985e0bb358d1d439a0cff1d"},
 ]
 cached-property = [
     {file = "cached-property-1.5.1.tar.gz", hash = "sha256:9217a59f14a5682da7c4b8829deadbfc194ac22e9908ccf7c8820234e80a1504"},
@@ -579,6 +591,9 @@ click = [
 colorama = [
     {file = "colorama-0.4.3-py2.py3-none-any.whl", hash = "sha256:7d73d2a99753107a36ac6b455ee49046802e59d9d076ef8e47b61499fa29afff"},
     {file = "colorama-0.4.3.tar.gz", hash = "sha256:e96da0d330793e2cb9485e9ddfd918d456036c7149416295932478192f4436a1"},
+]
+configobj = [
+    {file = "configobj-5.0.6.tar.gz", hash = "sha256:a2f5650770e1c87fb335af19a9b7eb73fc05ccf22144eb68db7d00cd2bcb0902"},
 ]
 coverage = [
     {file = "coverage-4.4.2-cp26-cp26m-macosx_10_10_x86_64.whl", hash = "sha256:d1ee76f560c3c3e8faada866a07a32485445e16ed2206ac8378bd90dadffb9f0"},

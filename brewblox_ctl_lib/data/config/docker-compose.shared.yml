@@ -9,11 +9,6 @@
 version: "3.7"
 
 services:
-  mdns:
-    image: brewblox/brewblox-mdns:${BREWBLOX_RELEASE}
-    network_mode: host
-    restart: unless-stopped
-    command: --port=${BREWBLOX_PORT_MDNS}
   eventbus:
     image: brewblox/mosquitto:${BREWBLOX_RELEASE}
     restart: unless-stopped
