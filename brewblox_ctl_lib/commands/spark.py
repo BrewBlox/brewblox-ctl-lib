@@ -48,7 +48,7 @@ def discover_wifi():
         ServiceBrowser(conf, BREWBLOX_DNS_TYPE, handlers=[on_service_state_change])
         while True:
             info = queue.get(timeout=DISCOVER_TIMEOUT_S)
-            if not info.addresses or info.addresses == [b'\x00\x00\x00\x00']:
+            if not info or not info.addresses or info.addresses == [b'\x00\x00\x00\x00']:
                 continue  # discard simulators
             id = info.server[:-len('.local.')]
             host = inet_ntoa(info.addresses[0])
