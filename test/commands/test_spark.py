@@ -2,12 +2,85 @@
 Tests brewblox_ctl_lib.commands.spark
 """
 
+from socket import inet_aton
+
 import pytest
-from brewblox_ctl.testing import check_sudo, invoke, matching
+from brewblox_ctl.testing import check_sudo, invoke
+from zeroconf import ServiceInfo, ServiceStateChange
 
 from brewblox_ctl_lib.commands import spark
+from brewblox_ctl_lib.commands.spark import find_device
 
 TESTED = spark.__name__
+
+
+class ServiceBrowserMock():
+
+    def __init__(self, conf, service_type, handlers):
+        self.conf = conf
+        self.service_type = service_type
+        self.handlers = handlers
+
+        for name in ['id0', 'id1', 'id2']:
+            for handler in self.handlers:
+                handler(zeroconf=conf,
+                        service_type=service_type,
+                        name=name,
+                        state_change=ServiceStateChange.Added)
+                handler(zeroconf=conf,
+                        service_type=service_type,
+                        name=name,
+                        state_change=ServiceStateChange.Removed)
+
+
+@pytest.fixture
+def m_conf(mocker):
+
+    def get_service_info(service_type, name):
+        dns_type = spark.BREWBLOX_DNS_TYPE
+        service_name = '{}.{}'.format(name, dns_type)
+        if name == 'id0':
+            return ServiceInfo(
+                service_type,
+                service_name,
+                addresses=[inet_aton('0.0.0.0')],
+            )
+        if name == 'id1':
+            return ServiceInfo(
+                service_type,
+                service_name,
+                server='{}.local.'.format(name),
+                addresses=[inet_aton('1.2.3.4')],
+                port=1234
+            )
+        if name == 'id2':
+            return ServiceInfo(
+                service_type,
+                service_name,
+                server='{}.local.'.format(name),
+                addresses=[inet_aton('4.3.2.1')],
+                port=4321
+            )
+
+    def close():
+        pass
+
+    m = mocker.patch(TESTED + '.Zeroconf')
+    m.return_value.get_service_info = get_service_info
+    m.return_value.close = close
+    return m
+
+
+@pytest.fixture
+def m_browser(mocker):
+    mocker.patch(TESTED + '.DISCOVER_TIMEOUT_S', 0.01)
+    return mocker.patch(TESTED + '.ServiceBrowser', ServiceBrowserMock)
+
+
+@pytest.fixture
+def m_glob(mocker):
+    entry = 'usb-Particle_P1_4f0052000551353432383931-if00'
+    return mocker.patch(TESTED + '.glob', return_value=[entry]*2)
 
 
 @pytest.fixture
@@ -24,47 +97,88 @@ def m_sh(mocker):
     return m
 
 
-def test_discover_device(m_utils, m_sh):
-    m_utils.docker_tag.return_value = 'taggy'
-    assert spark.discover_device('wifi', None) == []
-    m_sh.assert_called_with(
-        matching(r'.* brewblox/brewblox-mdns:taggy --cli --discovery wifi'),
-        capture=True)
+@pytest.fixture
+def m_find(mocker):
+    m = mocker.patch(TESTED + '.find_device')
+    m.side_effect = lambda _1, _2: {
+        'id': '280038000847343337373738',
+        'host': '192.168.0.55',
+        'port': 8332
+    }
+    return m
 
 
-def test_find_device(m_utils, m_sh, mocker):
-    dev = '280038000847343337373738 192.168.0.55 8332'
-    m_dscv = mocker.patch(TESTED + '.discover_device')
-    m_dscv.return_value = [dev]
+def test_discover_usb(m_glob):
+    expected = {
+        'id': '4f0052000551353432383931',
+        'desc': 'usb  4f0052000551353432383931 P1',
+        'model': 'P1',
+    }
 
-    assert spark.find_device('all', None, '192.168.0.55') == dev
+    gen = spark.discover_usb()
+    assert next(gen, None) == expected
+    assert next(gen, None) == expected
+    assert next(gen, None) is None
 
+
+def test_discover_wifi(m_browser, m_conf):
+    gen = spark.discover_wifi()
+    assert next(gen, None) == {
+        'id': 'id1',
+        'desc': 'wifi id1 1.2.3.4 1234',
+        'host': '1.2.3.4',
+        'port': 1234,
+    }
+    assert next(gen, None) == {
+        'id': 'id2',
+        'desc': 'wifi id2 4.3.2.1 4321',
+        'host': '4.3.2.1',
+        'port': 4321,
+    }
+    assert next(gen, None) is None
+
+
+def test_discover_device(m_utils, m_browser, m_conf, m_glob):
+    usb_devs = [v for v in spark.discover_device('usb')]
+    assert len(usb_devs) == 2
+    assert usb_devs[0]['id'] == '4f0052000551353432383931'
+
+    wifi_devs = [v for v in spark.discover_device('wifi')]
+    assert len(wifi_devs) == 2
+    assert wifi_devs[0]['id'] == 'id1'
+
+    all_devs = [v for v in spark.discover_device('all')]
+    assert all_devs == usb_devs + wifi_devs
+
+
+def test_find_device(m_utils, m_browser, m_conf, m_glob, mocker):
     m_prompt = mocker.patch(TESTED + '.click.prompt')
     m_prompt.return_value = 1
-    assert spark.find_device('all', None, None) == dev
 
-    m_dscv.return_value = []
-    assert spark.find_device('all', None, None) is None
+    assert find_device('all')['id'] == '4f0052000551353432383931'
+    assert find_device('wifi')['id'] == 'id1'
+    assert find_device('all', 'Valhalla') is None
+    assert find_device('usb', '4.3.2.1') is None
+    assert find_device('wifi', '4.3.2.1')['id'] == 'id2'
 
 
-def test_discover_spark(m_utils, m_sh, mocker):
+def test_discover_spark(m_utils, m_browser, m_conf, m_glob):
     invoke(spark.discover_spark)
-    mocker.patch(TESTED + '.discover_device').return_value = ['1', '2', '3']
-    invoke(spark.discover_spark)
+    assert m_utils.info.call_count == 6  # start, 4 discovered, done
+
+    m_utils.info.reset_mock()
+    invoke(spark.discover_spark, '--discovery=wifi')
+    assert m_utils.info.call_count == 4  # start, 2 discovered, done
 
 
-def test_add_spark_force(m_utils, m_sh, mocker):
-    m_find = mocker.patch(TESTED + '.find_device')
-    m_find.return_value = '280038000847343337373738 192.168.0.55 8332'
+def test_add_spark_force(m_utils, m_sh, mocker, m_find):
     m_utils.read_compose.side_effect = lambda: {'services': {'testey': {}}}
 
     invoke(spark.add_spark, '--name testey', _err=True)
     invoke(spark.add_spark, '--name testey --force')
 
 
-def test_add_spark(m_utils, m_sh, mocker):
-    m_find = mocker.patch(TESTED + '.find_device')
-    m_find.return_value = '280038000847343337373738 192.168.0.55 8332'
+def test_add_spark(m_utils, m_sh, mocker, m_find):
     m_utils.read_compose.side_effect = lambda: {'services': {}}
 
     invoke(spark.add_spark, '--name testey --discover-now --discovery wifi --command "--do-stuff"')
@@ -73,15 +187,13 @@ def test_add_spark(m_utils, m_sh, mocker):
     m_utils.confirm.return_value = False
     invoke(spark.add_spark, '-n testey')
 
-    m_find.return_value = None
+    m_find.side_effect = lambda _1, _2: None
     invoke(spark.add_spark, '--name testey --discovery wifi', _err=True)
     invoke(spark.add_spark, '--name testey --device-host 1234')
     invoke(spark.add_spark, '--name testey --device-id 12345 --simulation')
 
 
-def test_spark_overlap(m_utils, m_sh, mocker):
-    m_find = mocker.patch(TESTED + '.find_device')
-    m_find.return_value = '280038000847343337373738 192.168.0.55 8332'
+def test_spark_overlap(m_utils, m_sh, m_find, mocker):
     m_utils.read_compose.side_effect = lambda: {
         'services': {
             'testey': {

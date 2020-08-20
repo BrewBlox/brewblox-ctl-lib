@@ -39,7 +39,7 @@ description = "Brewblox management tool"
 name = "brewblox-ctl"
 optional = false
 python-versions = ">=3.5"
-version = "0.22.0"
+version = "0.22.1"
 
 [package.dependencies]
 click = ">=7.1.1,<8.0.0"
@@ -48,6 +48,7 @@ docker = ">=4.2.1,<5.0.0"
 docker-compose = ">=1.26.0,<2.0.0"
 pyyaml = ">=5.3.1,<6.0.0"
 requests = ">=2.23.0,<3.0.0"
+zeroconf = ">=0.28.1,<0.29.0"
 
 [package.dependencies.python-dotenv]
 extras = ["cli"]
@@ -223,6 +224,14 @@ name = "idna"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
 version = "2.10"
+
+[[package]]
+category = "main"
+description = "Cross-platform network interface and IP address enumeration library"
+name = "ifaddr"
+optional = false
+python-versions = "*"
+version = "0.1.7"
 
 [[package]]
 category = "main"
@@ -541,6 +550,17 @@ six = "*"
 
 [[package]]
 category = "main"
+description = "Pure Python Multicast DNS Service Discovery Library (Bonjour/Avahi compatible)"
+name = "zeroconf"
+optional = false
+python-versions = "*"
+version = "0.28.1"
+
+[package.dependencies]
+ifaddr = ">=0.1.7"
+
+[[package]]
+category = "main"
 description = "Backport of pathlib-compatible object wrapper for zip files"
 marker = "python_version < \"3.8\""
 name = "zipp"
@@ -553,7 +573,7 @@ docs = ["sphinx", "jaraco.packaging (>=3.2)", "rst.linker (>=1.9)"]
 testing = ["pathlib2", "unittest2", "jaraco.itertools", "func-timeout"]
 
 [metadata]
-content-hash = "d1ebbc839c4c42d672df767e524598235543d0838cac018fb8356db1cf1015c7"
+content-hash = "1da751f54f011c92492ef235f33dc21322468d8e5ed4fee2d001a1310bd8ff92"
 python-versions = ">=3.5"
 
 [metadata.files]
@@ -569,8 +589,8 @@ autopep8 = [
     {file = "autopep8-1.5.4.tar.gz", hash = "sha256:d21d3901cb0da6ebd1e83fc9b0dfbde8b46afc2ede4fe32fbda0c7c6118ca094"},
 ]
 brewblox-ctl = [
-    {file = "brewblox-ctl-0.22.0.tar.gz", hash = "sha256:003cc03cee88eddb0e1346311a2a22b9c6328b416f6850c61b082fc77ded1519"},
-    {file = "brewblox_ctl-0.22.0-py3-none-any.whl", hash = "sha256:cb7d443c01730fdb349ca4e177397d71df3273442985e0bb358d1d439a0cff1d"},
+    {file = "brewblox-ctl-0.22.1.tar.gz", hash = "sha256:52fe4089dca685dee6408062253a9d60162974638dee71b1d91879109d896680"},
+    {file = "brewblox_ctl-0.22.1-py3-none-any.whl", hash = "sha256:3c7bc8e5f226183fe6444c3eb425fdeaa6ae263925d90dcae44723029296d5ae"},
 ]
 cached-property = [
     {file = "cached-property-1.5.1.tar.gz", hash = "sha256:9217a59f14a5682da7c4b8829deadbfc194ac22e9908ccf7c8820234e80a1504"},
@@ -665,6 +685,10 @@ flake8-quotes = [
 idna = [
     {file = "idna-2.10-py2.py3-none-any.whl", hash = "sha256:b97d804b1e9b523befed77c48dacec60e6dcb0b5391d57af6a65a312a90648c0"},
     {file = "idna-2.10.tar.gz", hash = "sha256:b307872f855b18632ce0c21c5e45be78c0ea7ae4c15c828c20788b26921eb3f6"},
+]
+ifaddr = [
+    {file = "ifaddr-0.1.7-py2.py3-none-any.whl", hash = "sha256:d1f603952f0a71c9ab4e705754511e4e03b02565bc4cec7188ad6415ff534cd3"},
+    {file = "ifaddr-0.1.7.tar.gz", hash = "sha256:1f9e8a6ca6f16db5a37d3356f07b6e52344f6f9f7e806d618537731669eb1a94"},
 ]
 importlib-metadata = [
     {file = "importlib_metadata-1.7.0-py2.py3-none-any.whl", hash = "sha256:dc15b2969b4ce36305c51eebe62d418ac7791e9a157911d58bfb1f9ccd8e2070"},
@@ -787,6 +811,10 @@ urllib3 = [
 websocket-client = [
     {file = "websocket_client-0.57.0-py2.py3-none-any.whl", hash = "sha256:0fc45c961324d79c781bab301359d5a1b00b13ad1b10415a4780229ef71a5549"},
     {file = "websocket_client-0.57.0.tar.gz", hash = "sha256:d735b91d6d1692a6a181f2a8c9e0238e5f6373356f561bb9dc4c7af36f452010"},
+]
+zeroconf = [
+    {file = "zeroconf-0.28.1-py3-none-any.whl", hash = "sha256:aae48e790f0f7c213c3893654ae2f53f7de01e05a34271bf17aa4c99def73940"},
+    {file = "zeroconf-0.28.1.tar.gz", hash = "sha256:902e6c3ca4cc752577d650d05a3e7102a897b647fe76da7c0d322cd493cbd1a3"},
 ]
 zipp = [
     {file = "zipp-1.2.0-py2.py3-none-any.whl", hash = "sha256:e0d9e63797e483a30d27e09fffd308c59a700d365ec34e93cc100844168bf921"},
