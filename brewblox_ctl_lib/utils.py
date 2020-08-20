@@ -145,7 +145,7 @@ def update_avahi_config():
         config.filename = None
         lines = config.write()
         # avahi-daemon.conf requires a 'key=value' syntax
-        tmp.write('\n'.join(lines).replace(' = ', '='))
+        tmp.write('\n'.join(lines).replace(' = ', '=') + '\n')
         tmp.flush()
         sh('sudo chmod --reference={} {}'.format(conf, tmp.name))
         sh('sudo cp -fp {} {}'.format(tmp.name, conf))
