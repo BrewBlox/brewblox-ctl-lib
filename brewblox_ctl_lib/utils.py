@@ -135,7 +135,6 @@ def update_avahi_config():
     config.setdefault('reflector', {})
 
     if config['reflector'].get('enable-reflector') == 'yes':
-        info('No changes to Avahi config required')
         return
 
     config['reflector']['enable-reflector'] = 'yes'
