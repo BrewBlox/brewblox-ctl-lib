@@ -55,15 +55,11 @@ def downed_migrate(prev_version):
         }
         utils.write_compose(usr_config)
 
-        utils.info('Writing env values for all variables')
-        for key in [
-            const.COMPOSE_FILES_KEY,
-            const.RELEASE_KEY,
-            const.HTTP_PORT_KEY,
-            const.HTTPS_PORT_KEY,
-            const.MDNS_PORT_KEY,
-        ]:
-            utils.setenv(key, utils.getenv(key, const.ENV_DEFAULTS[key]))
+    utils.info('Checking .env variables')
+    for (key, default_value) in const.ENV_DEFAULTS.items():
+        current_value = utils.getenv(key)
+        if current_value is None:
+            utils.setenv(key, default_value)
 
 
 def upped_migrate(prev_version):
