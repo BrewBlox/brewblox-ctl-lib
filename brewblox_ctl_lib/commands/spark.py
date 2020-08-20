@@ -1,8 +1,17 @@
 
+import re
+from glob import glob
+from queue import Empty, Queue
+from socket import inet_ntoa
+
 import click
 from brewblox_ctl import click_helpers, sh
+from zeroconf import ServiceBrowser, ServiceStateChange, Zeroconf
 
 from brewblox_ctl_lib import utils
+
+BREWBLOX_DNS_TYPE = '_brewblox._tcp.local.'
+DISCOVER_TIMEOUT_S = 5
 
 
 @click.group(cls=click_helpers.OrderedGroup)
@@ -10,39 +19,77 @@ def cli():
     """Command collector"""
 
 
-def discover_device(discovery, release):
-    sudo = utils.optsudo()
-    mdns = 'brewblox/brewblox-mdns:{}'.format(utils.docker_tag(release))
+def discover_usb():
+    lines = '\n'.join([f for f in glob('/dev/serial/by-id/*')])
+    for obj in re.finditer(r'particle_(?P<model>p1|photon)_(?P<serial>[a-z0-9]+)-',
+                           lines,
+                           re.IGNORECASE | re.MULTILINE):
+        id = obj.group('serial')
+        model = obj.group('model')
+        # 'usb ' is same length as 'wifi'
+        desc = 'usb  {} {}'.format(id, model)
+        yield {
+            'id': id,
+            'desc': desc,
+            'model': model,
+        }
 
-    utils.info('Pulling image...')
-    sh('{}docker pull {}'.format(sudo, mdns), silent=True)
 
+def discover_wifi():
+    queue = Queue()
+    conf = Zeroconf()
+
+    def on_service_state_change(zeroconf, service_type, name, state_change):
+        if state_change == ServiceStateChange.Added:
+            info = zeroconf.get_service_info(service_type, name)
+            queue.put(info)
+
+    try:
+        ServiceBrowser(conf, BREWBLOX_DNS_TYPE, handlers=[on_service_state_change])
+        while True:
+            info = queue.get(timeout=DISCOVER_TIMEOUT_S)
+            if not info.addresses or info.addresses == [b'\x00\x00\x00\x00']:
+                continue  # discard simulators
+            id = info.server[:-len('.local.')]
+            host = inet_ntoa(info.addresses[0])
+            port = info.port
+            desc = 'wifi {} {} {}'.format(id, host, port)
+            yield {
+                'id': id,
+                'desc': desc,
+                'host': host,
+                'port': port,
+            }
+    except Empty:
+        pass
+    finally:
+        conf.close()
+
+
+def discover_device(discovery):
     utils.info('Discovering devices...')
-    raw_devs = sh('{}docker run '.format(sudo) +
-                  '--rm -it ' +
-                  '--net=host ' +
-                  '-v /dev/serial:/dev/serial ' +
-                  '{} --cli --discovery {}'.format(mdns, discovery),
-                  capture=True)
-
-    return [dev for dev in raw_devs.split('\n') if dev.rstrip()]
+    if discovery in ['all', 'usb']:
+        yield from discover_usb()
+    if discovery in ['all', 'wifi']:
+        yield from discover_wifi()
 
 
-def find_device(discovery, release, device_host):
-    devs = discover_device(discovery, release)
+def find_device(discovery, device_host=None):
+    devs = []
 
-    if not devs:
+    for i, dev in enumerate(discover_device(discovery)):
+        if not device_host:
+            devs.append(dev)
+            click.echo('device {} :: {}'.format(i+1, dev['desc']))
+
+        # Don't echo discarded devices
+        if device_host and dev.get('host') == device_host:
+            click.echo('{} matches --device-host {}'.format(dev['desc'], device_host))
+            return dev
+
+    if device_host or not devs:
         click.echo('No devices discovered')
         return None
-
-    if device_host:
-        for dev in devs:  # pragma: no cover
-            if device_host in dev:
-                click.echo('Discovered device "{}" matching device host {}'.format(dev, device_host))
-                return dev
-
-    for i, dev in enumerate(devs):
-        click.echo('device {} :: {}'.format(i+1, dev))
 
     idx = click.prompt('Which device do you want to use?',
                        type=click.IntRange(1, len(devs)),
@@ -56,21 +103,18 @@ def find_device(discovery, release, device_host):
               type=click.Choice(['all', 'usb', 'wifi']),
               default='all',
               help='Discovery setting. Use "all" to check both Wifi and USB')
-@click.option('--release',
-              default=None,
-              help='Brewblox release track')
-def discover_spark(discovery, release):
+def discover_spark(discovery):
     """
     Discover available Spark controllers.
 
     This prints device ID for all devices, and IP address for Wifi devices.
     If a device is connected over USB, and has Wifi active, it may show up twice.
 
-    Multicast DNS (mDNS) is used for Wifi discovery. Whether this works is dependent on your router's configuration.
+    Multicast DNS (mDNS) is used for Wifi discovery.
+    Whether this works is dependent on the configuration of your router and avahi-daemon.
     """
-    utils.confirm_mode()
-    for dev in discover_device(discovery, release):
-        click.echo(dev)
+    for dev in discover_device(discovery):
+        utils.info(dev['desc'])
     utils.info('Done!')
 
 
@@ -101,8 +145,6 @@ def discover_spark(discovery, release):
 @click.option('--simulation',
               is_flag=True,
               help='Add a simulation service. This will override discovery and connection settings.')
-@click.option('--discovery-release',
-              help='Brewblox release track used by the discovery container.')
 def add_spark(name,
               discover_now,
               device_id,
@@ -111,8 +153,7 @@ def add_spark(name,
               command,
               force,
               release,
-              simulation,
-              discovery_release):
+              simulation):
     """
     Create or update a Spark service.
 
@@ -153,10 +194,10 @@ def add_spark(name,
             utils.select('Press ENTER to continue')
 
     if device_id is None and discover_now and not simulation:
-        dev = find_device(discovery, discovery_release, device_host)
+        dev = find_device(discovery, device_host)
 
         if dev:
-            device_id = dev.split(' ')[1]
+            device_id = dev['id']
         elif device_host is None:
             # We have no device ID, and no device host. Avoid a wildcard service
             click.echo('No valid combination of device ID and device host.')
