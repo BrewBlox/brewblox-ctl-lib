@@ -122,21 +122,38 @@ def test_update_avahi_config(mocker, m_sh):
     m_config = mocker.patch(TESTED + '.ConfigObj')
     m_config.return_value = config
 
+    # File not found
+    m_config.side_effect = OSError
     utils.update_avahi_config()
     assert m_info.call_count == 1
     assert m_warn.call_count == 1
     assert m_sh.call_count == 0
 
+    # By default, the value is not set
+    # Do not change an explicit 'no' value
+    m_config.side_effect = None
     m_sh.reset_mock()
-    config['reflector'] = {}
-    config['reflector']['enable-reflector'] = 'no'
-
-    utils.update_avahi_config()
-    assert m_sh.call_count == 3
-    assert config['reflector']['enable-reflector'] == 'yes'
-
-    m_sh.reset_mock()
-    config['reflector'] = {}
-    config['reflector']['enable-reflector'] = 'yes'
+    m_warn.reset_mock()
+    config['reflector'] = {'enable-reflector': 'no'}
     utils.update_avahi_config()
     assert m_sh.call_count == 0
+    assert m_warn.call_count == 2
+    assert config['reflector']['enable-reflector'] == 'no'
+
+    # Empty config
+    m_sh.reset_mock()
+    m_warn.reset_mock()
+    config.clear()
+    utils.update_avahi_config()
+    assert m_sh.call_count == 3
+    assert m_warn.call_count == 0
+    assert config['reflector']['enable-reflector'] == 'yes'
+
+    # enable-reflector already 'yes'
+    m_sh.reset_mock()
+    m_warn.reset_mock()
+    config['reflector'] = {'enable-reflector': 'yes'}
+    utils.update_avahi_config()
+    assert m_sh.call_count == 0
+    assert m_warn.call_count == 0
+    assert config['reflector']['enable-reflector'] == 'yes'

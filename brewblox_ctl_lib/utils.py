@@ -126,15 +126,23 @@ def update_avahi_config():
     conf = const.AVAHI_CONF
 
     info('Checking Avahi config...')
-    config = ConfigObj(conf)
 
-    if not config:
+    try:
+        config = ConfigObj(conf, file_error=True)
+    except OSError:
         warn('Avahi config file not found: {}'.format(conf))
         return
 
     config.setdefault('reflector', {})
+    current_value = config['reflector'].get('enable-reflector')
 
-    if config['reflector'].get('enable-reflector') == 'yes':
+    if current_value == 'yes':
+        return
+
+    if current_value == 'no':
+        warn('Explicit "no" value found for ' +
+             'reflector/enable-reflector setting in Avahi config.')
+        warn('Aborting config change.')
         return
 
     config['reflector']['enable-reflector'] = 'yes'
