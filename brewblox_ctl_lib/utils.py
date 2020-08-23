@@ -23,6 +23,7 @@ confirm_usb = utils.confirm_usb
 confirm_mode = utils.confirm_mode
 getenv = utils.getenv
 setenv = utils.setenv
+clearenv = utils.clearenv
 path_exists = utils.path_exists
 command_exists = utils.command_exists
 is_pi = utils.is_pi

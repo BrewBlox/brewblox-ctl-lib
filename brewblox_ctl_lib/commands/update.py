@@ -16,8 +16,9 @@ def cli():
     """Global command group"""
 
 
-def apply_shared():
-    """Apply docker-compose.shared.yml from data directory"""
+def apply_config():
+    """Apply system-defined configuration from config dir"""
+    sh('cp -f {}/traefik-cert.yaml ./traefik/'.format(const.CONFIG_DIR))
     sh('cp -f {}/docker-compose.shared.yml ./'.format(const.CONFIG_DIR))
     shared_cfg = utils.read_shared_compose()
     usr_cfg = utils.read_compose()
@@ -55,7 +56,7 @@ def downed_migrate(prev_version):
         }
         utils.write_compose(usr_config)
 
-    utils.info('Checking .env variables')
+    utils.info('Checking .env variables...')
     for (key, default_value) in const.ENV_DEFAULTS.items():
         current_value = utils.getenv(key)
         if current_value is None:
@@ -189,8 +190,8 @@ def update(ctx, update_ctl, update_ctl_done, pull, avahi_config, migrate, prune,
         sh(' '.join([const.PY, *const.ARGS, '--update-ctl-done', '--prune' if prune else '--no-prune']))
         return
 
-    utils.info('Updating docker-compose.shared.yml...')
-    apply_shared()
+    utils.info('Updating configuration files...')
+    apply_config()
 
     if avahi_config:
         utils.update_avahi_config()
