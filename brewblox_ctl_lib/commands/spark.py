@@ -224,10 +224,6 @@ def add_spark(name,
         'image': '{}:{}'.format(image_name, utils.docker_tag(release)),
         'privileged': True,
         'restart': 'unless-stopped',
-        'labels': [
-            'traefik.port=5000',
-            'traefik.frontend.rule=PathPrefix: /{}'.format(name),
-        ],
         'command': ' '.join(commands)
     }
 
