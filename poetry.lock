@@ -39,7 +39,7 @@ description = "Brewblox management tool"
 name = "brewblox-ctl"
 optional = false
 python-versions = ">=3.5"
-version = "0.22.1"
+version = "0.22.2"
 
 [package.dependencies]
 click = ">=7.1.1,<8.0.0"
@@ -573,7 +573,7 @@ docs = ["sphinx", "jaraco.packaging (>=3.2)", "rst.linker (>=1.9)"]
 testing = ["pathlib2", "unittest2", "jaraco.itertools", "func-timeout"]
 
 [metadata]
-content-hash = "1da751f54f011c92492ef235f33dc21322468d8e5ed4fee2d001a1310bd8ff92"
+content-hash = "27a687eb0dffa67a574353cdec78fed70afc27dbf1ede7853b5f69d29e62d86e"
 python-versions = ">=3.5"
 
 [metadata.files]
@@ -589,8 +589,8 @@ autopep8 = [
     {file = "autopep8-1.5.4.tar.gz", hash = "sha256:d21d3901cb0da6ebd1e83fc9b0dfbde8b46afc2ede4fe32fbda0c7c6118ca094"},
 ]
 brewblox-ctl = [
-    {file = "brewblox-ctl-0.22.1.tar.gz", hash = "sha256:52fe4089dca685dee6408062253a9d60162974638dee71b1d91879109d896680"},
-    {file = "brewblox_ctl-0.22.1-py3-none-any.whl", hash = "sha256:3c7bc8e5f226183fe6444c3eb425fdeaa6ae263925d90dcae44723029296d5ae"},
+    {file = "brewblox-ctl-0.22.2.tar.gz", hash = "sha256:df774cbfc831b8ea991fe06da2497c7ee017d7de87622207aff348435718d18a"},
+    {file = "brewblox_ctl-0.22.2-py3-none-any.whl", hash = "sha256:7175af9d8aef57547b6ec7df7779b173fb0b6419d842ee39e682f9aa7029fd48"},
 ]
 cached-property = [
     {file = "cached-property-1.5.1.tar.gz", hash = "sha256:9217a59f14a5682da7c4b8829deadbfc194ac22e9908ccf7c8820234e80a1504"},

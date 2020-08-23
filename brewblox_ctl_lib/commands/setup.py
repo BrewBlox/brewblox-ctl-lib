@@ -181,6 +181,9 @@ def setup(ctx, avahi_config, pull, port_check):
         utils.info('Creating SSL certificate...')
         ctx.invoke(makecert)
 
+    # Always copy cert config to traefik dir
+    sh('cp -f {}/traefik-cert.yaml ./traefik/'.format(const.CONFIG_DIR))
+
     # Bring images online that we will send configuration
     utils.info('Starting configured services...')
     sh('{}docker-compose up -d --remove-orphans {}'.format(sudo, ' '.join(upped_services)))
