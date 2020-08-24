@@ -185,6 +185,7 @@ def update(ctx, update_ctl, update_ctl_done, pull, avahi_config, migrate, prune,
     if update_ctl and not update_ctl_done:
         utils.info('Updating brewblox-ctl...')
         utils.pip_install('brewblox-ctl')
+        utils.info('Updating brewblox-ctl libs...')
         utils.load_ctl_lib()
         # Restart ctl - we just replaced the source code
         sh(' '.join([const.PY, *const.ARGS, '--update-ctl-done', '--prune' if prune else '--no-prune']))
