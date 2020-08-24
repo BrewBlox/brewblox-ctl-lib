@@ -1,17 +1,16 @@
 """
-Tests brewblox_ctl_lib.commands.spark
+Tests brewblox_ctl_lib.discovery
 """
 
 from socket import inet_aton
 
 import pytest
-from brewblox_ctl.testing import check_sudo, invoke
+from brewblox_ctl.testing import check_sudo
 from zeroconf import ServiceInfo, ServiceStateChange
 
-from brewblox_ctl_lib.commands import spark
-from brewblox_ctl_lib.commands.spark import find_device
+from brewblox_ctl_lib import discovery
 
-TESTED = spark.__name__
+TESTED = discovery.__name__
 
 
 class ServiceBrowserMock():
@@ -37,7 +36,7 @@ class ServiceBrowserMock():
 def m_conf(mocker):
 
     def get_service_info(service_type, name):
-        dns_type = spark.BREWBLOX_DNS_TYPE
+        dns_type = discovery.BREWBLOX_DNS_TYPE
         service_name = '{}.{}'.format(name, dns_type)
         if name == 'id0':
             return ServiceInfo(
@@ -115,14 +114,14 @@ def test_discover_usb(m_glob):
         'model': 'P1',
     }
 
-    gen = spark.discover_usb()
+    gen = discovery.discover_usb()
     assert next(gen, None) == expected
     assert next(gen, None) == expected
     assert next(gen, None) is None
 
 
 def test_discover_wifi(m_browser, m_conf):
-    gen = spark.discover_wifi()
+    gen = discovery.discover_wifi()
     assert next(gen, None) == {
         'id': 'id1',
         'desc': 'wifi id1 1.2.3.4 1234',
@@ -139,15 +138,15 @@ def test_discover_wifi(m_browser, m_conf):
 
 
 def test_discover_device(m_utils, m_browser, m_conf, m_glob):
-    usb_devs = [v for v in spark.discover_device('usb')]
+    usb_devs = [v for v in discovery.discover_device('usb')]
     assert len(usb_devs) == 2
     assert usb_devs[0]['id'] == '4f0052000551353432383931'
 
-    wifi_devs = [v for v in spark.discover_device('wifi')]
+    wifi_devs = [v for v in discovery.discover_device('wifi')]
     assert len(wifi_devs) == 2
     assert wifi_devs[0]['id'] == 'id1'
 
-    all_devs = [v for v in spark.discover_device('all')]
+    all_devs = [v for v in discovery.discover_device('all')]
     assert all_devs == usb_devs + wifi_devs
 
 
@@ -155,53 +154,8 @@ def test_find_device(m_utils, m_browser, m_conf, m_glob, mocker):
     m_prompt = mocker.patch(TESTED + '.click.prompt')
     m_prompt.return_value = 1
 
-    assert find_device('all')['id'] == '4f0052000551353432383931'
-    assert find_device('wifi')['id'] == 'id1'
-    assert find_device('all', 'Valhalla') is None
-    assert find_device('usb', '4.3.2.1') is None
-    assert find_device('wifi', '4.3.2.1')['id'] == 'id2'
-
-
-def test_discover_spark(m_utils, m_browser, m_conf, m_glob):
-    invoke(spark.discover_spark)
-    assert m_utils.info.call_count == 6  # start, 4 discovered, done
-
-    m_utils.info.reset_mock()
-    invoke(spark.discover_spark, '--discovery=wifi')
-    assert m_utils.info.call_count == 4  # start, 2 discovered, done
-
-
-def test_add_spark_force(m_utils, m_sh, mocker, m_find):
-    m_utils.read_compose.side_effect = lambda: {'services': {'testey': {}}}
-
-    invoke(spark.add_spark, '--name testey', _err=True)
-    invoke(spark.add_spark, '--name testey --force')
-
-
-def test_add_spark(m_utils, m_sh, mocker, m_find):
-    m_utils.read_compose.side_effect = lambda: {'services': {}}
-
-    invoke(spark.add_spark, '--name testey --discover-now --discovery wifi --command "--do-stuff"')
-    invoke(spark.add_spark, input='testey\n')
-
-    m_utils.confirm.return_value = False
-    invoke(spark.add_spark, '-n testey')
-
-    m_find.side_effect = lambda _1, _2: None
-    invoke(spark.add_spark, '--name testey --discovery wifi', _err=True)
-    invoke(spark.add_spark, '--name testey --device-host 1234')
-    invoke(spark.add_spark, '--name testey --device-id 12345 --simulation')
-
-
-def test_spark_overlap(m_utils, m_sh, m_find, mocker):
-    m_utils.read_compose.side_effect = lambda: {
-        'services': {
-            'testey': {
-                'image': 'brewblox/brewblox-devcon-spark:develop'
-            }}}
-
-    invoke(spark.add_spark, '--name testey --force')
-    assert m_utils.warn.call_count == 0
-
-    invoke(spark.add_spark, '--name new-testey')
-    assert m_utils.warn.call_count > 0
+    assert discovery.find_device('all')['id'] == '4f0052000551353432383931'
+    assert discovery.find_device('wifi')['id'] == 'id1'
+    assert discovery.find_device('all', 'Valhalla') is None
+    assert discovery.find_device('usb', '4.3.2.1') is None
+    assert discovery.find_device('wifi', '4.3.2.1')['id'] == 'id2'

@@ -11,14 +11,14 @@ except AttributeError as ex:  # pragma: no cover
     print('To update brewblox-ctl, run: \n\n\t pip3 install --user --upgrade --no-cache-dir brewblox-ctl \n')
     raise ex
 
-from brewblox_ctl_lib.commands import (backup, diagnostic, service, setup,
-                                       spark, update)
+from brewblox_ctl_lib.commands import (add_device, backup, diagnostic, service,
+                                       setup, update)
 
 
 def cli_sources():
     return [
         setup.cli,
-        spark.cli,
+        add_device.cli,
         service.cli,
         update.cli,
         diagnostic.cli,

@@ -1,17 +1,12 @@
-
-import re
-from glob import glob
-from queue import Empty, Queue
-from socket import inet_ntoa
+"""
+Adding and configuring device services
+"""
 
 import click
 from brewblox_ctl import click_helpers, sh
-from zeroconf import ServiceBrowser, ServiceStateChange, Zeroconf
 
 from brewblox_ctl_lib import utils
-
-BREWBLOX_DNS_TYPE = '_brewblox._tcp.local.'
-DISCOVER_TIMEOUT_S = 5
+from brewblox_ctl_lib.discovery import discover_device, find_device
 
 
 @click.group(cls=click_helpers.OrderedGroup)
@@ -19,91 +14,12 @@ def cli():
     """Command collector"""
 
 
-def discover_usb():
-    lines = '\n'.join([f for f in glob('/dev/serial/by-id/*')])
-    for obj in re.finditer(r'particle_(?P<model>p1|photon)_(?P<serial>[a-z0-9]+)-',
-                           lines,
-                           re.IGNORECASE | re.MULTILINE):
-        id = obj.group('serial')
-        model = obj.group('model')
-        # 'usb ' is same length as 'wifi'
-        desc = 'usb  {} {}'.format(id, model)
-        yield {
-            'id': id,
-            'desc': desc,
-            'model': model,
-        }
-
-
-def discover_wifi():
-    queue = Queue()
-    conf = Zeroconf()
-
-    def on_service_state_change(zeroconf, service_type, name, state_change):
-        if state_change == ServiceStateChange.Added:
-            info = zeroconf.get_service_info(service_type, name)
-            queue.put(info)
-
-    try:
-        ServiceBrowser(conf, BREWBLOX_DNS_TYPE, handlers=[on_service_state_change])
-        while True:
-            info = queue.get(timeout=DISCOVER_TIMEOUT_S)
-            if not info or not info.addresses or info.addresses == [b'\x00\x00\x00\x00']:
-                continue  # discard simulators
-            id = info.server[:-len('.local.')]
-            host = inet_ntoa(info.addresses[0])
-            port = info.port
-            desc = 'wifi {} {} {}'.format(id, host, port)
-            yield {
-                'id': id,
-                'desc': desc,
-                'host': host,
-                'port': port,
-            }
-    except Empty:
-        pass
-    finally:
-        conf.close()
-
-
-def discover_device(discovery):
-    utils.info('Discovering devices...')
-    if discovery in ['all', 'usb']:
-        yield from discover_usb()
-    if discovery in ['all', 'wifi']:
-        yield from discover_wifi()
-
-
-def find_device(discovery, device_host=None):
-    devs = []
-
-    for i, dev in enumerate(discover_device(discovery)):
-        if not device_host:
-            devs.append(dev)
-            click.echo('device {} :: {}'.format(i+1, dev['desc']))
-
-        # Don't echo discarded devices
-        if device_host and dev.get('host') == device_host:
-            click.echo('{} matches --device-host {}'.format(dev['desc'], device_host))
-            return dev
-
-    if device_host or not devs:
-        click.echo('No devices discovered')
-        return None
-
-    idx = click.prompt('Which device do you want to use?',
-                       type=click.IntRange(1, len(devs)),
-                       default=1)
-
-    return devs[idx-1]
-
-
 @cli.command()
-@click.option('--discovery',
+@click.option('--discovery', 'discovery_type',
               type=click.Choice(['all', 'usb', 'wifi']),
               default='all',
               help='Discovery setting. Use "all" to check both Wifi and USB')
-def discover_spark(discovery):
+def discover_spark(discovery_type):
     """
     Discover available Spark controllers.
 
@@ -113,7 +29,7 @@ def discover_spark(discovery):
     Multicast DNS (mDNS) is used for Wifi discovery.
     Whether this works is dependent on the configuration of your router and avahi-daemon.
     """
-    for dev in discover_device(discovery):
+    for dev in discover_device(discovery_type):
         utils.info(dev['desc'])
     utils.info('Done!')
 
@@ -128,7 +44,7 @@ def discover_spark(discovery):
               help='Select from discovered devices if --device-id is not set')
 @click.option('--device-id',
               help='Checked device ID')
-@click.option('--discovery',
+@click.option('--discovery', 'discovery_type',
               type=click.Choice(['all', 'usb', 'wifi']),
               default='all',
               help='Discovery setting. Use "all" to check both Wifi and USB')
@@ -148,7 +64,7 @@ def discover_spark(discovery):
 def add_spark(name,
               discover_now,
               device_id,
-              discovery,
+              discovery_type,
               device_host,
               command,
               force,
@@ -194,7 +110,7 @@ def add_spark(name,
             utils.select('Press ENTER to continue')
 
     if device_id is None and discover_now and not simulation:
-        dev = find_device(discovery, device_host)
+        dev = find_device(discovery_type, device_host)
 
         if dev:
             device_id = dev['id']
@@ -205,7 +121,7 @@ def add_spark(name,
 
     commands = [
         '--name=' + name,
-        '--discovery=' + discovery,
+        '--discovery=' + discovery_type,
     ]
 
     if device_id:
@@ -237,5 +153,44 @@ def add_spark(name,
     utils.write_compose(config)
     click.echo("Added Spark service '{}'.".format(name))
     click.echo('It will automatically show up in the UI.\n')
+    if utils.confirm("Do you want to run 'brewblox-ctl up' now?"):
+        sh('{}docker-compose up -d --remove-orphans'.format(sudo))
+
+
+@cli.command()
+@click.option('-n', '--name',
+              prompt='How do you want to call this service? The name must be unique',
+              callback=utils.check_service_name,
+              help='Service name')
+@click.option('--token',
+              prompt='What is your Plaato auth token? '
+              'For more info: https://plaato.io/apps/help-center#!hc-auth-token',
+              help='Plaato authentication token.')
+@click.option('-f', '--force',
+              is_flag=True,
+              help='Allow overwriting an existing service')
+def add_plaato(name, token, force):
+    utils.check_config()
+    utils.confirm_mode()
+
+    sudo = utils.optsudo()
+    config = utils.read_compose()
+
+    if name in config['services'] and not force:
+        click.echo('Service "{}" already exists. Use the --force flag if you want to overwrite it'.format(name))
+        raise SystemExit(1)
+
+    config['services'][name] = {
+        'image': 'brewblox/brewblox-plaato:${BREWBLOX_RELEASE}',
+        'restart': 'unless-stopped',
+        'environment': {
+            'PLAATO_AUTH': token,
+        },
+        'command': '--name=' + name,
+    }
+
+    utils.write_compose(config)
+    click.echo("Added Plaato service '{}'.".format(name))
+    click.echo('This service publishes history data, but does not have a UI component.')
     if utils.confirm("Do you want to run 'brewblox-ctl up' now?"):
         sh('{}docker-compose up -d --remove-orphans'.format(sudo))
