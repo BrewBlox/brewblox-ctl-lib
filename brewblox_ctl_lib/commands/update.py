@@ -16,8 +16,9 @@ def cli():
     """Global command group"""
 
 
-def apply_shared():
-    """Apply docker-compose.shared.yml from data directory"""
+def apply_config():
+    """Apply system-defined configuration from config dir"""
+    sh('cp -f {}/traefik-cert.yaml ./traefik/'.format(const.CONFIG_DIR))
     sh('cp -f {}/docker-compose.shared.yml ./'.format(const.CONFIG_DIR))
     shared_cfg = utils.read_shared_compose()
     usr_cfg = utils.read_compose()
@@ -55,15 +56,11 @@ def downed_migrate(prev_version):
         }
         utils.write_compose(usr_config)
 
-        utils.info('Writing env values for all variables')
-        for key in [
-            const.COMPOSE_FILES_KEY,
-            const.RELEASE_KEY,
-            const.HTTP_PORT_KEY,
-            const.HTTPS_PORT_KEY,
-            const.MDNS_PORT_KEY,
-        ]:
-            utils.setenv(key, utils.getenv(key, const.ENV_DEFAULTS[key]))
+    utils.info('Checking .env variables...')
+    for (key, default_value) in const.ENV_DEFAULTS.items():
+        current_value = utils.getenv(key)
+        if current_value is None:
+            utils.setenv(key, default_value)
 
 
 def upped_migrate(prev_version):
@@ -82,6 +79,13 @@ def upped_migrate(prev_version):
 
 
 @cli.command()
+def libs():
+    """Reinstall local libs."""
+    utils.confirm_mode()
+    utils.load_ctl_lib()
+
+
+@cli.command()
 @click.option('--update-ctl/--no-update-ctl',
               default=True,
               help='Update brewblox-ctl.')
@@ -91,6 +95,9 @@ def upped_migrate(prev_version):
 @click.option('--pull/--no-pull',
               default=True,
               help='Update docker service images.')
+@click.option('--avahi-config/--no-avahi-config',
+              default=True,
+              help='Update Avahi config to enable mDNS discovery')
 @click.option('--migrate/--no-migrate',
               default=True,
               help='Migrate Brewblox configuration and service settings.')
@@ -103,7 +110,7 @@ def upped_migrate(prev_version):
               envvar=const.CFG_VERSION_KEY,
               help='[ADVANCED] Override current version number.')
 @click.pass_context
-def update(ctx, update_ctl, update_ctl_done, pull, migrate, prune, from_version):
+def update(ctx, update_ctl, update_ctl_done, pull, avahi_config, migrate, prune, from_version):
     """Download and apply updates.
 
     This is the one-stop-shop for updating your Brewblox install.
@@ -121,9 +128,8 @@ def update(ctx, update_ctl, update_ctl_done, pull, migrate, prune, from_version)
     --pull/--no-pull governs whether new docker images are pulled.
     This is useful if any of your services is using a local image (not from Docker Hub).
 
-    --copy-shared/--no-copy-shared. By default, docker-compose.shared.yml is recreated every update.
-    Manually editing docker-compose.shared.yml is possible, but highly discouraged.
-    Consider using docker-compose.override.yml instead.
+    --avahi-config/--no-avahi-config. Check avahi-daemon configuration.
+    This is required for TCP discovery of Spark controllers.
 
     --migrate/--no-migrate. Updates regularly require changes to configuration.
     To do this, services are stopped. If the update only requires pulling docker images,
@@ -167,7 +173,7 @@ def update(ctx, update_ctl, update_ctl_done, pull, migrate, prune, from_version)
         utils.warn('brewblox-ctl appears to have been installed using sudo.')
         if utils.confirm('Do you want to fix this now?'):
             sh('sudo {} -m pip uninstall -y brewblox-ctl docker-compose'.format(const.PY), check=False)
-            utils.pip_install('brewblox-ctl', 'docker-compose')
+            utils.pip_install('brewblox-ctl')  # docker-compose is a dependency
 
             # Debian stretch still has the bug where ~/.local/bin is not included in $PATH
             if '.local/bin' not in utils.getenv('PATH'):
@@ -179,13 +185,17 @@ def update(ctx, update_ctl, update_ctl_done, pull, migrate, prune, from_version)
     if update_ctl and not update_ctl_done:
         utils.info('Updating brewblox-ctl...')
         utils.pip_install('brewblox-ctl')
+        utils.info('Updating brewblox-ctl libs...')
         utils.load_ctl_lib()
         # Restart ctl - we just replaced the source code
         sh(' '.join([const.PY, *const.ARGS, '--update-ctl-done', '--prune' if prune else '--no-prune']))
         return
 
-    utils.info('Updating docker-compose.shared.yml...')
-    apply_shared()
+    utils.info('Updating configuration files...')
+    apply_config()
+
+    if avahi_config:
+        utils.update_avahi_config()
 
     if migrate:
         # Everything except downed_migrate can be done with running services

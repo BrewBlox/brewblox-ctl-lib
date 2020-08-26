@@ -37,6 +37,12 @@ def test_migrate(m_utils, m_sh):
     m_sh.assert_called_with('{} update --no-pull --no-update-ctl --no-prune'.format(const.CLI))
 
 
+def test_libs(m_utils, m_sh):
+    invoke(update.libs)
+    m_utils.load_ctl_lib.assert_called_once_with()
+    m_sh.assert_not_called()
+
+
 def test_update(m_utils, m_sh):
     invoke(update.update, '--from-version 0.0.1', input='\n')
     invoke(update.update, '--from-version {} --no-update-ctl --prune'.format(const.CURRENT_VERSION))
@@ -44,4 +50,7 @@ def test_update(m_utils, m_sh):
     invoke(update.update, _err=True)
     invoke(update.update, '--from-version 0.0.0 --prune', _err=True)
     invoke(update.update, '--from-version 9001.0.0 --prune', _err=True)
-    invoke(update.update, '--from-version 0.0.1 --no-pull --no-update-ctl --no-migrate --no-prune')
+    invoke(update.update, '--from-version 0.0.1 --no-pull --no-update-ctl --no-migrate --no-prune --no-avahi-config')
+
+    m_utils.getenv.return_value = None
+    invoke(update.update, '--from-version {} --no-update-ctl --prune'.format(const.CURRENT_VERSION))

@@ -5,10 +5,12 @@ Utility functions specific to lib
 import json
 import re
 from pathlib import Path
+from tempfile import NamedTemporaryFile
 
 import click
 import yaml
 from brewblox_ctl import utils
+from configobj import ConfigObj
 
 from brewblox_ctl_lib import const
 
@@ -21,6 +23,7 @@ confirm_usb = utils.confirm_usb
 confirm_mode = utils.confirm_mode
 getenv = utils.getenv
 setenv = utils.setenv
+clearenv = utils.clearenv
 path_exists = utils.path_exists
 command_exists = utils.command_exists
 is_pi = utils.is_pi
@@ -113,8 +116,50 @@ def check_service_name(ctx, param, value):
 
 def pip_install(*libs):
     user = getenv('USER')
-    args = '--upgrade --no-cache-dir ' + ' '.join(libs)
+    args = '--quiet --upgrade --no-cache-dir ' + ' '.join(libs)
     if user and Path('/home/{}'.format(user)).is_dir():
         return sh('{} -m pip install --user {}'.format(const.PY, args))
     else:
         return sh('sudo {} -m pip install {}'.format(const.PY, args))
+
+
+def update_avahi_config():
+    conf = const.AVAHI_CONF
+
+    info('Checking Avahi config...')
+
+    try:
+        config = ConfigObj(conf, file_error=True)
+    except OSError:
+        warn('Avahi config file not found: {}'.format(conf))
+        return
+
+    config.setdefault('reflector', {})
+    current_value = config['reflector'].get('enable-reflector')
+
+    if current_value == 'yes':
+        return
+
+    if current_value == 'no':
+        warn('Explicit "no" value found for ' +
+             'reflector/enable-reflector setting in Avahi config.')
+        warn('Aborting config change.')
+        return
+
+    config['reflector']['enable-reflector'] = 'yes'
+    show_data(config.dict())
+
+    with NamedTemporaryFile('w') as tmp:
+        config.filename = None
+        lines = config.write()
+        # avahi-daemon.conf requires a 'key=value' syntax
+        tmp.write('\n'.join(lines).replace(' = ', '=') + '\n')
+        tmp.flush()
+        sh('sudo chmod --reference={} {}'.format(conf, tmp.name))
+        sh('sudo cp -fp {} {}'.format(tmp.name, conf))
+
+    if command_exists('service'):
+        info('Restarting avahi-daemon service...')
+        sh('sudo service avahi-daemon restart')
+    else:
+        warn('"service" command not found. Please restart your machine to enable Wifi discovery.')

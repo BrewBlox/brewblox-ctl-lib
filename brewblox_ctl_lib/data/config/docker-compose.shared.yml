@@ -9,61 +9,58 @@
 version: "3.7"
 
 services:
-  mdns:
-    image: brewblox/brewblox-mdns:${BREWBLOX_RELEASE}
-    network_mode: host
-    restart: unless-stopped
-    command: --port=${BREWBLOX_PORT_MDNS}
   eventbus:
-    image: brewblox/rabbitmq:${BREWBLOX_RELEASE}
+    image: brewblox/mosquitto:${BREWBLOX_RELEASE}
     restart: unless-stopped
     labels:
-      - "traefik.port=15675"
-      - "traefik.protocol=ws"
-      - "traefik.frontend.rule=PathPrefix: /eventbus"
+      - traefik.http.services.eventbus.loadbalancer.server.port=15675
   influx:
     image: influxdb:1.8
     restart: unless-stopped
+    labels:
+      - traefik.enable=false
     volumes:
       - ./influxdb:/var/lib/influxdb
     environment:
       - INFLUXDB_HTTP_LOG_ENABLED=false
       - INFLUXDB_LOGGING_LEVEL=warn
-      - INFLUXDB_DATA_WAL_FSYNC_DELAY=1s
+      - INFLUXDB_DATA_WAL_FSYNC_DELAY=5s
       - INFLUXDB_DATA_INDEX_VERSION=tsi1
   datastore:
     image: treehouses/couchdb:2.3.1
     restart: unless-stopped
     labels:
-      - "traefik.port=5984"
-      - "traefik.frontend.rule=PathPrefixStrip: /datastore"
+      - traefik.http.services.datastore.loadbalancer.server.port=5984
+      - traefik.http.routers.datastore.middlewares=prefix-strip
     volumes:
       - ./couchdb/:/opt/couchdb/data/
   history:
     image: brewblox/brewblox-history:${BREWBLOX_RELEASE}
     restart: unless-stopped
-    labels:
-      - "traefik.port=5000"
-      - "traefik.frontend.rule=PathPrefix: /history"
   traefik:
-    image: traefik:1.7-alpine
-    restart: unless-stopped
+    image: traefik:2.2
     ports:
-      - ${BREWBLOX_PORT_HTTP}:${BREWBLOX_PORT_HTTP}
-      - ${BREWBLOX_PORT_HTTPS}:${BREWBLOX_PORT_HTTPS}
+      - "${BREWBLOX_PORT_HTTP}:${BREWBLOX_PORT_HTTP}"
+      - "${BREWBLOX_PORT_HTTPS}:${BREWBLOX_PORT_HTTPS}"
+    labels:
+      - traefik.http.routers.api.rule=PathPrefix(`/api`) || PathPrefix(`/dashboard`)
+      - traefik.http.routers.api.service=api@internal
+      - traefik.http.middlewares.prefix-strip.stripprefixregex.regex=/[^/]+
     volumes:
       - ./traefik:/config
       - /var/run/docker.sock:/var/run/docker.sock
     command: >-
-      -c /dev/null
-      --docker 
-      --docker.domain=brewblox.local
-      --entrypoints='name:http Address::${BREWBLOX_PORT_HTTP} Redirect.EntryPoint:https'
-      --entrypoints='name:https Address::${BREWBLOX_PORT_HTTPS} TLS:config/brewblox.crt,config/brewblox.key'
-      --defaultentrypoints="http,https"
+      --api.dashboard=true
+      --providers.docker=true
+      --providers.docker.constraints="LabelRegex(`com.docker.compose.project`, `${COMPOSE_PROJECT_NAME}`)"
+      --providers.docker.defaultrule="PathPrefix(`/{{ index .Labels \"com.docker.compose.service\" }}`)"
+      --providers.file.directory=/config
+      --entrypoints.web.address=:${BREWBLOX_PORT_HTTP}
+      --entrypoints.web.http.redirections.entrypoint.to=websecure
+      --entrypoints.websecure.address=:${BREWBLOX_PORT_HTTPS}
+      --entrypoints.websecure.http.tls=true
   ui:
     image: brewblox/brewblox-ui:${BREWBLOX_RELEASE}
     restart: unless-stopped
     labels:
-      - "traefik.port=80"
-      - "traefik.frontend.rule=Path:/, /ui, /ui/{sub:(.*)?}"
+      - traefik.http.routers.ui.rule=PathPrefix(`/ui`) || Path(`/`)

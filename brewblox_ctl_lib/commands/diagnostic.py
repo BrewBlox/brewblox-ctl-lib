@@ -12,10 +12,10 @@ from brewblox_ctl_lib import const, utils
 
 ENV_KEYS = [
     const.RELEASE_KEY,
+    const.COMPOSE_PROJECT_KEY,
     const.CFG_VERSION_KEY,
     const.HTTP_PORT_KEY,
     const.HTTPS_PORT_KEY,
-    const.MDNS_PORT_KEY,
 ]
 
 
@@ -103,8 +103,13 @@ def log(add_compose, upload):
     sh('echo "==============BLOCKS==============" >> brewblox.log')
     host_url = utils.host_url()
     services = utils.list_services('brewblox/brewblox-devcon-spark')
-    query = '{} http post --pretty {}/{}/blocks/all >> brewblox.log || echo "{} not found" >> brewblox.log'
+    query = '{} http post --pretty {}/{}/blocks/all/read >> brewblox.log || echo "{} not found" >> brewblox.log'
     sh(query.format(const.CLI, host_url, svc, svc) for svc in services)
+
+    # Add dmesg
+    utils.info('Writing dmesg output...')
+    sh('echo "==============DMESG==============" >> brewblox.log')
+    sh('dmesg >> brewblox.log')
 
     # Upload
     if upload:

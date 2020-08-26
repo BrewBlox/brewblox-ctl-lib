@@ -3,6 +3,7 @@ Implementation of brewblox-ctl setup
 """
 
 import re
+from pathlib import Path
 
 import click
 from brewblox_ctl import click_helpers, sh
@@ -24,7 +25,6 @@ def check_ports():
         utils.getenv(key, const.ENV_DEFAULTS[key]) for key in [
             const.HTTP_PORT_KEY,
             const.HTTPS_PORT_KEY,
-            const.MDNS_PORT_KEY,
         ]]
 
     utils.info('Checking ports...')
@@ -50,13 +50,42 @@ def check_ports():
 
 
 @cli.command()
+@click.option('--dir',
+              default='./traefik',
+              help='Target directory for generated certs.')
+@click.option('--release',
+              default=None,
+              help='Brewblox release track.')
+def makecert(dir, release):
+    """Generate a self-signed SSL certificate.
+
+    \b
+    Steps:
+        - Create directory if it does not exist.
+        - Create brewblox.crt and brewblox.key files.
+    """
+    utils.confirm_mode()
+    sudo = utils.optsudo()
+    absdir = Path(dir).absolute()
+    sh('mkdir -p "{}"'.format(absdir))
+    sh('{}docker run --rm -v "{}":/certs/ '.format(sudo, absdir) +
+        'brewblox/omgwtfssl:{}'.format(utils.docker_tag(release)))
+    sh('sudo chmod 644 "{}/brewblox.crt"'.format(absdir))
+    sh('sudo chmod 600 "{}/brewblox.key"'.format(absdir))
+
+
+@cli.command()
+@click.pass_context
 @click.option('--port-check/--no-port-check',
               default=True,
               help='Check whether ports are already in use')
+@click.option('--avahi-config/--no-avahi-config',
+              default=True,
+              help='Update Avahi config to enable mDNS discovery')
 @click.option('--pull/--no-pull',
               default=True,
               help='Pull docker service images.')
-def setup(pull, port_check):
+def setup(ctx, avahi_config, pull, port_check):
     """Run first-time setup in Brewblox directory.
 
     Run after brewblox-ctl install, in the newly created Brewblox directory.
@@ -72,6 +101,7 @@ def setup(pull, port_check):
     Steps:
         - Check whether files already exist.
         - Set .env values.
+        - Update avahi-daemon config.                (Optional)
         - Create docker-compose configuration files. (Optional)
         - Pull docker images.                        (Optional)
         - Create datastore (CouchDB) directory.      (Optional)
@@ -89,7 +119,6 @@ def setup(pull, port_check):
     datastore_url = utils.datastore_url()
     history_url = utils.history_url()
     upped_services = ['traefik', 'influx', 'history']
-    preset_modules = ['services', 'dashboards', 'dashboard-items']
 
     if port_check:
         check_ports()
@@ -117,6 +146,9 @@ def setup(pull, port_check):
     utils.info('Setting .env values...')
     for key, default_val in const.ENV_DEFAULTS.items():
         utils.setenv(key, utils.getenv(key, default_val))
+
+    if avahi_config:
+        utils.update_avahi_config()
 
     utils.info('Copying docker-compose.shared.yml...')
     sh('cp -f {}/docker-compose.shared.yml ./'.format(const.CONFIG_DIR))
@@ -147,10 +179,10 @@ def setup(pull, port_check):
         sh('sudo rm -rf ./traefik/; mkdir ./traefik/')
 
         utils.info('Creating SSL certificate...')
-        sh('{}docker run --rm -v "$(pwd)"/traefik/:/certs/ '.format(sudo) +
-           'brewblox/omgwtfssl:{}'.format(utils.docker_tag()))
-        sh('sudo chmod 644 traefik/brewblox.crt')
-        sh('sudo chmod 600 traefik/brewblox.key')
+        ctx.invoke(makecert)
+
+    # Always copy cert config to traefik dir
+    sh('cp -f {}/traefik-cert.yaml ./traefik/'.format(const.CONFIG_DIR))
 
     # Bring images online that we will send configuration
     utils.info('Starting configured services...')
@@ -163,12 +195,7 @@ def setup(pull, port_check):
         sh('{} http put --allow-fail --quiet {}/_users'.format(const.CLI, datastore_url))
         sh('{} http put --allow-fail --quiet {}/_replicator'.format(const.CLI, datastore_url))
         sh('{} http put --allow-fail --quiet {}/_global_changes'.format(const.CLI, datastore_url))
-        sh('{} http put {}/{}'.format(const.CLI, datastore_url, const.UI_DATABASE))
-        # Load presets
-        utils.info('Loading preset data...')
-        for mod in preset_modules:
-            sh('{} http post {}/{}/_bulk_docs -f {}/{}.json'.format(
-                const.CLI, datastore_url, const.UI_DATABASE, const.PRESETS_DIR, mod))
+        sh('{} http put --allow-fail --quiet {}/{}'.format(const.CLI, datastore_url, const.UI_DATABASE))
 
     # Always setup history
     utils.info('Configuring history settings...')

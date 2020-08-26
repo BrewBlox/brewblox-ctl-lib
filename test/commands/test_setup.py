@@ -82,3 +82,9 @@ def test_no_pull(m_utils, m_sh):
     m_sh.reset_mock()
     invoke(setup.setup, '--no-pull')
     assert m_sh.call_count == num_normal - 1
+
+
+def test_no_avahi(m_utils, m_sh):
+    m_utils.path_exists.return_value = False
+    invoke(setup.setup, '--no-avahi-config')
+    assert m_utils.update_avahi_config.call_count == 0
