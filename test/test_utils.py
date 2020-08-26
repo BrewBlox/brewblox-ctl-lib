@@ -116,6 +116,7 @@ def test_pip_install(mocker, m_getenv, m_sh):
 def test_update_avahi_config(mocker, m_sh):
     m_info = mocker.patch(TESTED + '.info')
     m_warn = mocker.patch(TESTED + '.warn')
+    m_command_exists = mocker.patch(TESTED + '.command_exists')
     mocker.patch(TESTED + '.show_data')
 
     config = ConfigObj()
@@ -156,4 +157,14 @@ def test_update_avahi_config(mocker, m_sh):
     utils.update_avahi_config()
     assert m_sh.call_count == 0
     assert m_warn.call_count == 0
+    assert config['reflector']['enable-reflector'] == 'yes'
+
+    # Service command does not exist
+    m_sh.reset_mock()
+    m_warn.reset_mock()
+    m_command_exists.return_value = False
+    config.clear()
+    utils.update_avahi_config()
+    assert m_sh.call_count == 2
+    assert m_warn.call_count == 1
     assert config['reflector']['enable-reflector'] == 'yes'

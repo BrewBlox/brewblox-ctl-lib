@@ -158,5 +158,8 @@ def update_avahi_config():
         sh('sudo chmod --reference={} {}'.format(conf, tmp.name))
         sh('sudo cp -fp {} {}'.format(tmp.name, conf))
 
-    info('Restarting avahi-daemon service...')
-    sh('sudo service avahi-daemon restart')
+    if command_exists('service'):
+        info('Restarting avahi-daemon service...')
+        sh('sudo service avahi-daemon restart')
+    else:
+        warn('"service" command not found. Please restart your machine to enable Wifi discovery.')

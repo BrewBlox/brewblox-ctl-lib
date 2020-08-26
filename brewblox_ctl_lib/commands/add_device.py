@@ -101,13 +101,14 @@ def add_spark(name,
             '--device-host' in cmd,
             '--simulation' in cmd,
         ]):
-            utils.warn("The Spark service '{}' does not have any connection settings".format(nm))
+            utils.warn("The existing Spark service '{}' does not have any connection settings.".format(nm))
+            utils.warn('It will connect to any controller it can find.')
             utils.warn('This may cause multiple services to connect to the same controller.')
-            utils.warn('To fix, please run:')
+            utils.warn("To reconfigure '{}', please run:".format(nm))
             utils.warn('')
             utils.warn('    brewblox-ctl add-spark -f --name {}'.format(nm))
             utils.warn('')
-            utils.select('Press ENTER to continue')
+            utils.select('Press ENTER to continue or Ctrl-C to exit')
 
     if device_id is None and discover_now and not simulation:
         dev = find_device(discovery_type, device_host)
