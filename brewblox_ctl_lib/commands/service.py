@@ -170,3 +170,13 @@ def expose(ctx, delete, service, value):
     config['services'] = clean_empty(config['services'])
     utils.write_compose(config)
     restart_services(ctx)
+
+
+@service.command()
+@click.argument('services', type=str, nargs=-1)
+@click.pass_context
+def pull(ctx, services):
+    """Pull one or more services without doing a full update."""
+    sudo = utils.optsudo()
+    sh('{}docker-compose pull {}'.format(sudo, ' '.join(services)))
+    restart_services(ctx)

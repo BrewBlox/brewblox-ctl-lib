@@ -177,3 +177,15 @@ def test_expose_from_full(m_utils, m_sh):
             }
         }
     })
+
+
+def test_pull(m_utils, m_sh, mocker):
+    m_restart = mocker.patch(TESTED + '.restart_services')
+
+    invoke(service.pull)
+    m_sh.assert_called_with('SUDO docker-compose pull ')
+
+    invoke(service.pull, 'ui eventbus')
+    m_sh.assert_called_with('SUDO docker-compose pull ui eventbus')
+
+    assert m_restart.call_count == 2
