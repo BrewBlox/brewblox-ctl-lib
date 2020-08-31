@@ -39,9 +39,7 @@ services:
     restart: unless-stopped
   traefik:
     image: traefik:2.2
-    ports:
-      - "${BREWBLOX_PORT_HTTP}:${BREWBLOX_PORT_HTTP}"
-      - "${BREWBLOX_PORT_HTTPS}:${BREWBLOX_PORT_HTTPS}"
+    restart: unless-stopped
     labels:
       - traefik.http.routers.api.rule=PathPrefix(`/api`) || PathPrefix(`/dashboard`)
       - traefik.http.routers.api.service=api@internal
@@ -49,6 +47,9 @@ services:
     volumes:
       - ./traefik:/config
       - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - "${BREWBLOX_PORT_HTTP}:${BREWBLOX_PORT_HTTP}"
+      - "${BREWBLOX_PORT_HTTPS}:${BREWBLOX_PORT_HTTPS}"
     command: >-
       --api.dashboard=true
       --providers.docker=true
