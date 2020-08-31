@@ -173,12 +173,10 @@ def expose(ctx, delete, service, value):
 
 
 @service.command()
-@click.option('--up', is_flag=True,
-              help='Start services afterwards')
 @click.argument('services', type=str, nargs=-1)
-def pull(up, services):
+@click.pass_context
+def pull(ctx, services):
     """Pull one or more services without doing a full update."""
     sudo = utils.optsudo()
     sh('{}docker-compose pull {}'.format(sudo, ' '.join(services)))
-    if up:
-        sh('{}docker-compose up -d'.format(sudo))
+    restart_services(ctx)
