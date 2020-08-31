@@ -75,6 +75,11 @@ def log(add_compose, upload):
     sh('echo "$({}docker-compose --version)" >> brewblox.log'.format(sudo))
     sh('echo "{}={}" >> brewblox.log'.format(key, utils.getenv(key)) for key in ENV_KEYS)
 
+    # Add active containers
+    utils.info('Writing active containers...')
+    sh('echo "==============Containers========" >> brewblox.log')
+    sh('echo "$({}docker-compose ps)" >> brewblox.log'.format(sudo))
+
     # Add service logs
     utils.info('Writing service logs...')
     sh('echo "==============LOGS==============" >> brewblox.log')
@@ -82,9 +87,13 @@ def log(add_compose, upload):
         config_names = list(utils.read_compose()['services'].keys())
         shared_names = list(utils.read_shared_compose()['services'].keys())
         names = [n for n in config_names if n not in shared_names] + shared_names
-        raw_cmd = '{}docker-compose logs --timestamps --no-color --tail 200 {} >> brewblox.log; ' + \
-            "echo '\\n' >> brewblox.log"
-        sh(raw_cmd.format(sudo, name) for name in names)
+        raw_cmd = '{}docker-compose logs --timestamps --no-color --tail 200 {} >> brewblox.log'
+        for name in names:
+            sh([
+                'echo "{} logs" >> brewblox.log'.format(name),
+                raw_cmd.format(sudo, name),
+                "echo '\\n' >> brewblox.log",
+            ])
     except Exception as ex:
         sh('echo {} >> brewblox.log'.format(shlex.quote(type(ex).__name__ + ': ' + str(ex))))
 
