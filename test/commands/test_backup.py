@@ -28,6 +28,7 @@ def m_load_dotenv(mocker):
 
 @pytest.fixture
 def m_utils(mocker):
+    mocker.patch(TESTED + '.http.utils.info')  # Used by http.wait
     m = mocker.patch(TESTED + '.utils')
     m.optsudo.return_value = 'SUDO '
     m.host_url.return_value = HOST_URL

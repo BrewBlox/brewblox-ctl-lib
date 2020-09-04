@@ -76,7 +76,7 @@ def save(save_compose, ignore_spark_error):
     store_url = utils.datastore_url()
 
     utils.info('Waiting for the datastore...')
-    http.wait(store_url + '/ping', echo=print)
+    http.wait(store_url + '/ping', info_updates=True)
 
     config = utils.read_compose()
     sparks = [
