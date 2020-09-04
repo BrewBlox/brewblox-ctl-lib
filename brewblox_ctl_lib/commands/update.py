@@ -3,6 +3,7 @@ Migration scripts
 """
 
 from contextlib import suppress
+from datetime import datetime
 from distutils.version import StrictVersion
 from pathlib import Path
 
@@ -96,7 +97,7 @@ def datastore_migrate_redis():
         utils.info('Migrated {} entries from spark-service'.format(len(docs)))
 
     sh('{}docker stop couchdb-migrate'.format(sudo))
-    sh('sudo mv couchdb/ couchdb-old')
+    sh('sudo mv couchdb/ couchdb-migrated-{}'.format(datetime.now().strftime('%Y%m%d')))
 
 
 def downed_migrate(prev_version):
