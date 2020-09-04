@@ -77,7 +77,7 @@ def datastore_migrate_redis():
                                  json={'values': docs},
                                  verify=False)
             resp.raise_for_status()
-            utils.info('migrated {}'.format(db))
+            utils.info('Migrated {} entries from {}'.format(len(docs), db))
 
     if 'spark-service' in dbs:
         resp = requests.get('{}/spark-service/_all_docs'.format(couch_url),
@@ -93,7 +93,7 @@ def datastore_migrate_redis():
                              json={'values': docs},
                              verify=False)
         resp.raise_for_status()
-        utils.info('migrated spark-service')
+        utils.info('Migrated {} entries from spark-service'.format(len(docs)))
 
     sh('{}docker stop couchdb-migrate'.format(sudo))
     sh('sudo mv couchdb/ couchdb-old')
