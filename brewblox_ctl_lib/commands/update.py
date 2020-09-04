@@ -2,10 +2,13 @@
 Migration scripts
 """
 
+from contextlib import suppress
 from distutils.version import StrictVersion
 from pathlib import Path
 
 import click
+import requests
+import urllib3
 from brewblox_ctl import click_helpers, sh
 
 from brewblox_ctl_lib import const, utils
@@ -25,6 +28,75 @@ def apply_config():
 
     usr_cfg['version'] = shared_cfg['version']
     utils.write_compose(usr_cfg)
+
+
+def datastore_migrate_redis():
+    urllib3.disable_warnings()
+    sudo = utils.optsudo()
+    opts = utils.ctx_opts()
+    redis_url = utils.datastore_url()
+    couch_url = 'http://localhost:5984'
+
+    if opts.dry_run:
+        utils.info('Dry run. Skipping migration...')
+        return
+
+    if not utils.path_exists('./couchdb/'):
+        utils.info('couchdb/ dir not found. Skipping migration...')
+        return
+
+    sh('mkdir -p redis/')
+    sh('{}docker rm -f couchdb-migrate'.format(sudo), check=False)
+    sh('{}docker run --rm -d'
+        ' --name couchdb-migrate'
+        ' -v "$(pwd)/couchdb/:/opt/couchdb/data/"'
+        ' -p "5984:5984"'
+        ' treehouses/couchdb:2.3.1'.format(sudo))
+    sh('{} http wait {}'.format(const.CLI, couch_url))
+    sh('{} http wait {}/ping'.format(const.CLI, redis_url))
+
+    resp = requests.get('{}/_all_dbs'.format(couch_url))
+    resp.raise_for_status()
+    dbs = resp.json()
+
+    for db in ['brewblox-ui-store', 'brewblox-automation']:
+        if db in dbs:
+            resp = requests.get('{}/{}/_all_docs'.format(couch_url, db),
+                                params={'include_docs': True})
+            resp.raise_for_status()
+            docs = [v['doc'] for v in resp.json()['rows']]
+            # Drop invalid names
+            docs[:] = [d for d in docs if len(d['_id'].split('__', 1)) == 2]
+            for d in docs:
+                segments = d['_id'].split('__', 1)
+                d['namespace'] = '{}:{}'.format(db, segments[0])
+                d['id'] = segments[1]
+                del d['_rev']
+                del d['_id']
+            resp = requests.post('{}/mset'.format(redis_url),
+                                 json={'values': docs},
+                                 verify=False)
+            resp.raise_for_status()
+            utils.info('migrated {}'.format(db))
+
+    if 'spark-service' in dbs:
+        resp = requests.get('{}/spark-service/_all_docs'.format(couch_url),
+                            params={'include_docs': True})
+        resp.raise_for_status()
+        docs = [v['doc'] for v in resp.json()['rows']]
+        for d in docs:
+            d['namespace'] = 'spark-service'
+            d['id'] = d['_id']
+            del d['_rev']
+            del d['_id']
+        resp = requests.post('{}/mset'.format(redis_url),
+                             json={'values': docs},
+                             verify=False)
+        resp.raise_for_status()
+        utils.info('migrated spark-service')
+
+    sh('{}docker stop couchdb-migrate'.format(sudo))
+    sh('sudo mv couchdb/ couchdb-old')
 
 
 def downed_migrate(prev_version):
@@ -56,6 +128,16 @@ def downed_migrate(prev_version):
         }
         utils.write_compose(usr_config)
 
+    if prev_version < StrictVersion('0.6.0'):
+        # The datastore service is gone
+        # Older services may still rely on it
+        utils.info('Removing `depends_on` fields from docker-compose.yml')
+        config = utils.read_compose()
+        for svc in config['services'].values():
+            with suppress(KeyError):
+                del svc['depends_on']
+        utils.write_compose(config)
+
     utils.info('Checking .env variables...')
     for (key, default_value) in const.ENV_DEFAULTS.items():
         current_value = utils.getenv(key)
@@ -70,12 +152,9 @@ def upped_migrate(prev_version):
     sh('{} http wait {}/ping'.format(const.CLI, history_url))
     sh('{} http post --quiet {}/query/configure'.format(const.CLI, history_url))
 
-    # Ensure datastore system databases
-    datastore_url = utils.datastore_url()
-    sh('{} http wait {}'.format(const.CLI, datastore_url))
-    sh('{} http put --allow-fail --quiet {}/_users'.format(const.CLI, datastore_url))
-    sh('{} http put --allow-fail --quiet {}/_replicator'.format(const.CLI, datastore_url))
-    sh('{} http put --allow-fail --quiet {}/_global_changes'.format(const.CLI, datastore_url))
+    if prev_version < StrictVersion('0.6.0'):
+        utils.info('Migrating datastore from CouchDB to Redis...')
+        datastore_migrate_redis()
 
 
 @cli.command()

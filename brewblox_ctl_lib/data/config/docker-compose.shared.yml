@@ -26,14 +26,14 @@ services:
       - INFLUXDB_LOGGING_LEVEL=warn
       - INFLUXDB_DATA_WAL_FSYNC_DELAY=5s
       - INFLUXDB_DATA_INDEX_VERSION=tsi1
-  datastore:
-    image: treehouses/couchdb:2.3.1
+  redis:
+    image: redis:6.0
     restart: unless-stopped
     labels:
-      - traefik.http.services.datastore.loadbalancer.server.port=5984
-      - traefik.http.routers.datastore.middlewares=prefix-strip
+      - traefik.enable=false
     volumes:
-      - ./couchdb/:/opt/couchdb/data/
+      - ./redis:/data
+    command: --appendonly yes
   history:
     image: brewblox/brewblox-history:${BREWBLOX_RELEASE}
     restart: unless-stopped

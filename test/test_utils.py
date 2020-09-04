@@ -48,7 +48,7 @@ def test_get_urls(m_getenv):
         '4321',
     ]
     assert utils.history_url() == '{}:1234/history'.format(HOST)
-    assert utils.datastore_url() == '{}:4321/datastore'.format(HOST)
+    assert utils.datastore_url() == '{}:4321/history/datastore'.format(HOST)
 
     assert m_getenv.call_args_list == [
         call(HTTPS_PORT_KEY, '443'),

@@ -104,7 +104,7 @@ def setup(ctx, avahi_config, pull, port_check):
         - Update avahi-daemon config.                (Optional)
         - Create docker-compose configuration files. (Optional)
         - Pull docker images.                        (Optional)
-        - Create datastore (CouchDB) directory.      (Optional)
+        - Create datastore (Redis) directory.        (Optional)
         - Create history (InfluxDB) directory.       (Optional)
         - Create gateway (Traefik) directory.        (Optional)
         - Create SSL certificates.                   (Optional)
@@ -116,7 +116,6 @@ def setup(ctx, avahi_config, pull, port_check):
     utils.confirm_mode()
 
     sudo = utils.optsudo()
-    datastore_url = utils.datastore_url()
     history_url = utils.history_url()
     upped_services = ['traefik', 'influx', 'history']
 
@@ -129,13 +128,13 @@ def setup(ctx, avahi_config, pull, port_check):
                           'Do you want to keep it?')
 
     skip_datastore = \
-        utils.path_exists('./couchdb/') \
-        and utils.confirm('This directory already contains Couchdb datastore files. ' +
+        utils.path_exists('./redis/') \
+        and utils.confirm('This directory already contains Redis datastore files. ' +
                           'Do you want to keep them?')
 
     skip_history = \
         utils.path_exists('./influxdb/') \
-        and utils.confirm('This directory already contains Influx history files. ' +
+        and utils.confirm('This directory already contains InfluxDB history files. ' +
                           'Do you want to keep them?')
 
     skip_gateway = \
@@ -167,8 +166,7 @@ def setup(ctx, avahi_config, pull, port_check):
 
     if not skip_datastore:
         utils.info('Creating datastore directory...')
-        upped_services.append('datastore')
-        sh('sudo rm -rf ./couchdb/; mkdir ./couchdb/')
+        sh('sudo rm -rf ./redis/; mkdir ./redis/')
 
     if not skip_history:
         utils.info('Creating history directory...')
@@ -187,15 +185,6 @@ def setup(ctx, avahi_config, pull, port_check):
     # Bring images online that we will send configuration
     utils.info('Starting configured services...')
     sh('{}docker-compose up -d --remove-orphans {}'.format(sudo, ' '.join(upped_services)))
-
-    if not skip_datastore:
-        # Generic datastore setup
-        utils.info('Configuring datastore settings...')
-        sh('{} http wait {}'.format(const.CLI, datastore_url))
-        sh('{} http put --allow-fail --quiet {}/_users'.format(const.CLI, datastore_url))
-        sh('{} http put --allow-fail --quiet {}/_replicator'.format(const.CLI, datastore_url))
-        sh('{} http put --allow-fail --quiet {}/_global_changes'.format(const.CLI, datastore_url))
-        sh('{} http put --allow-fail --quiet {}/{}'.format(const.CLI, datastore_url, const.UI_DATABASE))
 
     # Always setup history
     utils.info('Configuring history settings...')

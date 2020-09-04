@@ -7,13 +7,17 @@ import zipfile
 from os import path
 from unittest.mock import call
 
+import httpretty
 import pytest
 import yaml
 from brewblox_ctl.testing import check_sudo, invoke, matching
+from requests import HTTPError
 
 from brewblox_ctl_lib.commands import backup
 
 TESTED = backup.__name__
+HOST_URL = 'https://localhost'
+STORE_URL = HOST_URL + '/history/datastore'
 
 
 @pytest.fixture(autouse=True)
@@ -26,6 +30,9 @@ def m_load_dotenv(mocker):
 def m_utils(mocker):
     m = mocker.patch(TESTED + '.utils')
     m.optsudo.return_value = 'SUDO '
+    m.host_url.return_value = HOST_URL
+    m.datastore_url.return_value = STORE_URL
+    m.info = print
     return m
 
 
@@ -40,8 +47,10 @@ def zipf_names():
     return [
         '.env',
         'docker-compose.yml',
+        'global.redis.json',
         'spark-one.spark.json',
-        'db1.datastore.json',
+        'brewblox-ui-store.datastore.json',
+        'spark-service.datastore.json',
         'spark-two.spark.json',
     ]
 
@@ -49,11 +58,40 @@ def zipf_names():
 def zipf_read():
     return [
         'BREWBLOX_RELEASE=9001'.encode(),
-        yaml.safe_dump({'services': {}}).encode(),
-        json.dumps([{'doc1': {}}]).encode(),
+        yaml.safe_dump({
+            'version': '3.7',
+            'services': {
+                'spark-one': {
+                    'image': 'brewblox/brewblox-devcon-spark:rpi-edge',
+                    'depends_on': ['datastore'],
+                },
+                'plaato': {
+                    'image': 'brewblox/brewblox-plaato:rpi-edge',
+                }
+            }}).encode(),
+        json.dumps({'values': []}).encode(),
+        json.dumps([
+            {'_id': 'module__obj', '_rev': '1234', 'k': 'v'},
+            {'_id': 'invalid', '_rev': '4321', 'k': 'v'},
+        ]).encode(),
+        json.dumps([
+            {'_id': 'spark-id', '_rev': '1234', 'k': 'v'},
+        ]).encode(),
         json.dumps({'blocks': []}).encode(),
         json.dumps({'blocks': [], 'other': []}).encode(),
     ]
+
+
+def redis_data():
+    return {'values': [
+            {'id': 'id1', 'namespace': 'n1', 'k': 'v1'},
+            {'id': 'id2', 'namespace': 'n2', 'k': 'v2'},
+            {'id': 'id3', 'namespace': 'n3', 'k': 'v3'},
+            ]}
+
+
+def blocks_data():
+    return {'blocks': []}
 
 
 @pytest.fixture
@@ -64,37 +102,61 @@ def m_zipf(mocker):
     return m
 
 
+def set_responses():
+    httpretty.register_uri(
+        httpretty.GET,
+        STORE_URL + '/ping',
+        body=json.dumps({'ping': 'pong'}),
+        adding_headers={'ContentType': 'application/json'},
+    )
+    httpretty.register_uri(
+        httpretty.POST,
+        STORE_URL + '/mdelete',
+        body=json.dumps({'count': 1234}),
+        adding_headers={'ContentType': 'application/json'},
+    )
+    httpretty.register_uri(
+        httpretty.POST,
+        STORE_URL + '/mget',
+        body=json.dumps(redis_data()),
+        adding_headers={'ContentType': 'application/json'},
+    )
+    httpretty.register_uri(
+        httpretty.POST,
+        STORE_URL + '/mset',
+        body=json.dumps(redis_data()),
+        adding_headers={'ContentType': 'application/json'},
+    )
+    httpretty.register_uri(
+        httpretty.POST,
+        HOST_URL + '/spark-one/blocks/backup/save',
+        body=json.dumps(blocks_data()),
+        adding_headers={'ContentType': 'application/json'},
+    )
+    httpretty.register_uri(
+        httpretty.POST,
+        HOST_URL + '/spark-two/blocks/backup/save',
+        body=json.dumps(blocks_data()),
+        adding_headers={'ContentType': 'application/json'},
+    )
+
+
 @pytest.fixture
-def f_save_backup(mocker, m_utils):
-    mocker.patch(TESTED + '.http.wait')
-    m_post = mocker.patch(TESTED + '.requests.post')
-    m_get = mocker.patch(TESTED + '.requests.get')
-    m_post.return_value.text = 'resp_text'  # Used for getting Spark blocks
-    m_get.return_value.json.side_effect = [
-        ['_system', 'brewblox-ui-store', 'brewblox-automation'],
-        {'rows': [
-            {'doc': {'id': 1, '_rev': 'revvy'}},
-            {'doc': {'id': 2, '_rev': 'revvy'}},
-            {'doc': {'id': 3, '_rev': 'revvy'}},
-        ]},
-        {'rows': [
-            {'doc': {'id': 4, '_rev': 'revvy'}},
-            {'doc': {'id': 5, '_rev': 'revvy'}},
-            {'doc': {'id': 6, '_rev': 'revvy'}},
-        ]},
-    ]
-
-    m_utils.read_compose.return_value = {'services': {
-        'spark-one': {
-            'image': 'brewblox/brewblox-devcon-spark:rpi-edge',
-        },
-        'plaato': {
-            'image': 'brewblox/brewblox-plaato:rpi-edge',
-        }
-    }}
+def f_read_compose(m_utils):
+    m_utils.read_compose.return_value = {
+        'services': {
+            'spark-one': {
+                'image': 'brewblox/brewblox-devcon-spark:rpi-edge',
+            },
+            'plaato': {
+                'image': 'brewblox/brewblox-plaato:rpi-edge',
+            }
+        }}
 
 
-def test_save_backup(mocker, m_utils, f_save_backup):
+@httpretty.activate(allow_net_connect=False)
+def test_save_backupx(mocker, m_utils, f_read_compose):
+    set_responses()
     m_mkdir = mocker.patch(TESTED + '.mkdir')
     m_zipfile = mocker.patch(TESTED + '.zipfile.ZipFile')
 
@@ -105,52 +167,65 @@ def test_save_backup(mocker, m_utils, f_save_backup):
         matching(r'^backup/brewblox_backup_\d{8}_\d{4}.zip'), 'w', zipfile.ZIP_DEFLATED)
     m_zipfile.return_value.write.assert_called_with('docker-compose.yml')
     assert m_zipfile.return_value.writestr.call_args_list == [
-        call('brewblox-ui-store.datastore.json', json.dumps([{'id': 1}, {'id': 2}, {'id': 3}])),
-        call('brewblox-automation.datastore.json', json.dumps([{'id': 4}, {'id': 5}, {'id': 6}])),
-        call('spark-one.spark.json', 'resp_text'),
+        call('global.redis.json', json.dumps(redis_data())),
+        call('spark-one.spark.json', json.dumps(blocks_data())),
     ]
+    # wait, get datastore, get spark
+    assert len(httpretty.latest_requests()) == 3
 
 
-def test_save_backup_no_compose(mocker, m_zipf, m_utils, f_save_backup):
+@httpretty.activate(allow_net_connect=False)
+def test_save_backup_no_compose(mocker, m_zipf, m_utils, f_read_compose):
+    set_responses()
     mocker.patch(TESTED + '.mkdir')
     invoke(backup.save, '--no-save-compose')
     m_zipf.write.assert_called_once_with('.env')
 
 
-def test_save_backup_ignore_err(mocker, m_zipf, m_utils):
-    mocker.patch(TESTED + '.http.wait')
-    m_post = mocker.patch(TESTED + '.requests.post')
-    m_post.return_value.text = 'resp_text'
-    m_get = mocker.patch(TESTED + '.requests.get')
-    m_get.return_value.json.return_value = []
-    m_post.return_value.raise_for_status.side_effect = [
-        RuntimeError('meep'),
+@httpretty.activate(allow_net_connect=False)
+def test_save_backup_spark_err(mocker, m_zipf, m_utils, f_read_compose):
+    set_responses()
+    mocker.patch(TESTED + '.mkdir')
+    m_zipfile = mocker.patch(TESTED + '.zipfile.ZipFile')
+
+    httpretty.register_uri(
+        httpretty.POST,
+        HOST_URL + '/spark-one/blocks/backup/save',
+        body='MEEEP',
+        adding_headers={'ContentType': 'application/json'},
+        status=500,
+    )
+
+    invoke(backup.save, '--no-save-compose', _err=HTTPError)
+
+    assert m_zipfile.return_value.writestr.call_args_list == [
+        call('global.redis.json', json.dumps(redis_data())),
     ]
-    m_utils.read_compose.return_value = {'services': {
-        'spark-one': {
-            'image': 'brewblox/brewblox-devcon-spark:rpi-edge',
-        },
-    }}
+    # wait, get datastore, get spark
+    assert len(httpretty.latest_requests()) == 3
+
+
+@httpretty.activate(allow_net_connect=False)
+def test_save_backup_ignore_spark_err(mocker, m_zipf, m_utils, f_read_compose):
+    set_responses()
+    mocker.patch(TESTED + '.mkdir')
+    m_zipfile = mocker.patch(TESTED + '.zipfile.ZipFile')
+
+    httpretty.register_uri(
+        httpretty.POST,
+        HOST_URL + '/spark-one/blocks/backup/save',
+        body='MEEEP',
+        adding_headers={'ContentType': 'application/json'},
+        status=500,
+    )
 
     invoke(backup.save, '--no-save-compose --ignore-spark-error')
 
-
-def test_save_backup_err(mocker, m_zipf, m_utils):
-    mocker.patch(TESTED + '.http.wait')
-    m_post = mocker.patch(TESTED + '.requests.post')
-    m_post.return_value.text = 'resp_text'
-    m_get = mocker.patch(TESTED + '.requests.get')
-    m_get.return_value.json.return_value = []
-    m_post.return_value.raise_for_status.side_effect = [
-        RuntimeError('meep'),
+    assert m_zipfile.return_value.writestr.call_args_list == [
+        call('global.redis.json', json.dumps(redis_data())),
     ]
-    m_utils.read_compose.return_value = {'services': {
-        'spark-one': {
-            'image': 'brewblox/brewblox-devcon-spark:rpi-edge',
-        },
-    }}
-
-    invoke(backup.save, '--no-save-compose', _err=RuntimeError)
+    # wait, get datastore, get spark
+    assert len(httpretty.latest_requests()) == 3
 
 
 def test_load_backup_empty(m_utils, m_sh, m_zipf):
@@ -163,8 +238,8 @@ def test_load_backup_empty(m_utils, m_sh, m_zipf):
 def test_load_backup(m_utils, m_sh, mocker, m_zipf):
     m_tmp = mocker.patch(TESTED + '.NamedTemporaryFile', wraps=backup.NamedTemporaryFile)
     invoke(backup.load, 'fname')
-    assert m_zipf.read.call_count == 5
-    assert m_tmp.call_count == 4
+    assert m_zipf.read.call_count == 7
+    assert m_tmp.call_count == 6
 
 
 def test_load_backup_none(m_utils, m_sh, m_zipf):
@@ -178,5 +253,5 @@ def test_load_backup_missing(m_utils, m_sh, m_zipf, mocker):
     m_zipf.namelist.return_value = zipf_names()[2:]
     m_zipf.read.side_effect = zipf_read()[2:]
     invoke(backup.load, 'fname')
-    assert m_zipf.read.call_count == 3
-    assert m_tmp.call_count == 3
+    assert m_zipf.read.call_count == 5
+    assert m_tmp.call_count == 5
