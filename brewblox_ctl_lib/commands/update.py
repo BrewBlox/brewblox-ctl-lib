@@ -270,9 +270,6 @@ def update(ctx, update_ctl, update_ctl_done, pull, avahi_config, migrate, prune,
         sh(' '.join([const.PY, *const.ARGS, '--update-ctl-done', '--prune' if prune else '--no-prune']))
         return
 
-    utils.info('Updating configuration files...')
-    apply_config()
-
     if avahi_config:
         utils.update_avahi_config()
 
@@ -282,7 +279,11 @@ def update(ctx, update_ctl, update_ctl_done, pull, avahi_config, migrate, prune,
         sh('{}docker-compose down --remove-orphans'.format(sudo))
 
         utils.info('Migrating configuration files...')
+        apply_config()
         downed_migrate(prev_version)
+    else:
+        utils.info('Updating configuration files...')
+        apply_config()
 
     if pull:
         utils.info('Pulling docker images...')
