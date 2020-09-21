@@ -46,6 +46,7 @@ def datastore_migrate_redis():
         utils.info('couchdb/ dir not found. Skipping migration...')
         return
 
+    utils.info('Starting a temporary CouchDB container on port 5984...')
     sh('{}docker rm -f couchdb-migrate'.format(sudo), check=False)
     sh('{}docker run --rm -d'
         ' --name couchdb-migrate'
