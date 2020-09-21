@@ -46,7 +46,6 @@ def datastore_migrate_redis():
         utils.info('couchdb/ dir not found. Skipping migration...')
         return
 
-    sh('mkdir -p redis/')
     sh('{}docker rm -f couchdb-migrate'.format(sudo), check=False)
     sh('{}docker run --rm -d'
         ' --name couchdb-migrate'
@@ -112,7 +111,7 @@ def downed_migrate(prev_version):
     if prev_version < StrictVersion('0.3.0'):
         # Splitting compose configuration between docker-compose and docker-compose.shared.yml
         # Version pinning (0.2.2) will happen automatically
-        utils.info('Moving system services to docker-compose.shared.yml')
+        utils.info('Moving system services to docker-compose.shared.yml...')
         config = utils.read_compose()
         sys_names = [
             'mdns',
@@ -132,12 +131,16 @@ def downed_migrate(prev_version):
     if prev_version < StrictVersion('0.6.0'):
         # The datastore service is gone
         # Older services may still rely on it
-        utils.info('Removing `depends_on` fields from docker-compose.yml')
+        utils.info('Removing `depends_on` fields from docker-compose.yml...')
         config = utils.read_compose()
         for svc in config['services'].values():
             with suppress(KeyError):
                 del svc['depends_on']
         utils.write_compose(config)
+
+        # Init dir. It will be filled during upped_migrate
+        utils.info('Creating redis/ dir...')
+        sh('mkdir -p redis/')
 
     utils.info('Checking .env variables...')
     for (key, default_value) in const.ENV_DEFAULTS.items():
