@@ -60,7 +60,7 @@ def history_url():
 
 
 def datastore_url():
-    return '{}/datastore'.format(host_url())
+    return '{}/history/datastore'.format(host_url())
 
 
 def host_ip():

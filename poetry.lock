@@ -13,13 +13,12 @@ description = "Classes Without Boilerplate"
 name = "attrs"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
-version = "19.3.0"
+version = "20.1.0"
 
 [package.extras]
-azure-pipelines = ["coverage", "hypothesis", "pympler", "pytest (>=4.3.0)", "six", "zope.interface", "pytest-azurepipelines"]
-dev = ["coverage", "hypothesis", "pympler", "pytest (>=4.3.0)", "six", "zope.interface", "sphinx", "pre-commit"]
-docs = ["sphinx", "zope.interface"]
-tests = ["coverage", "hypothesis", "pympler", "pytest (>=4.3.0)", "six", "zope.interface"]
+dev = ["coverage (>=5.0.2)", "hypothesis", "pympler", "pytest (>=4.3.0)", "six", "zope.interface", "sphinx", "sphinx-rtd-theme", "pre-commit"]
+docs = ["sphinx", "sphinx-rtd-theme", "zope.interface"]
+tests = ["coverage (>=5.0.2)", "hypothesis", "pympler", "pytest (>=4.3.0)", "six", "zope.interface"]
 
 [[package]]
 category = "dev"
@@ -39,13 +38,13 @@ description = "Brewblox management tool"
 name = "brewblox-ctl"
 optional = false
 python-versions = ">=3.5"
-version = "0.22.2"
+version = "0.22.4"
 
 [package.dependencies]
 click = ">=7.1.1,<8.0.0"
 configobj = ">=5.0.6,<6.0.0"
-docker = ">=4.2.1,<5.0.0"
-docker-compose = ">=1.26.0,<2.0.0"
+docker = ">=4.3.1,<5.0.0"
+docker-compose = ">=1.26.2,<2.0.0"
 pyyaml = ">=5.3.1,<6.0.0"
 requests = ">=2.23.0,<3.0.0"
 zeroconf = ">=0.28.1,<0.29.0"
@@ -128,7 +127,7 @@ description = "A Python library for the Docker Engine API."
 name = "docker"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
-version = "4.3.0"
+version = "4.3.1"
 
 [package.dependencies]
 pywin32 = "227"
@@ -218,6 +217,14 @@ version = "3.2.0"
 flake8 = "*"
 
 [[package]]
+category = "dev"
+description = "HTTP client mock for Python"
+name = "httpretty"
+optional = false
+python-versions = ">=3"
+version = "1.0.2"
+
+[[package]]
 category = "main"
 description = "Internationalized Domain Names in Applications (IDNA)"
 name = "idna"
@@ -293,7 +300,7 @@ description = "More routines for operating on iterables, beyond itertools"
 name = "more-itertools"
 optional = false
 python-versions = ">=3.5"
-version = "8.4.0"
+version = "8.5.0"
 
 [[package]]
 category = "dev"
@@ -554,7 +561,7 @@ description = "Pure Python Multicast DNS Service Discovery Library (Bonjour/Avah
 name = "zeroconf"
 optional = false
 python-versions = "*"
-version = "0.28.1"
+version = "0.28.3"
 
 [package.dependencies]
 ifaddr = ">=0.1.7"
@@ -573,7 +580,7 @@ docs = ["sphinx", "jaraco.packaging (>=3.2)", "rst.linker (>=1.9)"]
 testing = ["pathlib2", "unittest2", "jaraco.itertools", "func-timeout"]
 
 [metadata]
-content-hash = "27a687eb0dffa67a574353cdec78fed70afc27dbf1ede7853b5f69d29e62d86e"
+content-hash = "e4608363e9693ac333e8872745ed5375d5af342a5a88c30d134fbd686cc3efa3"
 python-versions = ">=3.5"
 
 [metadata.files]
@@ -582,15 +589,15 @@ atomicwrites = [
     {file = "atomicwrites-1.4.0.tar.gz", hash = "sha256:ae70396ad1a434f9c7046fd2dd196fc04b12f9e91ffb859164193be8b6168a7a"},
 ]
 attrs = [
-    {file = "attrs-19.3.0-py2.py3-none-any.whl", hash = "sha256:08a96c641c3a74e44eb59afb61a24f2cb9f4d7188748e76ba4bb5edfa3cb7d1c"},
-    {file = "attrs-19.3.0.tar.gz", hash = "sha256:f7b7ce16570fe9965acd6d30101a28f62fb4a7f9e926b3bbc9b61f8b04247e72"},
+    {file = "attrs-20.1.0-py2.py3-none-any.whl", hash = "sha256:2867b7b9f8326499ab5b0e2d12801fa5c98842d2cbd22b35112ae04bf85b4dff"},
+    {file = "attrs-20.1.0.tar.gz", hash = "sha256:0ef97238856430dcf9228e07f316aefc17e8939fc8507e18c6501b761ef1a42a"},
 ]
 autopep8 = [
     {file = "autopep8-1.5.4.tar.gz", hash = "sha256:d21d3901cb0da6ebd1e83fc9b0dfbde8b46afc2ede4fe32fbda0c7c6118ca094"},
 ]
 brewblox-ctl = [
-    {file = "brewblox-ctl-0.22.2.tar.gz", hash = "sha256:df774cbfc831b8ea991fe06da2497c7ee017d7de87622207aff348435718d18a"},
-    {file = "brewblox_ctl-0.22.2-py3-none-any.whl", hash = "sha256:7175af9d8aef57547b6ec7df7779b173fb0b6419d842ee39e682f9aa7029fd48"},
+    {file = "brewblox-ctl-0.22.4.tar.gz", hash = "sha256:9a264cb4ee39f3c205df614efec0a8a97e57a9389a70e556588313e88e3ad1a0"},
+    {file = "brewblox_ctl-0.22.4-py3-none-any.whl", hash = "sha256:dc0bbbfd3ac8d7f6c9f86ca96e9f6204e34b8513e15811e067d9e60151d96b97"},
 ]
 cached-property = [
     {file = "cached-property-1.5.1.tar.gz", hash = "sha256:9217a59f14a5682da7c4b8829deadbfc194ac22e9908ccf7c8820234e80a1504"},
@@ -662,8 +669,8 @@ distro = [
     {file = "distro-1.5.0.tar.gz", hash = "sha256:0e58756ae38fbd8fc3020d54badb8eae17c5b9dcbed388b17bb55b8a5928df92"},
 ]
 docker = [
-    {file = "docker-4.3.0-py2.py3-none-any.whl", hash = "sha256:ba118607b0ba6bfc1b236ec32019a355c47b5d012d01d976467d4692ef443929"},
-    {file = "docker-4.3.0.tar.gz", hash = "sha256:431a268f2caf85aa30613f9642da274c62f6ee8bae7d70d968e01529f7d6af93"},
+    {file = "docker-4.3.1-py2.py3-none-any.whl", hash = "sha256:13966471e8bc23b36bfb3a6fb4ab75043a5ef1dac86516274777576bed3b9828"},
+    {file = "docker-4.3.1.tar.gz", hash = "sha256:bad94b8dd001a8a4af19ce4becc17f41b09f228173ffe6a4e0355389eef142f2"},
 ]
 docker-compose = [
     {file = "docker-compose-1.26.2.tar.gz", hash = "sha256:576b0f81d1a1325941b3ce3436efd51f28b9ecd85b10dd6daa7d51793e187b30"},
@@ -681,6 +688,9 @@ flake8 = [
 ]
 flake8-quotes = [
     {file = "flake8-quotes-3.2.0.tar.gz", hash = "sha256:3f1116e985ef437c130431ac92f9b3155f8f652fda7405ac22ffdfd7a9d1055e"},
+]
+httpretty = [
+    {file = "httpretty-1.0.2.tar.gz", hash = "sha256:24a6fd2fe1c76e94801b74db8f52c0fb42718dc4a199a861b305b1a492b9d868"},
 ]
 idna = [
     {file = "idna-2.10-py2.py3-none-any.whl", hash = "sha256:b97d804b1e9b523befed77c48dacec60e6dcb0b5391d57af6a65a312a90648c0"},
@@ -707,8 +717,8 @@ mccabe = [
     {file = "mccabe-0.6.1.tar.gz", hash = "sha256:dd8d182285a0fe56bace7f45b5e7d1a6ebcbf524e8f3bd87eb0f125271b8831f"},
 ]
 more-itertools = [
-    {file = "more-itertools-8.4.0.tar.gz", hash = "sha256:68c70cc7167bdf5c7c9d8f6954a7837089c6a36bf565383919bb595efb8a17e5"},
-    {file = "more_itertools-8.4.0-py3-none-any.whl", hash = "sha256:b78134b2063dd214000685165d81c154522c3ee0a1c0d4d113c80361c234c5a2"},
+    {file = "more-itertools-8.5.0.tar.gz", hash = "sha256:6f83822ae94818eae2612063a5101a7311e68ae8002005b5e05f03fd74a86a20"},
+    {file = "more_itertools-8.5.0-py3-none-any.whl", hash = "sha256:9b30f12df9393f0d28af9210ff8efe48d10c94f73e5daf886f10c4b0b0b4f03c"},
 ]
 packaging = [
     {file = "packaging-20.4-py2.py3-none-any.whl", hash = "sha256:998416ba6962ae7fbd6596850b80e17859a5753ba17c32284f67bfff33784181"},
@@ -813,8 +823,8 @@ websocket-client = [
     {file = "websocket_client-0.57.0.tar.gz", hash = "sha256:d735b91d6d1692a6a181f2a8c9e0238e5f6373356f561bb9dc4c7af36f452010"},
 ]
 zeroconf = [
-    {file = "zeroconf-0.28.1-py3-none-any.whl", hash = "sha256:aae48e790f0f7c213c3893654ae2f53f7de01e05a34271bf17aa4c99def73940"},
-    {file = "zeroconf-0.28.1.tar.gz", hash = "sha256:902e6c3ca4cc752577d650d05a3e7102a897b647fe76da7c0d322cd493cbd1a3"},
+    {file = "zeroconf-0.28.3-py3-none-any.whl", hash = "sha256:9ae1d9fbb53e1e5b0965a1e60873f99568f0424a03eb28ce793e75c999a8fc50"},
+    {file = "zeroconf-0.28.3.tar.gz", hash = "sha256:1a160082ef198884331b04b636132a243a06d3155f6664e96704b6984cbf485c"},
 ]
 zipp = [
     {file = "zipp-1.2.0-py2.py3-none-any.whl", hash = "sha256:e0d9e63797e483a30d27e09fffd308c59a700d365ec34e93cc100844168bf921"},

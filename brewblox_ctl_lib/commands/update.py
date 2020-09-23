@@ -2,10 +2,14 @@
 Migration scripts
 """
 
+from contextlib import suppress
+from datetime import datetime
 from distutils.version import StrictVersion
 from pathlib import Path
 
 import click
+import requests
+import urllib3
 from brewblox_ctl import click_helpers, sh
 
 from brewblox_ctl_lib import const, utils
@@ -27,6 +31,75 @@ def apply_config():
     utils.write_compose(usr_cfg)
 
 
+def datastore_migrate_redis():
+    urllib3.disable_warnings()
+    sudo = utils.optsudo()
+    opts = utils.ctx_opts()
+    redis_url = utils.datastore_url()
+    couch_url = 'http://localhost:5984'
+
+    if opts.dry_run:
+        utils.info('Dry run. Skipping migration...')
+        return
+
+    if not utils.path_exists('./couchdb/'):
+        utils.info('couchdb/ dir not found. Skipping migration...')
+        return
+
+    utils.info('Starting a temporary CouchDB container on port 5984...')
+    sh('{}docker rm -f couchdb-migrate'.format(sudo), check=False)
+    sh('{}docker run --rm -d'
+        ' --name couchdb-migrate'
+        ' -v "$(pwd)/couchdb/:/opt/couchdb/data/"'
+        ' -p "5984:5984"'
+        ' treehouses/couchdb:2.3.1'.format(sudo))
+    sh('{} http wait {}'.format(const.CLI, couch_url))
+    sh('{} http wait {}/ping'.format(const.CLI, redis_url))
+
+    resp = requests.get('{}/_all_dbs'.format(couch_url))
+    resp.raise_for_status()
+    dbs = resp.json()
+
+    for db in ['brewblox-ui-store', 'brewblox-automation']:
+        if db in dbs:
+            resp = requests.get('{}/{}/_all_docs'.format(couch_url, db),
+                                params={'include_docs': True})
+            resp.raise_for_status()
+            docs = [v['doc'] for v in resp.json()['rows']]
+            # Drop invalid names
+            docs[:] = [d for d in docs if len(d['_id'].split('__', 1)) == 2]
+            for d in docs:
+                segments = d['_id'].split('__', 1)
+                d['namespace'] = '{}:{}'.format(db, segments[0])
+                d['id'] = segments[1]
+                del d['_rev']
+                del d['_id']
+            resp = requests.post('{}/mset'.format(redis_url),
+                                 json={'values': docs},
+                                 verify=False)
+            resp.raise_for_status()
+            utils.info('Migrated {} entries from {}'.format(len(docs), db))
+
+    if 'spark-service' in dbs:
+        resp = requests.get('{}/spark-service/_all_docs'.format(couch_url),
+                            params={'include_docs': True})
+        resp.raise_for_status()
+        docs = [v['doc'] for v in resp.json()['rows']]
+        for d in docs:
+            d['namespace'] = 'spark-service'
+            d['id'] = d['_id']
+            del d['_rev']
+            del d['_id']
+        resp = requests.post('{}/mset'.format(redis_url),
+                             json={'values': docs},
+                             verify=False)
+        resp.raise_for_status()
+        utils.info('Migrated {} entries from spark-service'.format(len(docs)))
+
+    sh('{}docker stop couchdb-migrate'.format(sudo))
+    sh('sudo mv couchdb/ couchdb-migrated-{}'.format(datetime.now().strftime('%Y%m%d')))
+
+
 def downed_migrate(prev_version):
     """Migration commands to be executed without any running services"""
     if prev_version < StrictVersion('0.2.0'):
@@ -39,7 +112,7 @@ def downed_migrate(prev_version):
     if prev_version < StrictVersion('0.3.0'):
         # Splitting compose configuration between docker-compose and docker-compose.shared.yml
         # Version pinning (0.2.2) will happen automatically
-        utils.info('Moving system services to docker-compose.shared.yml')
+        utils.info('Moving system services to docker-compose.shared.yml...')
         config = utils.read_compose()
         sys_names = [
             'mdns',
@@ -56,6 +129,20 @@ def downed_migrate(prev_version):
         }
         utils.write_compose(usr_config)
 
+    if prev_version < StrictVersion('0.6.0'):
+        # The datastore service is gone
+        # Older services may still rely on it
+        utils.info('Removing `depends_on` fields from docker-compose.yml...')
+        config = utils.read_compose()
+        for svc in config['services'].values():
+            with suppress(KeyError):
+                del svc['depends_on']
+        utils.write_compose(config)
+
+        # Init dir. It will be filled during upped_migrate
+        utils.info('Creating redis/ dir...')
+        sh('mkdir -p redis/')
+
     utils.info('Checking .env variables...')
     for (key, default_value) in const.ENV_DEFAULTS.items():
         current_value = utils.getenv(key)
@@ -70,12 +157,9 @@ def upped_migrate(prev_version):
     sh('{} http wait {}/ping'.format(const.CLI, history_url))
     sh('{} http post --quiet {}/query/configure'.format(const.CLI, history_url))
 
-    # Ensure datastore system databases
-    datastore_url = utils.datastore_url()
-    sh('{} http wait {}'.format(const.CLI, datastore_url))
-    sh('{} http put --allow-fail --quiet {}/_users'.format(const.CLI, datastore_url))
-    sh('{} http put --allow-fail --quiet {}/_replicator'.format(const.CLI, datastore_url))
-    sh('{} http put --allow-fail --quiet {}/_global_changes'.format(const.CLI, datastore_url))
+    if prev_version < StrictVersion('0.6.0'):
+        utils.info('Migrating datastore from CouchDB to Redis...')
+        datastore_migrate_redis()
 
 
 @cli.command()
@@ -191,9 +275,6 @@ def update(ctx, update_ctl, update_ctl_done, pull, avahi_config, migrate, prune,
         sh(' '.join([const.PY, *const.ARGS, '--update-ctl-done', '--prune' if prune else '--no-prune']))
         return
 
-    utils.info('Updating configuration files...')
-    apply_config()
-
     if avahi_config:
         utils.update_avahi_config()
 
@@ -203,7 +284,11 @@ def update(ctx, update_ctl, update_ctl_done, pull, avahi_config, migrate, prune,
         sh('{}docker-compose down --remove-orphans'.format(sudo))
 
         utils.info('Migrating configuration files...')
+        apply_config()
         downed_migrate(prev_version)
+    else:
+        utils.info('Updating configuration files...')
+        apply_config()
 
     if pull:
         utils.info('Pulling docker images...')

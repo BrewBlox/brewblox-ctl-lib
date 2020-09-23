@@ -73,13 +73,10 @@ def save(save_compose, ignore_spark_error):
     with suppress(FileExistsError):
         mkdir(path.abspath('backup/'))
 
-    url = utils.datastore_url()
+    store_url = utils.datastore_url()
 
     utils.info('Waiting for the datastore...')
-    http.wait(url, info_updates=True)
-    resp = requests.get(url + '/_all_dbs', verify=False)
-    resp.raise_for_status()
-    dbs = [v for v in resp.json() if not v.startswith('_')]
+    http.wait(store_url + '/ping', info_updates=True)
 
     config = utils.read_compose()
     sparks = [
@@ -88,23 +85,21 @@ def save(save_compose, ignore_spark_error):
     ]
     zipf = zipfile.ZipFile(file, 'w', zipfile.ZIP_DEFLATED)
 
+    # Always save .env
     utils.info('Exporting .env')
     zipf.write('.env')
+
+    # Always save datastore
+    utils.info('Exporting datastore')
+    resp = requests.post(store_url + '/mget',
+                         json={'namespace': '', 'filter': '*'},
+                         verify=False)
+    resp.raise_for_status()
+    zipf.writestr('global.redis.json', resp.text)
 
     if save_compose:
         utils.info('Exporting docker-compose.yml')
         zipf.write('docker-compose.yml')
-
-    utils.info('Exporting databases: {}'.format(', '.join(dbs)))
-    for db in dbs:
-        resp = requests.get('{}/{}/_all_docs'.format(url, db),
-                            params={'include_docs': True},
-                            verify=False)
-        resp.raise_for_status()
-        docs = [v['doc'] for v in resp.json()['rows']]
-        for d in docs:
-            del d['_rev']
-        zipf.writestr(db + '.datastore.json', json.dumps(docs))
 
     for spark in sparks:
         utils.info("Exporting Spark blocks from '{}'".format(spark))
@@ -114,13 +109,23 @@ def save(save_compose, ignore_spark_error):
             zipf.writestr(spark + '.spark.json', resp.text)
         except Exception as ex:
             if ignore_spark_error:
-                utils.info("Skipping '{}' due to error: {}".format(spark, str(ex)))
+                utils.info("Skipping Spark '{}' due to error: {}".format(spark, str(ex)))
             else:
                 raise ex
 
     zipf.close()
     click.echo(path.abspath(file))
     utils.info('Done!')
+
+
+def mset(data):
+    with NamedTemporaryFile('w') as tmp:
+        utils.show_data(data)
+        json.dump(data, tmp)
+        tmp.flush()
+        sh('{} http post --quiet {}/mset -f {}'.format(const.CLI,
+                                                       utils.datastore_url(),
+                                                       tmp.name))
 
 
 @backup.command()
@@ -133,7 +138,7 @@ def save(save_compose, ignore_spark_error):
               help='Load and write docker-compose.yml.')
 @click.option('--load-datastore/--no-load-datastore',
               default=True,
-              help='Load and write datastore databases.')
+              help='Load and write datastore entries.')
 @click.option('--load-spark/--no-load-spark',
               default=True,
               help='Load and write Spark blocks.')
@@ -147,7 +152,7 @@ def load(archive, load_env, load_compose, load_datastore, load_spark, update):
     You can use the --load-XXXX options to partially load the backup.
 
     This does not attempt to merge data: it will overwrite current docker-compose.yml,
-    datastore databases, and Spark blocks.
+    datastore entries, and Spark blocks.
 
     Blocks on Spark services not in the backup file will not be affected.
 
@@ -171,10 +176,12 @@ def load(archive, load_env, load_compose, load_datastore, load_spark, update):
 
     zipf = zipfile.ZipFile(archive, 'r', zipfile.ZIP_DEFLATED)
     available = zipf.namelist()
-    datastore_files = [v for v in available if v.endswith('.datastore.json')]
+    redis_file = 'global.redis.json'
+    couchdb_files = [v for v in available if v.endswith('.datastore.json')]
     spark_files = [v for v in available if v.endswith('.spark.json')]
 
     if load_env and '.env' in available:
+        utils.info('Loading .env file')
         with NamedTemporaryFile('w') as tmp:
             data = zipf.read('.env').decode()
             utils.info('Writing .env')
@@ -188,33 +195,65 @@ def load(archive, load_env, load_compose, load_datastore, load_spark, update):
 
     if load_compose:
         if 'docker-compose.yml' in available:
-            utils.info('Writing docker-compose.yml')
-            utils.write_compose(yaml.safe_load(zipf.read('docker-compose.yml')))
+            utils.info('Loading docker-compose.yml')
+            config = yaml.safe_load(zipf.read('docker-compose.yml'))
+            # Older services may still depend on the `datastore` service
+            # The `depends_on` config is useless anyway in a brewblox system
+            for svc in config['services'].values():
+                with suppress(KeyError):
+                    del svc['depends_on']
+            utils.write_compose(config)
             sh('{} docker-compose up -d --remove-orphans'.format(sudo))
         else:
             utils.info('docker-compose.yml file not found in backup archive')
 
     if load_datastore:
-        if datastore_files:
+        if redis_file in available or couchdb_files:
             utils.info('Waiting for the datastore...')
-            sh('{} http wait {}'.format(const.CLI, store_url))
+            sh('{} http wait {}/ping'.format(const.CLI, store_url))
+            # Wipe UI/Automation, but leave Spark files
+            mdelete_cmd = '{} http post {}/mdelete --quiet -d \'{{"namespace":"{}", "filter":"*"}}\''
+            sh(mdelete_cmd.format(const.CLI, store_url, 'brewblox-ui-store'))
+            sh(mdelete_cmd.format(const.CLI, store_url, 'brewblox-automation'))
         else:
             utils.info('No datastore files found in backup archive')
 
-        for f in datastore_files:
-            db = f[:-len('.datastore.json')]
+        if redis_file in available:
+            data = json.loads(zipf.read(redis_file).decode())
+            utils.info('Loading {} entries from Redis datastore'.format(len(data['values'])))
+            mset(data)
 
-            utils.info('Recreating database {}'.format(db))
-            sh('{} http delete {}/{} --allow-fail'.format(const.CLI, store_url, db))
-            sh('{} http put {}/{}'.format(const.CLI, store_url, db))
+        # Backwards compatibility for UI/automation files from CouchDB
+        # The IDs here are formatted as {moduleId}__{objId}
+        # The module ID becomes part of the Redis namespace
+        for db in ['brewblox-ui-store', 'brewblox-automation']:
+            fname = '{}.datastore.json'.format(db)
+            if fname not in available:
+                continue
+            docs = json.loads(zipf.read(fname).decode())
+            # Drop invalid names (not prefixed with module ID)
+            docs[:] = [d for d in docs if len(d['_id'].split('__', 1)) == 2]
+            # Add namespace / ID fields
+            for d in docs:
+                segments = d['_id'].split('__', 1)
+                d['namespace'] = '{}:{}'.format(db, segments[0])
+                d['id'] = segments[1]
+                del d['_id']
+            utils.info('Loading {} entries from database `{}`'.format(len(docs), db))
+            mset({'values': docs})
 
-            utils.info('Writing database {}'.format(db))
-            with NamedTemporaryFile('w') as tmp:
-                data = {'docs': json.loads(zipf.read(f).decode())}
-                utils.show_data(data)
-                json.dump(data, tmp)
-                tmp.flush()
-                sh('{} http post {}/{}/_bulk_docs -f {}'.format(const.CLI, store_url, db, tmp.name))
+        # Backwards compatibility for Spark service files
+        # There is no module ID field here
+        spark_db = 'spark-service'
+        spark_fname = '{}.datastore.json'.format(spark_db)
+        if spark_fname in available:
+            docs = json.loads(zipf.read(spark_fname).decode())
+            for d in docs:
+                d['namespace'] = spark_db
+                d['id'] = d['_id']
+                del d['_id']
+            utils.info('Loading {} entries from database `{}`'.format(len(docs), spark_db))
+            mset({'values': docs})
 
     if load_spark:
         sudo = utils.optsudo()
