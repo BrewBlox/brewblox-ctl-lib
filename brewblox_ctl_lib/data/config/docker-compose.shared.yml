@@ -57,7 +57,7 @@ services:
       --providers.docker.defaultrule="PathPrefix(`/{{ index .Labels \"com.docker.compose.service\" }}`)"
       --providers.file.directory=/config
       --entrypoints.web.address=:${BREWBLOX_PORT_HTTP}
-      --entrypoints.web.http.redirections.entrypoint.to=websecure
+      --entrypoints.web.http.redirections.entrypoint.to=${BREWBLOX_HTTP_REDIRECT}
       --entrypoints.websecure.address=:${BREWBLOX_PORT_HTTPS}
       --entrypoints.websecure.http.tls=true
   ui:
