@@ -7,10 +7,9 @@ from unittest.mock import call
 
 import click
 import pytest
-from configobj import ConfigObj
-
 from brewblox_ctl_lib import utils
 from brewblox_ctl_lib.const import HOST, HTTPS_PORT_KEY
+from configobj import ConfigObj
 
 TESTED = utils.__name__
 
@@ -47,7 +46,7 @@ def test_get_urls(m_getenv):
         '1234',
         '4321',
     ]
-    assert utils.history_url() == '{}:1234/history'.format(HOST)
+    assert utils.history_url() == '{}:1234/history/history'.format(HOST)
     assert utils.datastore_url() == '{}:4321/history/datastore'.format(HOST)
 
     assert m_getenv.call_args_list == [

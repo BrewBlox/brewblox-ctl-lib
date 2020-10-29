@@ -7,7 +7,6 @@ from pathlib import Path
 
 import click
 from brewblox_ctl import click_helpers, sh
-
 from brewblox_ctl_lib import const, utils
 
 
@@ -189,7 +188,7 @@ def setup(ctx, avahi_config, pull, port_check):
     # Always setup history
     utils.info('Configuring history settings...')
     sh('{} http wait {}/ping'.format(const.CLI, history_url))
-    sh('{} http post --quiet {}/query/configure'.format(const.CLI, history_url))
+    sh('{} http post --quiet {}/configure'.format(const.CLI, history_url))
 
     # Setup is done - leave system in stable state
     utils.info('Stopping services...')
