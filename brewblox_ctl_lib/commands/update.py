@@ -11,7 +11,6 @@ import click
 import requests
 import urllib3
 from brewblox_ctl import click_helpers, sh
-
 from brewblox_ctl_lib import const, utils
 
 
@@ -155,7 +154,7 @@ def upped_migrate(prev_version):
     # Always run history configure
     history_url = utils.history_url()
     sh('{} http wait {}/ping'.format(const.CLI, history_url))
-    sh('{} http post --quiet {}/query/configure'.format(const.CLI, history_url))
+    sh('{} http post --quiet {}/configure'.format(const.CLI, history_url))
 
     if prev_version < StrictVersion('0.6.0'):
         utils.info('Migrating datastore from CouchDB to Redis...')

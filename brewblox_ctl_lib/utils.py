@@ -56,7 +56,7 @@ def host_url():
 
 
 def history_url():
-    return '{}/history'.format(host_url())
+    return '{}/history/history'.format(host_url())
 
 
 def datastore_url():
