@@ -4,7 +4,6 @@ Adding and configuring device services
 
 import click
 from brewblox_ctl import click_helpers, sh
-
 from brewblox_ctl_lib import utils
 from brewblox_ctl_lib.discovery import discover_device, find_device
 
@@ -171,6 +170,14 @@ def add_spark(name,
               is_flag=True,
               help='Allow overwriting an existing service')
 def add_plaato(name, token, force):
+    """
+    Create a service for the Plaato airlock.
+
+    This will periodically query the Plaato server for current state.
+    An authentication token is required.
+
+    See https://plaato.io/apps/help-center#!hc-auth-token on how to get one.
+    """
     utils.check_config()
     utils.confirm_mode()
 
