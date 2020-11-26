@@ -4,7 +4,7 @@ Adding and configuring device services
 
 import click
 from brewblox_ctl import click_helpers, sh
-from brewblox_ctl_lib import utils
+from brewblox_ctl_lib import const, utils
 from brewblox_ctl_lib.discovery import discover_device, find_device
 
 
@@ -161,6 +161,7 @@ def add_spark(name,
 @click.option('-n', '--name',
               prompt='How do you want to call this service? The name must be unique',
               callback=utils.check_service_name,
+              default='plaato',
               help='Service name')
 @click.option('--token',
               prompt='What is your Plaato auth token? '
@@ -200,5 +201,46 @@ def add_plaato(name, token, force):
     utils.write_compose(config)
     click.echo("Added Plaato service '{}'.".format(name))
     click.echo('This service publishes history data, but does not have a UI component.')
+    if utils.confirm("Do you want to run 'brewblox-ctl up' now?"):
+        sh('{}docker-compose up -d --remove-orphans'.format(sudo))
+
+
+@cli.command()
+@click.option('-n', '--name',
+              prompt='How do you want to call this service? The name must be unique',
+              callback=utils.check_service_name,
+              default='nodered',
+              help='Service name')
+@click.option('-f', '--force',
+              is_flag=True,
+              help='Allow overwriting an existing service')
+def add_node_red(name, force):
+    """
+    Create a service for Node-RED.
+    """
+    utils.check_config()
+    utils.confirm_mode()
+
+    sudo = utils.optsudo()
+    host = utils.host_ip()
+    port = utils.getenv(const.HTTPS_PORT_KEY)
+    config = utils.read_compose()
+
+    if name in config['services'] and not force:
+        click.echo('Service "{}" already exists. Use the --force flag if you want to overwrite it'.format(name))
+        raise SystemExit(1)
+
+    sh('mkdir -p ./{}'.format(name))
+    config['services'][name] = {
+        'image': 'brewblox/node-red:${BREWBLOX_RELEASE}',
+        'restart': 'unless-stopped',
+        'volumes': [
+            './{}:/data'.format(name),
+        ]
+    }
+
+    utils.write_compose(config)
+    click.echo("Added Node-RED service '{}'.".format(name))
+    click.echo('Visit https://{}:{}/{} in your browser to load the editor.'.format(host, port, name))
     if utils.confirm("Do you want to run 'brewblox-ctl up' now?"):
         sh('{}docker-compose up -d --remove-orphans'.format(sudo))
