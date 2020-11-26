@@ -209,7 +209,7 @@ def add_plaato(name, token, force):
 @click.option('-n', '--name',
               prompt='How do you want to call this service? The name must be unique',
               callback=utils.check_service_name,
-              default='nodered',
+              default='node-red',
               help='Service name')
 @click.option('-f', '--force',
               is_flag=True,
