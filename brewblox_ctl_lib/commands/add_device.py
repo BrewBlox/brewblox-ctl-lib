@@ -206,28 +206,21 @@ def add_plaato(name, token, force):
 
 
 @cli.command()
-@click.option('-n', '--name',
-              prompt='How do you want to call this service? The name must be unique',
-              callback=utils.check_service_name,
-              default='node-red',
-              help='Service name')
-@click.option('-f', '--force',
-              is_flag=True,
-              help='Allow overwriting an existing service')
-def add_node_red(name, force):
+def add_node_red():
     """
     Create a service for Node-RED.
     """
     utils.check_config()
     utils.confirm_mode()
 
+    name = 'node-red'
     sudo = utils.optsudo()
     host = utils.host_ip()
     port = utils.getenv(const.HTTPS_PORT_KEY)
     config = utils.read_compose()
 
-    if name in config['services'] and not force:
-        click.echo('Service "{}" already exists. Use the --force flag if you want to overwrite it'.format(name))
+    if name in config['services']:
+        click.echo('The {} service already exists'.format(name))
         raise SystemExit(1)
 
     sh('mkdir -p ./{}'.format(name))
@@ -241,6 +234,6 @@ def add_node_red(name, force):
 
     utils.write_compose(config)
     click.echo("Added Node-RED service '{}'.".format(name))
-    click.echo('Visit https://{}:{}/{} in your browser to load the editor.'.format(host, port, name))
     if utils.confirm("Do you want to run 'brewblox-ctl up' now?"):
         sh('{}docker-compose up -d --remove-orphans'.format(sudo))
+        click.echo('Visit https://{}:{}/{} in your browser to load the editor.'.format(host, port, name))

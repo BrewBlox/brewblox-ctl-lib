@@ -113,13 +113,10 @@ def test_add_node_red(m_utils, m_sh, mocker):
 
     m_sh.reset_mock()
     m_utils.confirm.return_value = False
-    invoke(add_device.add_node_red, '--name testey')
+    invoke(add_device.add_node_red)
     assert m_sh.call_count == 1
 
 
 def test_add_node_red_force(m_utils, m_sh, mocker, m_find):
     m_utils.read_compose.side_effect = lambda: {'services': {'node-red': {}}}
-
     invoke(add_device.add_node_red, _err=True)
-    invoke(add_device.add_node_red, '--force')
-    invoke(add_device.add_node_red, '--name testey')
