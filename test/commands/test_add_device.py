@@ -109,12 +109,12 @@ def test_add_plaato_force(m_utils, m_sh, mocker, m_find):
 def test_add_node_red(m_utils, m_sh, mocker):
     m_utils.read_compose.side_effect = lambda: {'services': {}}
     invoke(add_device.add_node_red)
-    assert m_sh.call_count == 2
+    assert m_sh.call_count == 3
 
     m_sh.reset_mock()
     m_utils.confirm.return_value = False
     invoke(add_device.add_node_red)
-    assert m_sh.call_count == 1
+    assert m_sh.call_count == 2
 
 
 def test_add_node_red_force(m_utils, m_sh, mocker, m_find):

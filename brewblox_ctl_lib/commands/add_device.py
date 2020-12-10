@@ -224,6 +224,7 @@ def add_node_red():
         raise SystemExit(1)
 
     sh('mkdir -p ./{}'.format(name))
+    sh('sudo chown 1000:1000 ./{}'.format(name))
     config['services'][name] = {
         'image': 'brewblox/node-red:${BREWBLOX_RELEASE}',
         'restart': 'unless-stopped',
