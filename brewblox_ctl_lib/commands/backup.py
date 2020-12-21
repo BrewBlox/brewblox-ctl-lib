@@ -293,9 +293,7 @@ def load(archive,
             sudo = 'sudo '
 
         with TemporaryDirectory() as tmpdir:
-            print(node_red_files)
             zipf.extractall(tmpdir, members=node_red_files)
-            print(glob(tmpdir + '/**/*.js*'))
             sh('mkdir -p ./node-red')
             sh('{}chown 1000:1000 ./node-red/'.format(sudo))
             sh('{}chown -R 1000:1000 {}'.format(sudo, tmpdir))
