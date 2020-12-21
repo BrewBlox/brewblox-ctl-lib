@@ -2,6 +2,8 @@
 Adding and configuring device services
 """
 
+from os import getgid, getuid
+
 import click
 from brewblox_ctl import click_helpers, sh
 from brewblox_ctl_lib import const, utils
@@ -223,8 +225,6 @@ def add_node_red():
         click.echo('The {} service already exists'.format(name))
         raise SystemExit(1)
 
-    sh('mkdir -p ./{}'.format(name))
-    sh('sudo chown 1000:1000 ./{}'.format(name))
     config['services'][name] = {
         'image': 'brewblox/node-red:${BREWBLOX_RELEASE}',
         'restart': 'unless-stopped',
@@ -232,6 +232,10 @@ def add_node_red():
             './{}:/data'.format(name),
         ]
     }
+
+    sh('mkdir -p ./{}'.format(name))
+    if [getgid(), getuid()] != [1000, 1000]:
+        sh('sudo chown 1000:1000 ./{}'.format(name))
 
     utils.write_compose(config)
     click.echo("Added Node-RED service '{}'.".format(name))

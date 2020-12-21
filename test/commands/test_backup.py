@@ -11,13 +11,37 @@ import httpretty
 import pytest
 import yaml
 from brewblox_ctl.testing import check_sudo, invoke, matching
-from requests import HTTPError
-
 from brewblox_ctl_lib.commands import backup
+from requests import HTTPError
 
 TESTED = backup.__name__
 HOST_URL = 'https://localhost'
 STORE_URL = HOST_URL + '/history/datastore'
+
+
+@pytest.fixture(autouse=True)
+def m_getgid(mocker):
+    m = mocker.patch(TESTED + '.getgid')
+    m.return_value = 1000
+    return m
+
+
+@pytest.fixture(autouse=True)
+def m_getuid(mocker):
+    m = mocker.patch(TESTED + '.getuid')
+    m.return_value = 1000
+    return m
+
+
+@pytest.fixture(autouse=True)
+def m_glob(mocker):
+    m = mocker.patch(TESTED + '.glob')
+    m.return_value = [
+        'node-red/settings.js',
+        'node-red/flows.json',
+        'node-red/lib/flows/flows.json',
+    ]
+    return m
 
 
 @pytest.fixture(autouse=True)
@@ -53,6 +77,9 @@ def zipf_names():
         'brewblox-ui-store.datastore.json',
         'spark-service.datastore.json',
         'spark-two.spark.json',
+        'node-red/settings.js',
+        'node-red/flows.json',
+        'node-red/lib/flows/flows.json',
     ]
 
 
@@ -166,7 +193,7 @@ def test_save_backupx(mocker, m_utils, f_read_compose):
     m_mkdir.assert_called_once_with(path.abspath('backup/'))
     m_zipfile.assert_called_once_with(
         matching(r'^backup/brewblox_backup_\d{8}_\d{4}.zip'), 'w', zipfile.ZIP_DEFLATED)
-    m_zipfile.return_value.write.assert_called_with('docker-compose.yml')
+    m_zipfile.return_value.write.assert_any_call('docker-compose.yml')
     assert m_zipfile.return_value.writestr.call_args_list == [
         call('global.redis.json', json.dumps(redis_data())),
         call('spark-one.spark.json', json.dumps(blocks_data())),
@@ -180,7 +207,7 @@ def test_save_backup_no_compose(mocker, m_zipf, m_utils, f_read_compose):
     set_responses()
     mocker.patch(TESTED + '.mkdir')
     invoke(backup.save, '--no-save-compose')
-    m_zipf.write.assert_called_once_with('.env')
+    assert m_zipf.write.call_count == 7  # env + 2x glob
 
 
 @httpretty.activate(allow_net_connect=False)
@@ -244,7 +271,7 @@ def test_load_backup(m_utils, m_sh, mocker, m_zipf):
 
 
 def test_load_backup_none(m_utils, m_sh, m_zipf):
-    invoke(backup.load, 'fname --no-load-compose --no-load-datastore --no-load-spark --no-update')
+    invoke(backup.load, 'fname --no-load-compose --no-load-datastore --no-load-spark --no-load-node-red --no-update')
     assert m_zipf.read.call_count == 1
     assert m_sh.call_count == 1
 
@@ -256,3 +283,10 @@ def test_load_backup_missing(m_utils, m_sh, m_zipf, mocker):
     invoke(backup.load, 'fname')
     assert m_zipf.read.call_count == 5
     assert m_tmp.call_count == 5
+
+
+def test_load_backup_other_uid(m_utils, m_sh, mocker, m_zipf, m_getuid):
+    m_getuid.return_value = 1001
+    mocker.patch(TESTED + '.NamedTemporaryFile', wraps=backup.NamedTemporaryFile)
+    invoke(backup.load, 'fname')
+    m_sh.assert_any_call('sudo chown 1000:1000 ./node-red/')

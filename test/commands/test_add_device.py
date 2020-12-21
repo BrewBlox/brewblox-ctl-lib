@@ -9,6 +9,20 @@ from brewblox_ctl_lib.commands import add_device
 TESTED = add_device.__name__
 
 
+@pytest.fixture(autouse=True)
+def m_getgid(mocker):
+    m = mocker.patch(TESTED + '.getgid')
+    m.return_value = 1000
+    return m
+
+
+@pytest.fixture(autouse=True)
+def m_getuid(mocker):
+    m = mocker.patch(TESTED + '.getuid')
+    m.return_value = 1000
+    return m
+
+
 @pytest.fixture
 def m_utils(mocker):
     m = mocker.patch(TESTED + '.utils')
@@ -109,12 +123,19 @@ def test_add_plaato_force(m_utils, m_sh, mocker, m_find):
 def test_add_node_red(m_utils, m_sh, mocker):
     m_utils.read_compose.side_effect = lambda: {'services': {}}
     invoke(add_device.add_node_red)
-    assert m_sh.call_count == 3
+    assert m_sh.call_count == 2
 
     m_sh.reset_mock()
     m_utils.confirm.return_value = False
     invoke(add_device.add_node_red)
-    assert m_sh.call_count == 2
+    assert m_sh.call_count == 1
+
+
+def test_add_node_red_other_uid(m_utils, m_sh, mocker, m_getuid):
+    m_getuid.return_value = 1001
+    m_utils.read_compose.side_effect = lambda: {'services': {}}
+    invoke(add_device.add_node_red)
+    assert m_sh.call_count == 3
 
 
 def test_add_node_red_force(m_utils, m_sh, mocker, m_find):
