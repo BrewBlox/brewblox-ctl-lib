@@ -218,7 +218,7 @@ def load(archive,
                 with suppress(KeyError):
                     del svc['depends_on']
             utils.write_compose(config)
-            sh('{} docker-compose up -d --remove-orphans'.format(sudo))
+            sh('{} docker-compose up -d'.format(sudo))
         else:
             utils.info('docker-compose.yml file not found in backup archive')
 

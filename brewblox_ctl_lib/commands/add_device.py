@@ -156,7 +156,7 @@ def add_spark(name,
     click.echo("Added Spark service '{}'.".format(name))
     click.echo('It will automatically show up in the UI.\n')
     if utils.confirm("Do you want to run 'brewblox-ctl up' now?"):
-        sh('{}docker-compose up -d --remove-orphans'.format(sudo))
+        sh('{}docker-compose up -d'.format(sudo))
 
 
 @cli.command()
@@ -204,7 +204,7 @@ def add_plaato(name, token, force):
     click.echo("Added Plaato service '{}'.".format(name))
     click.echo('This service publishes history data, but does not have a UI component.')
     if utils.confirm("Do you want to run 'brewblox-ctl up' now?"):
-        sh('{}docker-compose up -d --remove-orphans'.format(sudo))
+        sh('{}docker-compose up -d'.format(sudo))
 
 
 @cli.command()
@@ -240,5 +240,5 @@ def add_node_red():
     utils.write_compose(config)
     click.echo("Added Node-RED service '{}'.".format(name))
     if utils.confirm("Do you want to run 'brewblox-ctl up' now?"):
-        sh('{}docker-compose up -d --remove-orphans'.format(sudo))
+        sh('{}docker-compose up -d'.format(sudo))
         click.echo('Visit https://{}:{}/{} in your browser to load the editor.'.format(host, port, name))

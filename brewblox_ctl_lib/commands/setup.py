@@ -18,7 +18,7 @@ def cli():
 def check_ports():
     if utils.path_exists('./docker-compose.yml'):
         utils.info('Stopping services...')
-        sh('{}docker-compose down --remove-orphans'.format(utils.optsudo()))
+        sh('{}docker-compose down'.format(utils.optsudo()))
 
     ports = [
         utils.getenv(key, const.ENV_DEFAULTS[key]) for key in [
@@ -157,7 +157,7 @@ def setup(ctx, avahi_config, pull, port_check):
 
     # Stop and pull after we're sure we have a compose file
     utils.info('Stopping services...')
-    sh('{}docker-compose down --remove-orphans'.format(sudo))
+    sh('{}docker-compose down'.format(sudo))
 
     if pull:
         utils.info('Pulling docker images...')
@@ -183,7 +183,7 @@ def setup(ctx, avahi_config, pull, port_check):
 
     # Bring images online that we will send configuration
     utils.info('Starting configured services...')
-    sh('{}docker-compose up -d --remove-orphans {}'.format(sudo, ' '.join(upped_services)))
+    sh('{}docker-compose up -d {}'.format(sudo, ' '.join(upped_services)))
 
     # Always setup history
     utils.info('Configuring history settings...')
