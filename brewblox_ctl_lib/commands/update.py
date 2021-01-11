@@ -280,7 +280,7 @@ def update(ctx, update_ctl, update_ctl_done, pull, avahi_config, migrate, prune,
     if migrate:
         # Everything except downed_migrate can be done with running services
         utils.info('Stopping services...')
-        sh('{}docker-compose down --remove-orphans'.format(sudo))
+        sh('{}docker-compose down'.format(sudo))
 
         utils.info('Migrating configuration files...')
         apply_config()
@@ -294,7 +294,7 @@ def update(ctx, update_ctl, update_ctl_done, pull, avahi_config, migrate, prune,
         sh('{}docker-compose pull'.format(sudo))
 
     utils.info('Starting services...')
-    sh('{}docker-compose up -d --remove-orphans'.format(sudo))
+    sh('{}docker-compose up -d'.format(sudo))
 
     if migrate:
         utils.info('Migrating service configuration...')
