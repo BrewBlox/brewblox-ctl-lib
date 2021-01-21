@@ -24,7 +24,7 @@ steps:
 - task: UsePythonVersion@0
   inputs:
     addToPath: true
-    versionSpec: '3.5'
+    versionSpec: '3.6'
     architecture: 'x64'
 
 - bash: |
@@ -48,6 +48,11 @@ steps:
     poetry run pytest
   displayName: Run Pytest
 
+- bash: |
+    curl -fsSL https://raw.githubusercontent.com/BrewBlox/deployed-images/develop/prepare_buildx.sh | bash
+  displayName: Prepare buildx
+  condition: and(succeeded(), variables.BRANCH)
+
 - bash: echo $(DOCKER_PASSWORD) | docker login -u $(DOCKER_USER) --password-stdin
   displayName: Docker login
   condition: and(succeeded(), variables.BRANCH)
@@ -56,9 +61,12 @@ steps:
     bash docker/before_build.sh
   displayName: Run before_build.sh script
   condition: and(succeeded(), variables.BRANCH)
-  
-- bash: |
-    docker build --tag $(DOCKER_REPO):$(TAG) docker
-    docker push $(DOCKER_REPO):$(TAG)
-  displayName: Deploy Docker images with branch tags
-  condition: and(succeeded(), variables.BRANCH)
+
+- bash: >-
+    docker buildx build
+    --tag $(DOCKER_REPO):$(TAG)
+    --push
+    --platform linux/amd64,linux/arm/v7,linux/arm64/v8
+    docker
+  displayName: Build Docker image
+  condition: and(succeeded(), variables['BRANCH'])
