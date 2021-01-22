@@ -100,6 +100,12 @@ def test_spark_overwrite(m_utils, m_sh, m_find, mocker):
     assert m_utils.warn.call_count > 0
 
 
+def test_add_spark_unsupported(m_utils, m_sh, m_find, mocker):
+    m_utils.read_compose.side_effect = lambda: {'services': {}}
+    mocker.patch(TESTED + '.machine').return_value = 'aarch64'
+    invoke(add_device.add_spark, '--name testey --simulation', _err=True)
+
+
 def test_add_plaato(m_utils, m_sh, mocker):
     m_utils.read_compose.side_effect = lambda: {'services': {}}
 
