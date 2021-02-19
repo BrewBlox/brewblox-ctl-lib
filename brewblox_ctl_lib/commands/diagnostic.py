@@ -2,21 +2,37 @@
 Logs system status and debugging info to file
 """
 
+import math
 import shlex
 from os import path
 
 import click
 from brewblox_ctl import click_helpers, sh
-
 from brewblox_ctl_lib import const, utils
 
 ENV_KEYS = [
     const.RELEASE_KEY,
-    const.COMPOSE_PROJECT_KEY,
     const.CFG_VERSION_KEY,
     const.HTTP_PORT_KEY,
     const.HTTPS_PORT_KEY,
+    const.COMPOSE_FILES_KEY,
+    const.COMPOSE_PROJECT_KEY,
 ]
+
+
+def create():
+    sh('echo "BREWBLOX DIAGNOSTIC DUMP" > brewblox.log')
+
+
+def append(s):
+    sh(s + ' >> brewblox.log 2>&1', check=False)
+
+
+def header(s):
+    decorate_len = 120 - len(s)
+    decorate_start = '+' * math.ceil(decorate_len / 2)
+    decorate_end = '+' * math.floor(decorate_len / 2)
+    append('echo "\\n{} {} {}\\n"'.format(decorate_start, s, decorate_end))
 
 
 @click.group(cls=click_helpers.OrderedGroup)
@@ -28,10 +44,13 @@ def cli():
 @click.option('--add-compose/--no-add-compose',
               default=True,
               help='Include or omit docker-compose config files in the generated log.')
+@click.option('--add-system/--no-add-system',
+              default=True,
+              help='Include or omit system diagnostics in the generated log.')
 @click.option('--upload/--no-upload',
               default=True,
               help='Whether to upload the log file to termbin.com.')
-def log(add_compose, upload):
+def log(add_compose, add_system, upload):
     """Generate and share log file for bug reports.
 
     This command generates a comprehensive report on current system state and logs.
@@ -52,10 +71,12 @@ def log(add_compose, upload):
     Steps:
         - Create ./brewblox.log file.
         - Append Brewblox .env variables.
+        - Append software version info.
         - Append service logs.
         - Append content of docker-compose.yml (optional).
         - Append content of docker-compose.shared.yml (optional).
         - Append blocks from Spark services.
+        - Append system diagnostics.
         - Upload file to termbin.com for shareable link (optional).
     """
     utils.check_config()
@@ -64,61 +85,71 @@ def log(add_compose, upload):
 
     # Create log
     utils.info('Log file: {}'.format(path.abspath('./brewblox.log')))
-    sh('echo "BREWBLOX DIAGNOSTIC DUMP" > brewblox.log')
-    sh('date >> brewblox.log')
+    create()
+    append('date')
 
     # Add .env values
     utils.info('Writing Brewblox .env values...')
-    sh('echo "==============VARS==============" >> brewblox.log')
-    sh('echo "$(uname -a)" >> brewblox.log')
-    sh('echo "$({}docker --version)" >> brewblox.log'.format(sudo))
-    sh('echo "$({}docker-compose --version)" >> brewblox.log'.format(sudo))
-    sh('echo "{}={}" >> brewblox.log'.format(key, utils.getenv(key)) for key in ENV_KEYS)
+    header('.env')
+    for key in ENV_KEYS:
+        append('echo "{}={}"'.format(key, utils.getenv(key)))
+
+    # Add version info
+    utils.info('Writing software version info...')
+    header('Versions')
+    append('uname -a')
+    append('{} --version'.format(const.PY))
+    append('{}docker --version'.format(sudo))
+    append('{}docker-compose --version'.format(sudo))
 
     # Add active containers
     utils.info('Writing active containers...')
-    sh('echo "==============Containers========" >> brewblox.log')
-    sh('echo "$({}docker-compose ps)" >> brewblox.log'.format(sudo))
+    header('Containers')
+    append('{}docker-compose ps -a'.format(sudo))
 
     # Add service logs
-    utils.info('Writing service logs...')
-    sh('echo "==============LOGS==============" >> brewblox.log')
     try:
         config_names = list(utils.read_compose()['services'].keys())
         shared_names = list(utils.read_shared_compose()['services'].keys())
         names = [n for n in config_names if n not in shared_names] + shared_names
-        raw_cmd = '{}docker-compose logs --timestamps --no-color --tail 200 {} >> brewblox.log'
         for name in names:
-            sh([
-                'echo "{} logs" >> brewblox.log'.format(name),
-                raw_cmd.format(sudo, name),
-                "echo '\\n' >> brewblox.log",
-            ])
+            utils.info('Writing {} service logs...'.format(name))
+            header('Service: ' + name)
+            append('{}docker-compose logs --timestamps --no-color --tail 200 {}'.format(sudo, name))
     except Exception as ex:
-        sh('echo {} >> brewblox.log'.format(shlex.quote(type(ex).__name__ + ': ' + str(ex))))
+        append('echo {}'.format(shlex.quote(type(ex).__name__ + ': ' + str(ex))))
 
     # Add compose config
     if add_compose:
         utils.info('Writing docker-compose configuration...')
-        sh('echo "==============COMPOSE==============" >> brewblox.log')
-        sh('cat docker-compose.yml >> brewblox.log || echo "docker-compose.yml not found"')
-        sh('echo "==============SHARED===============" >> brewblox.log')
-        sh('cat docker-compose.shared.yml >> brewblox.log || echo "docker-compose.shared.yml not found"')
+        header('docker-compose.yml')
+        append('cat docker-compose.yml')
+        header('docker-compose.shared.yml')
+        append('cat docker-compose.shared.yml')
     else:
         utils.info('Skipping docker-compose configuration...')
 
     # Add blocks
-    utils.info('Writing Spark blocks...')
-    sh('echo "==============BLOCKS==============" >> brewblox.log')
     host_url = utils.host_url()
     services = utils.list_services('brewblox/brewblox-devcon-spark')
-    query = '{} http post --pretty {}/{}/blocks/all/read >> brewblox.log || echo "{} not found" >> brewblox.log'
-    sh(query.format(const.CLI, host_url, svc, svc) for svc in services)
+    for svc in services:
+        utils.info('Writing {} blocks...'.format(svc))
+        header('Blocks: ' + svc)
+        append('{} http post --pretty {}/{}/blocks/all/read'.format(const.CLI, host_url, svc))
 
-    # Add dmesg
-    utils.info('Writing dmesg output...')
-    sh('echo "==============DMESG==============" >> brewblox.log')
-    sh('dmesg >> brewblox.log')
+    # Add system diagnostics
+    if add_system:
+        utils.info('Writing system diagnostics...')
+        header('docker info')
+        append('{}docker info'.format(sudo))
+        header('/proc/net/dev')
+        append('column -t /proc/net/dev')
+        header('/var/log/syslog')
+        append('tail -n 500 /var/log/syslog')
+        header('dmesg')
+        append('dmesg -T')
+    else:
+        utils.info('Skipping system diagnostics...')
 
     # Upload
     if upload:
