@@ -142,6 +142,8 @@ def log(add_compose, add_system, upload):
         utils.info('Writing system diagnostics...')
         header('docker info')
         append('{}docker info'.format(sudo))
+        header('disk usage')
+        append('df -hl')
         header('/proc/net/dev')
         append('column -t /proc/net/dev')
         header('/var/log/syslog')
