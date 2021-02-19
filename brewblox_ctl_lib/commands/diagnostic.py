@@ -147,7 +147,7 @@ def log(add_compose, add_system, upload):
         header('/proc/net/dev')
         append('column -t /proc/net/dev')
         header('/var/log/syslog')
-        append('tail -n 500 /var/log/syslog')
+        append('sudo tail -n 500 /var/log/syslog')
         header('dmesg')
         append('dmesg -T')
     else:
