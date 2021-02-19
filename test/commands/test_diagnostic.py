@@ -3,7 +3,6 @@ Tests brewblox_ctl_lib.commands.diagnostic
 """
 
 import pytest
-
 from brewblox_ctl.testing import check_sudo, invoke
 from brewblox_ctl_lib.commands import diagnostic
 
@@ -25,6 +24,10 @@ def m_utils(mocker):
             'ui': {},
         }
     }
+    m.list_services.return_value = [
+        'sparkey',
+        'spock',
+    ]
     return m
 
 
@@ -38,6 +41,7 @@ def m_sh(mocker):
 def test_log(m_utils, m_sh):
     invoke(diagnostic.log, '--add-compose --upload')
     invoke(diagnostic.log, '--no-add-compose --no-upload')
+    invoke(diagnostic.log, '--no-add-system')
 
 
 def test_log_service_error(m_utils, m_sh):
