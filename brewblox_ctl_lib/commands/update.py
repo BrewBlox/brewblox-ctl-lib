@@ -144,7 +144,7 @@ def downed_migrate(prev_version):
 
     if prev_version < StrictVersion('0.6.1'):
         # Undo disable-ipv6
-        sh('sudo sed -i "/net.ipv6.*.disable_ipv6 = 1/d" /etc/sysctl.conf')
+        sh('sudo sed -i "/net.ipv6.*.disable_ipv6 = 1/d" /etc/sysctl.conf', check=False)
 
         # Enable ipv6 in docker daemon config
         utils.enable_ipv6()
