@@ -142,6 +142,13 @@ def downed_migrate(prev_version):
         utils.info('Creating redis/ dir...')
         sh('mkdir -p redis/')
 
+    if prev_version < StrictVersion('0.6.1'):
+        # Undo disable-ipv6
+        sh('sudo sed -i "/net.ipv6.*.disable_ipv6 = 1/d" /etc/sysctl.conf')
+
+        # Enable ipv6 in docker daemon config
+        utils.enable_ipv6()
+
     utils.info('Checking .env variables...')
     for (key, default_value) in const.ENV_DEFAULTS.items():
         current_value = utils.getenv(key)
