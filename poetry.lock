@@ -50,7 +50,7 @@ typecheck = ["mypy"]
 
 [[package]]
 name = "brewblox-ctl"
-version = "0.24.3"
+version = "0.24.4"
 description = "Brewblox management tool"
 category = "main"
 optional = false
@@ -630,7 +630,7 @@ testing = ["pytest (>=3.5,!=3.7.3)", "pytest-checkdocs (>=1.2.3)", "pytest-flake
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.6,<4"
-content-hash = "71a9c5114e20e653cdb868162b53b86f1679c35c986ca54307080453877331ae"
+content-hash = "58d0973ca812e3df65222ff514b790ca4ba99fac5c73026f5c7f6e0e2e6c0dc6"
 
 [metadata.files]
 atomicwrites = [
@@ -655,8 +655,8 @@ bcrypt = [
     {file = "bcrypt-3.2.0.tar.gz", hash = "sha256:5b93c1726e50a93a033c36e5ca7fdcd29a5c7395af50a6892f5d9e7c6cfbfb29"},
 ]
 brewblox-ctl = [
-    {file = "brewblox-ctl-0.24.3.tar.gz", hash = "sha256:6398bad095220cd2ec870a0c902876c3100fb45955f91615eab0382ab4f19652"},
-    {file = "brewblox_ctl-0.24.3-py3-none-any.whl", hash = "sha256:78c206ac79fe949837f8e86a003b0e856881d4d765ae84b8a8a29b3bdc0100dd"},
+    {file = "brewblox-ctl-0.24.4.tar.gz", hash = "sha256:ab136df761be5da56fbd76b556762fd056042b93546ef8912b0680f50faf2cd4"},
+    {file = "brewblox_ctl-0.24.4-py3-none-any.whl", hash = "sha256:04c41673b66de69739f27da36837ce4d2bacfea84d89297905da24dec6c54ec5"},
 ]
 cached-property = [
     {file = "cached-property-1.5.2.tar.gz", hash = "sha256:9fa5755838eecbb2d234c3aa390bd80fbd3ac6b6869109bfc1b499f7bd89a130"},

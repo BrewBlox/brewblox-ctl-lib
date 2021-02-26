@@ -8,7 +8,7 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = ">=3.6,<4"
-brewblox-ctl = "^0.24.3"
+brewblox-ctl = "^0.24.4"
 
 [tool.poetry.dev-dependencies]
 pytest-cov = "^2.11.1"
