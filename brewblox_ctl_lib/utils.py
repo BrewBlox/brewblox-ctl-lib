@@ -40,6 +40,7 @@ info = utils.info
 warn = utils.warn
 error = utils.error
 load_ctl_lib = utils.load_ctl_lib
+enable_ipv6 = utils.enable_ipv6
 
 
 def show_data(data):
