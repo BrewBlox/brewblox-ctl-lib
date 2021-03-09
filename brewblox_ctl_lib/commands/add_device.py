@@ -3,7 +3,6 @@ Adding and configuring device services
 """
 
 from os import getgid, getuid
-from platform import machine
 
 import click
 from brewblox_ctl import click_helpers, sh
@@ -147,9 +146,6 @@ def add_spark(name,
     }
 
     if simulation:
-        if machine() not in ['armv7l', 'x86_64']:
-            click.echo('Firmware simulator is not yet supported for {}'.format(machine()))
-            raise SystemExit(1)
         volume_dir = 'simulator__{}'.format(name)
         config['services'][name]['volumes'] = [
             './{}:/app/simulator'.format(volume_dir)
