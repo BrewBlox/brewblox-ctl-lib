@@ -67,7 +67,7 @@ def makecert(dir, release):
     sudo = utils.optsudo()
     absdir = Path(dir).absolute()
     sh('mkdir -p "{}"'.format(absdir))
-    sh('{}docker run --rm -v "{}":/certs/ '.format(sudo, absdir) +
+    sh('{}docker run --rm --privileged -v "{}":/certs/ '.format(sudo, absdir) +
         'brewblox/omgwtfssl:{}'.format(utils.docker_tag(release)))
     sh('sudo chmod 644 "{}/brewblox.crt"'.format(absdir))
     sh('sudo chmod 600 "{}/brewblox.key"'.format(absdir))
