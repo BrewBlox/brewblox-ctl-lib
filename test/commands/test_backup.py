@@ -80,6 +80,7 @@ def zipf_names():
         'node-red/settings.js',
         'node-red/flows.json',
         'node-red/lib/flows/flows.json',
+        'mosquitto/forward.conf',
     ]
 
 
@@ -207,7 +208,7 @@ def test_save_backup_no_compose(mocker, m_zipf, m_utils, f_read_compose):
     set_responses()
     mocker.patch(TESTED + '.mkdir')
     invoke(backup.save, '--no-save-compose')
-    assert m_zipf.write.call_count == 7  # env + 2x glob
+    assert m_zipf.write.call_count == 10  # env + 3x glob
 
 
 @httpretty.activate(allow_net_connect=False)
@@ -271,7 +272,15 @@ def test_load_backup(m_utils, m_sh, mocker, m_zipf):
 
 
 def test_load_backup_none(m_utils, m_sh, m_zipf):
-    invoke(backup.load, 'fname --no-load-compose --no-load-datastore --no-load-spark --no-load-node-red --no-update')
+    invoke(backup.load, ' '.join([
+        'fname',
+        '--no-load-compose',
+        '--no-load-datastore',
+        '--no-load-spark',
+        '--no-load-node-red',
+        '--no-load-mosquitto',
+        '--no-update',
+    ]))
     assert m_zipf.read.call_count == 1
     assert m_sh.call_count == 1
 

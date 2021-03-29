@@ -15,6 +15,7 @@ ENV_KEYS = [
     const.CFG_VERSION_KEY,
     const.HTTP_PORT_KEY,
     const.HTTPS_PORT_KEY,
+    const.MQTT_PORT_KEY,
     const.COMPOSE_FILES_KEY,
     const.COMPOSE_PROJECT_KEY,
 ]

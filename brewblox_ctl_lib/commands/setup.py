@@ -24,6 +24,7 @@ def check_ports():
         utils.getenv(key, const.ENV_DEFAULTS[key]) for key in [
             const.HTTP_PORT_KEY,
             const.HTTPS_PORT_KEY,
+            const.MQTT_PORT_KEY,
         ]]
 
     utils.info('Checking ports...')
@@ -144,6 +145,11 @@ def setup(ctx, avahi_config, pull, port_check):
         and utils.confirm('This directory already contains Traefik gateway files. ' +
                           'Do you want to keep them?')
 
+    skip_eventbus = \
+        utils.path_exists('./mosquitto/') \
+        and utils.confirm('This directory already contains Mosquitto config files. ' +
+                          'Do you want to keep them?')
+
     utils.info('Setting .env values...')
     for key, default_val in const.ENV_DEFAULTS.items():
         utils.setenv(key, utils.getenv(key, default_val))
@@ -180,6 +186,10 @@ def setup(ctx, avahi_config, pull, port_check):
 
         utils.info('Creating SSL certificate...')
         ctx.invoke(makecert)
+
+    if not skip_eventbus:
+        utils.info('Creating mosquitto config directory...')
+        sh('sudo rm -rf ./mosquitto/; mkdir ./mosquitto/')
 
     # Always copy cert config to traefik dir
     sh('cp -f {}/traefik-cert.yaml ./traefik/'.format(const.CONFIG_DIR))

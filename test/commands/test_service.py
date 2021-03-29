@@ -6,7 +6,6 @@ from unittest.mock import Mock
 
 import pytest
 from brewblox_ctl.testing import check_sudo, invoke
-
 from brewblox_ctl_lib.commands import service
 
 TESTED = service.__name__
@@ -82,7 +81,7 @@ def test_editor(m_utils, m_sh, mocker):
 
 def test_ports(m_utils, m_sh):
     invoke(service.ports)
-    assert m_utils.setenv.call_count == 2
+    assert m_utils.setenv.call_count == 3
 
 
 def test_expose_from_empty(m_utils, m_sh):
