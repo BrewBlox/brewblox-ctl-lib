@@ -193,7 +193,6 @@ def libs():
               help='Migrate Brewblox configuration and service settings.')
 @click.option('--prune/--no-prune',
               default=True,
-              prompt='Do you want to remove old docker images to free disk space?',
               help='Remove unused docker images.')
 @click.option('--from-version',
               default='0.0.0',
@@ -278,7 +277,7 @@ def update(ctx, update_ctl, update_ctl_done, pull, avahi_config, migrate, prune,
         utils.info('Updating brewblox-ctl libs...')
         utils.load_ctl_lib()
         # Restart ctl - we just replaced the source code
-        sh(' '.join([const.PY, *const.ARGS, '--update-ctl-done', '--prune' if prune else '--no-prune']))
+        sh(' '.join([const.PY, *const.ARGS, '--update-ctl-done']))
         return
 
     if avahi_config:
