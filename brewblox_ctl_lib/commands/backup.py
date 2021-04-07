@@ -61,6 +61,7 @@ def save(save_compose, ignore_spark_error):
     - Datastore databases.
     - Spark service blocks.
     - Node-RED data.
+    - Mosquitto config files.
 
     \b
     NOT stored:
@@ -114,7 +115,11 @@ def save(save_compose, ignore_spark_error):
             else:
                 raise ex
 
-    for fname in [*glob('node-red/*.js*'), *glob('node-red/lib/**/*.js*')]:
+    for fname in [
+        *glob('node-red/*.js*'),
+        *glob('node-red/lib/**/*.js*'),
+        *glob('mosquitto/*.conf'),
+    ]:
         zipf.write(fname)
 
     zipf.close()
@@ -149,6 +154,9 @@ def mset(data):
 @click.option('--load-node-red/--no-load-node-red',
               default=True,
               help='Load and write Node-RED data.')
+@click.option('--load-mosquitto/--no-load-mosquitto',
+              default=True,
+              help='Load and write Mosquitto config files.')
 @click.option('--update/--no-update',
               default=True,
               help='Run brewblox-ctl update after loading the backup.')
@@ -158,6 +166,7 @@ def load(archive,
          load_datastore,
          load_spark,
          load_node_red,
+         load_mosquitto,
          update):
     """Load and apply Brewblox settings backup.
 
@@ -178,6 +187,7 @@ def load(archive,
         - Write all datastore files found in backup.
         - Write all Spark blocks found in backup.
         - Write Node-RED config files found in backup.
+        - Write Mosquitto config files found in backup.
         - Run brewblox-ctl update
     """
     utils.check_config()
@@ -194,6 +204,7 @@ def load(archive,
     couchdb_files = [v for v in available if v.endswith('.datastore.json')]
     spark_files = [v for v in available if v.endswith('.spark.json')]
     node_red_files = [v for v in available if v.startswith('node-red/')]
+    mosquitto_files = [v for v in available if v.startswith('mosquitto/')]
 
     if load_env and '.env' in available:
         utils.info('Loading .env file')
@@ -298,6 +309,9 @@ def load(archive,
             sh('{}chown 1000:1000 ./node-red/'.format(sudo))
             sh('{}chown -R 1000:1000 {}'.format(sudo, tmpdir))
             sh('{}cp -rfp {}/node-red/* ./node-red/'.format(sudo, tmpdir))
+
+    if load_mosquitto and mosquitto_files:
+        zipf.extractall(members=mosquitto_files)
 
     zipf.close()
 

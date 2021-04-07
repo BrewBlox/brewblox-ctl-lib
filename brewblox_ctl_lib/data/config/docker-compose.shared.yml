@@ -14,6 +14,10 @@ services:
     restart: unless-stopped
     labels:
       - traefik.http.services.eventbus.loadbalancer.server.port=15675
+    volumes:
+      - ./mosquitto:/mosquitto/include:ro
+    ports:
+      - "${BREWBLOX_PORT_MQTT:-1883}:1883"
   influx:
     image: influxdb:1.8
     restart: unless-stopped
@@ -48,8 +52,8 @@ services:
       - ./traefik:/config
       - /var/run/docker.sock:/var/run/docker.sock
     ports:
-      - "${BREWBLOX_PORT_HTTP}:${BREWBLOX_PORT_HTTP}"
-      - "${BREWBLOX_PORT_HTTPS}:${BREWBLOX_PORT_HTTPS}"
+      - "${BREWBLOX_PORT_HTTP:-80}:${BREWBLOX_PORT_HTTP:-80}"
+      - "${BREWBLOX_PORT_HTTPS:-443}:${BREWBLOX_PORT_HTTPS:-443}"
     command: >-
       --api.dashboard=true
       --providers.docker=true

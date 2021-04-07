@@ -7,7 +7,6 @@ import re
 import click
 from brewblox_ctl import click_helpers, sh
 from brewblox_ctl.commands.docker import up
-
 from brewblox_ctl_lib import const, utils
 
 
@@ -106,7 +105,10 @@ def editor(ctx, port):
 @click.option('--https',
               envvar=const.HTTPS_PORT_KEY,
               help='Port used for HTTPS connections.')
-def ports(http, https):
+@click.option('--mqtt',
+              envvar=const.MQTT_PORT_KEY,
+              help='Port used for MQTT connections.')
+def ports(http, https, mqtt):
     """Update used ports"""
     utils.check_config()
     utils.confirm_mode()
@@ -114,6 +116,7 @@ def ports(http, https):
     cfg = {
         const.HTTP_PORT_KEY: http,
         const.HTTPS_PORT_KEY: https,
+        const.MQTT_PORT_KEY: mqtt,
     }
 
     utils.info('Writing port settings to .env...')
