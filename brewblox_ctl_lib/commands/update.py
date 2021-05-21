@@ -99,61 +99,97 @@ def datastore_migrate_redis():
     sh('sudo mv couchdb/ couchdb-migrated-{}'.format(datetime.now().strftime('%Y%m%d')))
 
 
-def downed_migrate(prev_version):
-    """Migration commands to be executed without any running services"""
-    if prev_version < StrictVersion('0.2.0'):
-        # Breaking changes: Influx downsampling model overhaul
-        # Old data is completely incompatible
-        utils.select('Upgrading to version >=0.2.0 requires a complete reset of your history data. ' +
-                     "We'll be deleting it now")
-        sh('sudo rm -rf ./influxdb')
+def migrate_influx_overhaul():
+    # Breaking changes: Influx downsampling model overhaul
+    # Old data is completely incompatible
+    utils.select('Upgrading to version >=0.2.0 requires a complete reset of your history data. ' +
+                 "We'll be deleting it now")
+    sh('sudo rm -rf ./influxdb')
 
-    if prev_version < StrictVersion('0.3.0'):
-        # Splitting compose configuration between docker-compose and docker-compose.shared.yml
-        # Version pinning (0.2.2) will happen automatically
-        utils.info('Moving system services to docker-compose.shared.yml...')
-        config = utils.read_compose()
-        sys_names = [
-            'mdns',
-            'eventbus',
-            'influx',
-            'datastore',
-            'history',
-            'ui',
-            'traefik',
-        ]
-        usr_config = {
-            'version': config['version'],
-            'services': {key: svc for (key, svc) in config['services'].items() if key not in sys_names}
+
+def migrate_compose_split():
+    # Splitting compose configuration between docker-compose and docker-compose.shared.yml
+    # Version pinning (0.2.2) will happen automatically
+    utils.info('Moving system services to docker-compose.shared.yml...')
+    config = utils.read_compose()
+    sys_names = [
+        'mdns',
+        'eventbus',
+        'influx',
+        'datastore',
+        'history',
+        'ui',
+        'traefik',
+    ]
+    usr_config = {
+        'version': config['version'],
+        'services': {key: svc for (key, svc) in config['services'].items() if key not in sys_names}
+    }
+    utils.write_compose(usr_config)
+
+
+def migrate_compose_datastore():
+    # The couchdb datastore service is gone
+    # Older services may still rely on it
+    utils.info('Removing `depends_on` fields from docker-compose.yml...')
+    config = utils.read_compose()
+    for svc in config['services'].values():
+        with suppress(KeyError):
+            del svc['depends_on']
+    utils.write_compose(config)
+
+    # Init dir. It will be filled during upped_migrate
+    utils.info('Creating redis/ dir...')
+    sh('mkdir -p redis/')
+
+
+def migrate_ipv6_fix():
+    # Undo disable-ipv6
+    sh('sudo sed -i "/net.ipv6.*.disable_ipv6 = 1/d" /etc/sysctl.conf', check=False)
+
+    # Enable ipv6 in docker daemon config
+    utils.enable_ipv6()
+
+
+def check_automation_ui():
+    # The automation service is deprecated, and its editor is removed from the UI.
+    # The service was always optional - only add the automation-ui service if automation is present.
+    config = utils.read_compose()
+    services = config['services']
+    if 'automation' in services and 'automation-ui' not in services:
+        utils.info('Adding automation-ui service...')
+        services['automation-ui'] = {
+            'image': 'brewblox/brewblox-automation-ui:${BREWBLOX_RELEASE}',
+            'restart': 'unless-stopped',
         }
-        utils.write_compose(usr_config)
-
-    if prev_version < StrictVersion('0.6.0'):
-        # The datastore service is gone
-        # Older services may still rely on it
-        utils.info('Removing `depends_on` fields from docker-compose.yml...')
-        config = utils.read_compose()
-        for svc in config['services'].values():
-            with suppress(KeyError):
-                del svc['depends_on']
         utils.write_compose(config)
 
-        # Init dir. It will be filled during upped_migrate
-        utils.info('Creating redis/ dir...')
-        sh('mkdir -p redis/')
 
-    if prev_version < StrictVersion('0.6.1'):
-        # Undo disable-ipv6
-        sh('sudo sed -i "/net.ipv6.*.disable_ipv6 = 1/d" /etc/sysctl.conf', check=False)
-
-        # Enable ipv6 in docker daemon config
-        utils.enable_ipv6()
-
+def check_env_vars():
     utils.info('Checking .env variables...')
     for (key, default_value) in const.ENV_DEFAULTS.items():
         current_value = utils.getenv(key)
         if current_value is None:
             utils.setenv(key, default_value)
+
+
+def downed_migrate(prev_version):
+    """Migration commands to be executed without any running services"""
+    if prev_version < StrictVersion('0.2.0'):
+        migrate_influx_overhaul()
+
+    if prev_version < StrictVersion('0.3.0'):
+        migrate_compose_split()
+
+    if prev_version < StrictVersion('0.6.0'):
+        migrate_compose_datastore()
+
+    if prev_version < StrictVersion('0.6.1'):
+        migrate_ipv6_fix()
+
+    # Not related to a specific release
+    check_automation_ui()
+    check_env_vars()
 
 
 def upped_migrate(prev_version):
@@ -224,7 +260,7 @@ def update(ctx, update_ctl, update_ctl_done, pull, avahi_config, migrate, prune,
     To do this, services are stopped. If the update only requires pulling docker images,
     you can disable migration to avoid the docker-compose down/up.
 
-    --prune/--no-prune (prompts if not set). Updates to docker images can leave unused old versions
+    --prune/--no-prune. Updates to docker images can leave unused old versions
     on your system. These can be pruned to free up disk space.
     Do note that this includes all images on your system, not just those created by Brewblox.
 
