@@ -184,7 +184,7 @@ def f_read_compose(m_utils):
 
 
 @httpretty.activate(allow_net_connect=False)
-def test_save_backupx(mocker, m_utils, f_read_compose):
+def test_save_backup(mocker, m_utils, f_read_compose):
     set_responses()
     m_mkdir = mocker.patch(TESTED + '.mkdir')
     m_zipfile = mocker.patch(TESTED + '.zipfile.ZipFile')

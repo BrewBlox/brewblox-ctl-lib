@@ -7,7 +7,6 @@ import json
 import httpretty
 import pytest
 from brewblox_ctl.testing import check_sudo, invoke
-
 from brewblox_ctl_lib import const
 from brewblox_ctl_lib.commands import update
 
@@ -37,6 +36,9 @@ def m_utils(mocker):
             },
             'plaato': {
                 'image': 'brewblox/brewblox-plaato:rpi-edge',
+            },
+            'automation': {
+                'image': 'brewblox/brewblox-automation:${BREWBLOX_RELEASE}',
             }
         }}
     return m
@@ -135,3 +137,17 @@ def test_datastore_migrate_redis(m_utils, m_sh, mocker):
 
     update.datastore_migrate_redis()
     assert len(httpretty.latest_requests()) == 5
+
+
+def test_check_automation_ui(m_utils):
+    update.check_automation_ui()
+    assert 'automation-ui' in m_utils.write_compose.call_args[0][0]['services']
+
+    m_utils.read_compose.side_effect = lambda: {
+        'version': '3.7',
+        'services': {}
+    }
+
+    # No automation service -> no changes
+    update.check_automation_ui()
+    assert m_utils.write_compose.call_count == 1

@@ -20,9 +20,9 @@ def service():
     """Show or edit services in docker-compose.yml."""
 
 
-def restart_services(ctx):
+def restart_services(ctx: click.Context, **kwargs):
     if utils.confirm('Do you want to restart your Brewblox services?'):
-        ctx.invoke(up)
+        ctx.invoke(up, **kwargs)
 
 
 @service.command()
@@ -53,7 +53,7 @@ def remove(ctx, name):
         del config['services'][name]
         utils.info("Removing service '{}'".format(name))
         utils.write_compose(config)
-        restart_services(ctx)
+        restart_services(ctx, compose_args=['--remove-orphans'])
     except KeyError:
         click.echo("Service '{}' not found".format(name))
 
@@ -95,7 +95,7 @@ def editor(ctx, port):
 
     if orig != utils.read_file('docker-compose.yml'):
         utils.info('Configuration changes detected.')
-        restart_services(ctx)
+        restart_services(ctx, compose_args=['--remove-orphans'])
 
 
 @service.command()
