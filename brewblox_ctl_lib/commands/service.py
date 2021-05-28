@@ -41,21 +41,24 @@ def show(image, file):
 
 
 @service.command()
-@click.option('-n', '--name', required=True)
+@click.argument('services', type=str, nargs=-1)
 @click.pass_context
-def remove(ctx, name):
+def remove(ctx, services):
     """Remove a service."""
     utils.check_config()
     utils.confirm_mode()
 
     config = utils.read_compose()
-    try:
-        del config['services'][name]
-        utils.info("Removing service '{}'".format(name))
+    for name in services:
+        try:
+            del config['services'][name]
+            utils.info(f"Removed service '{name}'")
+        except KeyError:
+            utils.warn(f"Service '{name}' not found")
+
+    if services:
         utils.write_compose(config)
         restart_services(ctx, compose_args=['--remove-orphans'])
-    except KeyError:
-        click.echo("Service '{}' not found".format(name))
 
 
 @service.command()
@@ -76,20 +79,20 @@ def editor(ctx, port):
 
     sudo = utils.optsudo()
     host_ip = utils.host_ip()
-    editor = 'brewblox/brewblox-web-editor:{}'.format(utils.docker_tag())
 
-    utils.info('Pulling image...')
-    sh('{}docker pull {}'.format(sudo, editor))
+    cmd = ' '.join([
+        f'{sudo}docker run',
+        '--rm --init --pull always',
+        f'-p "{port}:8300"',
+        '-v "$(pwd):/app/config"',
+        f'brewblox/brewblox-web-editor:{utils.docker_tag()}',
+        f'--host-address {host_ip}',
+        f'--host-port {port}',
+    ])
 
     try:
         utils.info('Starting editor...')
-        sh('{}docker run'.format(sudo) +
-           ' --rm --init' +
-           ' -p "{}:8300"'.format(port) +
-           ' -v "$(pwd):/app/config"' +
-           ' {}'.format(editor) +
-           ' --host-address {}'.format(host_ip) +
-           ' --host-port {}'.format(port))
+        sh(cmd)
     except KeyboardInterrupt:  # pragma: no cover
         pass
 
@@ -181,5 +184,5 @@ def expose(ctx, delete, service, value):
 def pull(ctx, services):
     """Pull one or more services without doing a full update."""
     sudo = utils.optsudo()
-    sh('{}docker-compose pull {}'.format(sudo, ' '.join(services)))
+    sh(f'{sudo}docker-compose pull ' + ' '.join(services))
     restart_services(ctx)
