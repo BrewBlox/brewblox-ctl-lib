@@ -51,9 +51,9 @@ def test_show(m_utils, m_sh):
 
 def test_remove(m_utils, m_sh, mocker):
     mocker.patch(TESTED + '.restart_services')
-    invoke(service.remove, '-n spark-one')
-    invoke(service.remove, '-n spark-none')
-    invoke(service.remove, _err=True)
+    invoke(service.remove, 'spark-one')
+    invoke(service.remove, 'spark-none')
+    invoke(service.remove)
 
 
 def test_editor(m_utils, m_sh, mocker):
