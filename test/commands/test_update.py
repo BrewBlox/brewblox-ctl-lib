@@ -53,7 +53,7 @@ def m_sh(mocker):
 
 def test_migrate(m_utils, m_sh):
     invoke(update.migrate, '--no-prune')
-    m_sh.assert_called_with('{} update --no-pull --no-update-ctl --no-prune'.format(const.CLI))
+    m_sh.assert_called_with(f'{const.CLI} update --no-pull --no-update-ctl --no-prune')
 
 
 def test_libs(m_utils, m_sh):
@@ -66,7 +66,7 @@ def test_update(m_utils, m_sh, mocker):
     mocker.patch(TESTED + '.datastore_migrate_redis')
 
     invoke(update.update, '--from-version 0.0.1', input='\n')
-    invoke(update.update, '--from-version {} --no-update-ctl --prune'.format(const.CURRENT_VERSION))
+    invoke(update.update, f'--from-version {const.CURRENT_VERSION} --no-update-ctl --prune')
     invoke(update.update, '--from-version 0.0.1 --update-ctl-done --prune')
     invoke(update.update, _err=True)
     invoke(update.update, '--from-version 0.0.0 --prune', _err=True)
@@ -74,7 +74,7 @@ def test_update(m_utils, m_sh, mocker):
     invoke(update.update, '--from-version 0.0.1 --no-pull --no-update-ctl --no-migrate --no-prune --no-avahi-config')
 
     m_utils.getenv.return_value = None
-    invoke(update.update, '--from-version {} --no-update-ctl --prune'.format(const.CURRENT_VERSION))
+    invoke(update.update, f'--from-version {const.CURRENT_VERSION} --no-update-ctl --prune')
 
 
 def test_datastore_migrate_noop(m_utils, m_sh):

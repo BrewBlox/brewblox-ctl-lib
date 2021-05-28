@@ -21,8 +21,8 @@ def cli():
 
 def apply_config():
     """Apply system-defined configuration from config dir"""
-    sh('cp -f {}/traefik-cert.yaml ./traefik/'.format(const.CONFIG_DIR))
-    sh('cp -f {}/docker-compose.shared.yml ./'.format(const.CONFIG_DIR))
+    sh(f'cp -f {const.CONFIG_DIR}/traefik-cert.yaml ./traefik/')
+    sh(f'cp -f {const.CONFIG_DIR}/docker-compose.shared.yml ./')
     shared_cfg = utils.read_shared_compose()
     usr_cfg = utils.read_compose()
 
@@ -46,22 +46,22 @@ def datastore_migrate_redis():
         return
 
     utils.info('Starting a temporary CouchDB container on port 5984...')
-    sh('{}docker rm -f couchdb-migrate'.format(sudo), check=False)
-    sh('{}docker run --rm -d'
+    sh(f'{sudo}docker rm -f couchdb-migrate', check=False)
+    sh(f'{sudo}docker run --rm -d'
         ' --name couchdb-migrate'
         ' -v "$(pwd)/couchdb/:/opt/couchdb/data/"'
         ' -p "5984:5984"'
-        ' treehouses/couchdb:2.3.1'.format(sudo))
-    sh('{} http wait {}'.format(const.CLI, couch_url))
-    sh('{} http wait {}/ping'.format(const.CLI, redis_url))
+        ' treehouses/couchdb:2.3.1')
+    sh(f'{const.CLI} http wait {couch_url}')
+    sh(f'{const.CLI} http wait {redis_url}/ping')
 
-    resp = requests.get('{}/_all_dbs'.format(couch_url))
+    resp = requests.get(f'{couch_url}/_all_dbs')
     resp.raise_for_status()
     dbs = resp.json()
 
     for db in ['brewblox-ui-store', 'brewblox-automation']:
         if db in dbs:
-            resp = requests.get('{}/{}/_all_docs'.format(couch_url, db),
+            resp = requests.get(f'{couch_url}/{db}/_all_docs',
                                 params={'include_docs': True})
             resp.raise_for_status()
             docs = [v['doc'] for v in resp.json()['rows']]
@@ -69,18 +69,18 @@ def datastore_migrate_redis():
             docs[:] = [d for d in docs if len(d['_id'].split('__', 1)) == 2]
             for d in docs:
                 segments = d['_id'].split('__', 1)
-                d['namespace'] = '{}:{}'.format(db, segments[0])
+                d['namespace'] = f'{db}:{segments[0]}'
                 d['id'] = segments[1]
                 del d['_rev']
                 del d['_id']
-            resp = requests.post('{}/mset'.format(redis_url),
+            resp = requests.post(f'{redis_url}/mset',
                                  json={'values': docs},
                                  verify=False)
             resp.raise_for_status()
-            utils.info('Migrated {} entries from {}'.format(len(docs), db))
+            utils.info(f'Migrated {len(docs)} entries from {db}')
 
     if 'spark-service' in dbs:
-        resp = requests.get('{}/spark-service/_all_docs'.format(couch_url),
+        resp = requests.get(f'{couch_url}/spark-service/_all_docs',
                             params={'include_docs': True})
         resp.raise_for_status()
         docs = [v['doc'] for v in resp.json()['rows']]
@@ -89,14 +89,14 @@ def datastore_migrate_redis():
             d['id'] = d['_id']
             del d['_rev']
             del d['_id']
-        resp = requests.post('{}/mset'.format(redis_url),
+        resp = requests.post(f'{redis_url}/mset',
                              json={'values': docs},
                              verify=False)
         resp.raise_for_status()
-        utils.info('Migrated {} entries from spark-service'.format(len(docs)))
+        utils.info(f'Migrated {len(docs)} entries from spark-service')
 
-    sh('{}docker stop couchdb-migrate'.format(sudo))
-    sh('sudo mv couchdb/ couchdb-migrated-{}'.format(datetime.now().strftime('%Y%m%d')))
+    sh(f'{sudo}docker stop couchdb-migrate')
+    sh('sudo mv couchdb/ couchdb-migrated-' + datetime.now().strftime('%Y%m%d'))
 
 
 def migrate_influx_overhaul():
@@ -196,8 +196,8 @@ def upped_migrate(prev_version):
     """Migration commands to be executed after the services have been started"""
     # Always run history configure
     history_url = utils.history_url()
-    sh('{} http wait {}/ping'.format(const.CLI, history_url))
-    sh('{} http post --quiet {}/configure'.format(const.CLI, history_url))
+    sh(f'{const.CLI} http wait {history_url}/ping')
+    sh(f'{const.CLI} http post --quiet {history_url}/configure')
 
     if prev_version < StrictVersion('0.6.0'):
         utils.info('Migrating datastore from CouchDB to Redis...')
@@ -297,7 +297,7 @@ def update(ctx, update_ctl, update_ctl_done, pull, avahi_config, migrate, prune,
             and Path('/usr/local/bin/brewblox-ctl').exists():  # pragma: no cover
         utils.warn('brewblox-ctl appears to have been installed using sudo.')
         if utils.confirm('Do you want to fix this now?'):
-            sh('sudo {} -m pip uninstall -y brewblox-ctl docker-compose'.format(const.PY), check=False)
+            sh(f'sudo {const.PY} -m pip uninstall -y brewblox-ctl docker-compose', check=False)
             utils.pip_install('brewblox-ctl')  # docker-compose is a dependency
 
             # Debian stretch still has the bug where ~/.local/bin is not included in $PATH
@@ -322,7 +322,7 @@ def update(ctx, update_ctl, update_ctl_done, pull, avahi_config, migrate, prune,
     if migrate:
         # Everything except downed_migrate can be done with running services
         utils.info('Stopping services...')
-        sh('{}docker-compose down'.format(sudo))
+        sh(f'{sudo}docker-compose down')
 
         utils.info('Migrating configuration files...')
         apply_config()
@@ -333,23 +333,23 @@ def update(ctx, update_ctl, update_ctl_done, pull, avahi_config, migrate, prune,
 
     if pull:
         utils.info('Pulling docker images...')
-        sh('{}docker-compose pull'.format(sudo))
+        sh(f'{sudo}docker-compose pull')
 
     utils.info('Starting services...')
-    sh('{}docker-compose up -d'.format(sudo))
+    sh(f'{sudo}docker-compose up -d')
 
     if migrate:
         utils.info('Migrating service configuration...')
         upped_migrate(prev_version)
 
-        utils.info('Updating version number to {}...'.format(const.CURRENT_VERSION))
+        utils.info(f'Updating version number to {const.CURRENT_VERSION}...')
         utils.setenv(const.CFG_VERSION_KEY, const.CURRENT_VERSION)
 
     if prune:
         utils.info('Pruning unused images...')
-        sh('{}docker image prune -f'.format(sudo))
+        sh(f'{sudo}docker image prune -f')
         utils.info('Pruning unused volumes...')
-        sh('{}docker volume prune -f'.format(sudo))
+        sh(f'{sudo}docker volume prune -f')
 
 
 @cli.command(hidden=True)
@@ -359,4 +359,4 @@ def update(ctx, update_ctl, update_ctl_done, pull, avahi_config, migrate, prune,
               help='Prune docker images.')
 def migrate(prune):
     """Backwards compatibility implementation to not break brewblox-ctl update"""
-    sh('{} update --no-pull --no-update-ctl {}'.format(const.CLI, '--prune' if prune else '--no-prune'))
+    sh(f'{const.CLI} update --no-pull --no-update-ctl ' + ('--prune' if prune else '--no-prune'))

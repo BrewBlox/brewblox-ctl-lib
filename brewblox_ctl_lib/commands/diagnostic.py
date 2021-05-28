@@ -33,7 +33,7 @@ def header(s):
     decorate_len = 120 - len(s)
     decorate_start = '+' * math.ceil(decorate_len / 2)
     decorate_end = '+' * math.floor(decorate_len / 2)
-    append('echo "\\n{} {} {}\\n"'.format(decorate_start, s, decorate_end))
+    append(f'echo "\\n{decorate_start} {s} {decorate_end}\\n"')
 
 
 @click.group(cls=click_helpers.OrderedGroup)
@@ -85,7 +85,7 @@ def log(add_compose, add_system, upload):
     sudo = utils.optsudo()
 
     # Create log
-    utils.info('Log file: {}'.format(path.abspath('./brewblox.log')))
+    utils.info(f"Log file: {path.abspath('./brewblox.log')}")
     create()
     append('date')
 
@@ -93,20 +93,20 @@ def log(add_compose, add_system, upload):
     utils.info('Writing Brewblox .env values...')
     header('.env')
     for key in ENV_KEYS:
-        append('echo "{}={}"'.format(key, utils.getenv(key)))
+        append(f'echo "{key}={utils.getenv(key)}"')
 
     # Add version info
     utils.info('Writing software version info...')
     header('Versions')
     append('uname -a')
-    append('{} --version'.format(const.PY))
-    append('{}docker --version'.format(sudo))
-    append('{}docker-compose --version'.format(sudo))
+    append(f'{const.PY} --version')
+    append(f'{sudo}docker --version')
+    append(f'{sudo}docker-compose --version')
 
     # Add active containers
     utils.info('Writing active containers...')
     header('Containers')
-    append('{}docker-compose ps -a'.format(sudo))
+    append(f'{sudo}docker-compose ps -a')
 
     # Add service logs
     try:
@@ -114,11 +114,11 @@ def log(add_compose, add_system, upload):
         shared_names = list(utils.read_shared_compose()['services'].keys())
         names = [n for n in config_names if n not in shared_names] + shared_names
         for name in names:
-            utils.info('Writing {} service logs...'.format(name))
-            header('Service: ' + name)
-            append('{}docker-compose logs --timestamps --no-color --tail 200 {}'.format(sudo, name))
+            utils.info(f'Writing {name} service logs...')
+            header(f'Service: {name}')
+            append(f'{sudo}docker-compose logs --timestamps --no-color --tail 200 {name}')
     except Exception as ex:
-        append('echo {}'.format(shlex.quote(type(ex).__name__ + ': ' + str(ex))))
+        append('echo ' + shlex.quote(type(ex).__name__ + ': ' + str(ex)))
 
     # Add compose config
     if add_compose:
@@ -134,15 +134,15 @@ def log(add_compose, add_system, upload):
     host_url = utils.host_url()
     services = utils.list_services('brewblox/brewblox-devcon-spark')
     for svc in services:
-        utils.info('Writing {} blocks...'.format(svc))
-        header('Blocks: ' + svc)
-        append('{} http post --pretty {}/{}/blocks/all/read'.format(const.CLI, host_url, svc))
+        utils.info(f'Writing {svc} blocks...')
+        header(f'Blocks: {svc}')
+        append(f'{const.CLI} http post --pretty {host_url}/{svc}/blocks/all/read')
 
     # Add system diagnostics
     if add_system:
         utils.info('Writing system diagnostics...')
         header('docker info')
-        append('{}docker info'.format(sudo))
+        append(f'{sudo}docker info')
         header('disk usage')
         append('df -hl')
         header('/proc/net/dev')

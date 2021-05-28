@@ -7,10 +7,10 @@ from brewblox_ctl import const
 
 PY = sys.executable
 ARGS = sys.argv
-CLI = '{} -m brewblox_ctl'.format(PY)
+CLI = f'{PY} -m brewblox_ctl'
 HOST = 'https://localhost'
 DATA_DIR = './brewblox_ctl_lib/data'
-CONFIG_DIR = DATA_DIR + '/config'
+CONFIG_DIR = f'{DATA_DIR}/config'
 AVAHI_CONF = '/etc/avahi/avahi-daemon.conf'
 
 

@@ -7,7 +7,7 @@ try:
 except AttributeError as ex:  # pragma: no cover
     CTL_VERSION = '0.24.4'  # can't be placed in const
     print('Failed to import dependency from brewblox-ctl.')
-    print('The minimum required version is {}.'.format(CTL_VERSION))
+    print(f'The minimum required version is {CTL_VERSION}.')
     print('To update brewblox-ctl, run: \n\n\t python3 -m pip install --user --upgrade --no-cache-dir brewblox-ctl \n')
     raise ex
 

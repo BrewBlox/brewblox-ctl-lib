@@ -71,7 +71,7 @@ def save(save_compose, ignore_spark_error):
     utils.check_config()
     urllib3.disable_warnings()
 
-    file = 'backup/brewblox_backup_{}.zip'.format(datetime.now().strftime('%Y%m%d_%H%M'))
+    file = f'backup/brewblox_backup_{datetime.now().strftime("%Y%m%d_%H%M")}.zip'
     with suppress(FileExistsError):
         mkdir(path.abspath('backup/'))
 
@@ -104,14 +104,14 @@ def save(save_compose, ignore_spark_error):
         zipf.write('docker-compose.yml')
 
     for spark in sparks:
-        utils.info("Exporting Spark blocks from '{}'".format(spark))
-        resp = requests.post('{}/{}/blocks/backup/save'.format(utils.host_url(), spark), verify=False)
+        utils.info(f'Exporting Spark blocks from `{spark}`')
+        resp = requests.post(f'{utils.host_url()}/{spark}/blocks/backup/save', verify=False)
         try:
             resp.raise_for_status()
             zipf.writestr(spark + '.spark.json', resp.text)
         except Exception as ex:
             if ignore_spark_error:
-                utils.info("Skipping Spark '{}' due to error: {}".format(spark, str(ex)))
+                utils.info(f'Skipping Spark `{spark}` due to error: {str(ex)}')
             else:
                 raise ex
 
@@ -132,9 +132,7 @@ def mset(data):
         utils.show_data(data)
         json.dump(data, tmp)
         tmp.flush()
-        sh('{} http post --quiet {}/mset -f {}'.format(const.CLI,
-                                                       utils.datastore_url(),
-                                                       tmp.name))
+        sh(f'{const.CLI} http post --quiet {utils.datastore_url()}/mset -f {tmp.name}')
 
 
 @backup.command()
@@ -214,7 +212,7 @@ def load(archive,
             utils.show_data(data)
             tmp.write(data)
             tmp.flush()
-            sh('cp -f {} .env'.format(tmp.name))
+            sh(f'cp -f {tmp.name} .env')
 
         utils.info('Reading .env values')
         load_dotenv(path.abspath('.env'))
@@ -229,14 +227,14 @@ def load(archive,
                 with suppress(KeyError):
                     del svc['depends_on']
             utils.write_compose(config)
-            sh('{} docker-compose up -d'.format(sudo))
+            sh(f'{sudo}docker-compose up -d')
         else:
             utils.info('docker-compose.yml file not found in backup archive')
 
     if load_datastore:
         if redis_file in available or couchdb_files:
             utils.info('Waiting for the datastore...')
-            sh('{} http wait {}/ping'.format(const.CLI, store_url))
+            sh(f'{const.CLI} http wait {store_url}/ping')
             # Wipe UI/Automation, but leave Spark files
             mdelete_cmd = '{} http post {}/mdelete --quiet -d \'{{"namespace":"{}", "filter":"*"}}\''
             sh(mdelete_cmd.format(const.CLI, store_url, 'brewblox-ui-store'))
@@ -246,14 +244,14 @@ def load(archive,
 
         if redis_file in available:
             data = json.loads(zipf.read(redis_file).decode())
-            utils.info('Loading {} entries from Redis datastore'.format(len(data['values'])))
+            utils.info(f'Loading {len(data["values"])} entries from Redis datastore')
             mset(data)
 
         # Backwards compatibility for UI/automation files from CouchDB
         # The IDs here are formatted as {moduleId}__{objId}
         # The module ID becomes part of the Redis namespace
         for db in ['brewblox-ui-store', 'brewblox-automation']:
-            fname = '{}.datastore.json'.format(db)
+            fname = f'{db}.datastore.json'
             if fname not in available:
                 continue
             docs = json.loads(zipf.read(fname).decode())
@@ -262,23 +260,23 @@ def load(archive,
             # Add namespace / ID fields
             for d in docs:
                 segments = d['_id'].split('__', 1)
-                d['namespace'] = '{}:{}'.format(db, segments[0])
+                d['namespace'] = f'{db}:{segments[0]}'
                 d['id'] = segments[1]
                 del d['_id']
-            utils.info('Loading {} entries from database `{}`'.format(len(docs), db))
+            utils.info(f'Loading {len(docs)} entries from database `{db}`')
             mset({'values': docs})
 
         # Backwards compatibility for Spark service files
         # There is no module ID field here
         spark_db = 'spark-service'
-        spark_fname = '{}.datastore.json'.format(spark_db)
+        spark_fname = f'{spark_db}.datastore.json'
         if spark_fname in available:
             docs = json.loads(zipf.read(spark_fname).decode())
             for d in docs:
                 d['namespace'] = spark_db
                 d['id'] = d['_id']
                 del d['_id']
-            utils.info('Loading {} entries from database `{}`'.format(len(docs), spark_db))
+            utils.info(f'Loading {len(docs)} entries from database `{spark_db}`')
             mset({'values': docs})
 
     if load_spark:
@@ -289,14 +287,14 @@ def load(archive,
 
         for f in spark_files:
             spark = f[:-len('.spark.json')]
-            utils.info('Writing blocks to Spark service {}'.format(spark))
+            utils.info(f'Writing blocks to Spark service `{spark}`')
             with NamedTemporaryFile('w') as tmp:
                 data = json.loads(zipf.read(f).decode())
                 utils.show_data(data)
                 json.dump(data, tmp)
                 tmp.flush()
-                sh('{} http post {}/{}/blocks/backup/load -f {}'.format(const.CLI, host_url, spark, tmp.name))
-                sh('{} docker-compose restart {}'.format(sudo, spark))
+                sh(f'{const.CLI} http post {host_url}/{spark}/blocks/backup/load -f {tmp.name}')
+                sh(f'{sudo}docker-compose restart {spark}')
 
     if load_node_red and node_red_files:
         sudo = ''
@@ -306,9 +304,9 @@ def load(archive,
         with TemporaryDirectory() as tmpdir:
             zipf.extractall(tmpdir, members=node_red_files)
             sh('mkdir -p ./node-red')
-            sh('{}chown 1000:1000 ./node-red/'.format(sudo))
-            sh('{}chown -R 1000:1000 {}'.format(sudo, tmpdir))
-            sh('{}cp -rfp {}/node-red/* ./node-red/'.format(sudo, tmpdir))
+            sh(f'{sudo}chown 1000:1000 ./node-red/')
+            sh(f'{sudo}chown -R 1000:1000 {tmpdir}')
+            sh(f'{sudo}cp -rfp {tmpdir}/node-red/* ./node-red/')
 
     if load_mosquitto and mosquitto_files:
         zipf.extractall(members=mosquitto_files)
@@ -317,6 +315,6 @@ def load(archive,
 
     if update:
         utils.info('Updating brewblox...')
-        sh('{} update'.format(const.CLI))
+        sh(f'{const.CLI} update')
 
     utils.info('Done!')

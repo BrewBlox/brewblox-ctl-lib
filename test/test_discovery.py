@@ -6,9 +6,8 @@ from socket import inet_aton
 
 import pytest
 from brewblox_ctl.testing import check_sudo
-from zeroconf import ServiceInfo, ServiceStateChange
-
 from brewblox_ctl_lib import discovery
+from zeroconf import ServiceInfo, ServiceStateChange
 
 TESTED = discovery.__name__
 
@@ -37,7 +36,7 @@ def m_conf(mocker):
 
     def get_service_info(service_type, name):
         dns_type = discovery.BREWBLOX_DNS_TYPE
-        service_name = '{}.{}'.format(name, dns_type)
+        service_name = f'{name}.{dns_type}'
         if name == 'id0':
             return ServiceInfo(
                 service_type,
@@ -48,7 +47,7 @@ def m_conf(mocker):
             return ServiceInfo(
                 service_type,
                 service_name,
-                server='{}.local.'.format(name),
+                server=f'{name}.local.',
                 addresses=[inet_aton('1.2.3.4')],
                 port=1234
             )
@@ -56,7 +55,7 @@ def m_conf(mocker):
             return ServiceInfo(
                 service_type,
                 service_name,
-                server='{}.local.'.format(name),
+                server=f'{name}.local.',
                 addresses=[inet_aton('4.3.2.1')],
                 port=4321
             )
