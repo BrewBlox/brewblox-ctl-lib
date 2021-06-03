@@ -160,6 +160,49 @@ def add_spark(name,
 
 
 @cli.command()
+@click.option('-f', '--force',
+              is_flag=True,
+              help='Allow overwriting an existing service')
+def add_tilt(force):
+    """
+    Create a service for the Tilt hydrometer.
+
+    The service listens for Bluetooth status updates from the Tilt,
+    and requires the host to have a Bluetooth receiver.
+
+    The empty ./tilt dir is created to hold calibration files.
+    """
+    utils.check_config()
+    utils.confirm_mode()
+
+    name = 'tilt'
+    sudo = utils.optsudo()
+    config = utils.read_compose()
+
+    if name in config['services'] and not force:
+        click.echo(f'Service `{name}` already exists')
+        raise SystemExit(1)
+
+    config['services'][name] = {
+        'image': 'brewblox/brewblox-tilt:${BREWBLOX_RELEASE}',
+        'restart': 'unless-stopped',
+        'privileged': True,
+        'network_mode': 'host',
+        'volumes': [
+            f'./{name}:/share',
+        ]
+    }
+
+    sh(f'mkdir -p ./{name}')
+
+    utils.write_compose(config)
+    click.echo(f'Added Tilt service `{name}`.')
+    click.echo('It will automatically show up in the UI.\n')
+    if utils.confirm('Do you want to run `brewblox-ctl up` now?'):
+        sh(f'{sudo}docker-compose up -d')
+
+
+@cli.command()
 @click.option('-n', '--name',
               prompt='How do you want to call this service? The name must be unique',
               callback=utils.check_service_name,
@@ -208,7 +251,10 @@ def add_plaato(name, token, force):
 
 
 @cli.command()
-def add_node_red():
+@click.option('-f', '--force',
+              is_flag=True,
+              help='Allow overwriting an existing service')
+def add_node_red(force):
     """
     Create a service for Node-RED.
     """
@@ -221,7 +267,7 @@ def add_node_red():
     port = utils.getenv(const.HTTPS_PORT_KEY)
     config = utils.read_compose()
 
-    if name in config['services']:
+    if name in config['services'] and not force:
         click.echo(f'Service `{name}` already exists')
         raise SystemExit(1)
 
@@ -235,7 +281,7 @@ def add_node_red():
 
     sh(f'mkdir -p ./{name}')
     if [getgid(), getuid()] != [1000, 1000]:
-        sh(f'sudo chown 1000:1000 ./{name}')
+        sh(f'sudo chown -R 1000:1000 ./{name}')
 
     utils.write_compose(config)
     click.echo(f'Added Node-RED service `{name}`.')
