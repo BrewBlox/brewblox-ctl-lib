@@ -75,9 +75,6 @@ def upped_migrate(prev_version):
     if prev_version < StrictVersion('0.6.0'):
         migration.migrate_couchdb()
 
-    if prev_version < StrictVersion('0.7.0'):
-        migration.migrate_influxdb()
-
 
 @cli.command()
 def libs():
