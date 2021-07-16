@@ -153,17 +153,18 @@ def _influx_measurements() -> List[str]:
     return measurements
 
 
-def _copy_influx_measurement(measurement: str, duration: str, target: str):
+def _copy_influx_measurement(service: str, duration: str, target: str):
     """
     Export measurement from Influx, and copy/import to `target`.
     This requires an InfluxDB docker container with name 'influxdb-migrate'
     to have been started.
     """
-    BATCH_SIZE = 10000
+    BATCH_SIZE = 5000
     sudo = utils.optsudo()
+    measurement = f'"brewblox"."downsample_1m"."{service}"'
     args = f'where time > now() - {duration}' if duration else ''
 
-    utils.info(f'Exporting history for {measurement}...')
+    utils.info(f'Exporting history for {service}...')
 
     num_lines = 0
     offset = 0
@@ -173,8 +174,7 @@ def _copy_influx_measurement(measurement: str, duration: str, target: str):
         generator = utils.sh_stream(
             f'{sudo}docker exec influxdb-migrate influx '
             '-database brewblox '
-            f'-execute \'SELECT * FROM "brewblox"."downsample_1m"."{measurement}" {args}\' '
-            f'ORDER BY time LIMIT {BATCH_SIZE} OFFSET {offset}'
+            f"-execute 'SELECT * FROM {measurement} {args} ORDER BY time LIMIT {BATCH_SIZE} OFFSET {offset}' "
             '-format csv')
 
         headers = next(generator, '').strip()
@@ -219,7 +219,7 @@ def _copy_influx_measurement(measurement: str, duration: str, target: str):
 
             elif target == 'file':
                 date = datetime.now().strftime('%Y%m%d_%H%M')
-                fname = f'./influxdb-export/{measurement}__{date}__{duration or "all"}__{offset}.lines'
+                fname = f'./influxdb-export/{service}__{date}__{duration or "all"}__{offset}.lines'
                 sh(f'mkdir -p ./influxdb-export/; cp "{tmp.name}" "{fname}"')
 
             else:
