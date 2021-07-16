@@ -171,7 +171,6 @@ def _copy_influx_measurement(service: str, duration: str, target: str):
     offset = 0
 
     while True:
-
         generator = utils.sh_stream(
             f'{sudo}docker exec influxdb-migrate influx '
             '-database brewblox '
