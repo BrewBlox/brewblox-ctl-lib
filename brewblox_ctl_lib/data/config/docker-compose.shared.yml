@@ -18,18 +18,18 @@ services:
       - ./mosquitto:/mosquitto/include:ro
     ports:
       - "${BREWBLOX_PORT_MQTT:-1883}:1883"
-  influx:
-    image: influxdb:1.8
+  victoria:
+    image: victoriametrics/victoria-metrics:v1.62.0
     restart: unless-stopped
     labels:
-      - traefik.enable=false
+      - traefik.http.routers.victoria.middlewares=prefix-strip
+      - traefik.http.services.victoria.loadbalancer.server.port=8428
     volumes:
-      - ./influxdb:/var/lib/influxdb
-    environment:
-      - INFLUXDB_HTTP_LOG_ENABLED=false
-      - INFLUXDB_LOGGING_LEVEL=warn
-      - INFLUXDB_DATA_WAL_FSYNC_DELAY=5s
-      - INFLUXDB_DATA_INDEX_VERSION=tsi1
+      - ./victoria:/victoria-metrics-data
+    command: >-
+      --opentsdbListenAddr=:4242
+      --retentionPeriod=1200
+      --influxMeasurementFieldSeparator=/
   redis:
     image: redis:6.0
     restart: unless-stopped
