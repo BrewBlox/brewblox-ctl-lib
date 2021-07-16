@@ -163,6 +163,7 @@ def _copy_influx_measurement(service: str, duration: str, target: str):
     sudo = utils.optsudo()
     measurement = f'"brewblox"."downsample_1m"."{service}"'
     args = f'where time > now() - {duration}' if duration else ''
+    date = datetime.now().strftime('%Y%m%d_%H%M')
 
     utils.info(f'Exporting history for {service}...')
 
@@ -218,8 +219,8 @@ def _copy_influx_measurement(service: str, duration: str, target: str):
                     requests.get(url, data=rtmp, verify=False)
 
             elif target == 'file':
-                date = datetime.now().strftime('%Y%m%d_%H%M')
-                fname = f'./influxdb-export/{service}__{date}__{duration or "all"}__{offset}.lines'
+                offset_str = str(offset).rjust(9, '0')
+                fname = f'./influxdb-export/{service}__{date}__{duration or "all"}__{offset_str}.lines'
                 sh(f'mkdir -p ./influxdb-export/; cp "{tmp.name}" "{fname}"')
 
             else:
