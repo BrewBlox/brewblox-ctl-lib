@@ -184,6 +184,9 @@ def _copy_influx_measurement(measurement: str, duration: str, target: str):
 
     with NamedTemporaryFile('w') as tmp:
         for line in generator:
+            if not line:
+                continue
+
             num_lines += 1
             values = line.strip().split(',')
             name = values[0]
@@ -239,6 +242,8 @@ def migrate_influxdb(target: str = 'victoria', duration: str = '', services: Lis
         utils.info('influxdb/ dir not found. Skipping migration...')
         return
 
+    sh(f'{sudo}docker stop influxdb-migrate', silent=True, check=False)
+
     # Start standalone container
     # We'll communicate using 'docker exec', so no need to publish a port
     sh(f'{sudo}docker run '
@@ -255,11 +260,14 @@ def migrate_influxdb(target: str = 'victoria', duration: str = '', services: Lis
 
     # Determine relevant measurement
     # Export all of them if not specified by user
-    measurements = services or _influx_measurements()
+    if not services:
+        services = _influx_measurements()
+
+    utils.info(f'Exporting services: {", ".join(services)}')
 
     # Export data and import to target
-    for m in measurements:
-        _copy_influx_measurement(m, duration, target)
+    for svc in services:
+        _copy_influx_measurement(svc, duration, target)
 
     # Stop migration container
     sh(f'{sudo}docker stop influxdb-migrate > /dev/null')

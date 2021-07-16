@@ -27,6 +27,7 @@ def csv_data_stream(cmd):
     yield 'sparkey,1626096480000000001,11,21,31'
     yield 'sparkey,1626096480000000002,12,22,32'
     yield 'sparkey,1626096480000000003,13,23,33'
+    yield ''
 
 
 @pytest.fixture

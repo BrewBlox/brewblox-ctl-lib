@@ -36,4 +36,4 @@ def couchdb():
 def influxdb(target, duration, services):
     utils.check_config()
     utils.confirm_mode()
-    migration.migrate_influxdb(target, duration, services)
+    migration.migrate_influxdb(target, duration, list(services))
