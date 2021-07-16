@@ -159,68 +159,74 @@ def _copy_influx_measurement(measurement: str, duration: str, target: str):
     This requires an InfluxDB docker container with name 'influxdb-migrate'
     to have been started.
     """
+    BATCH_SIZE = 10000
     sudo = utils.optsudo()
     args = f'where time > now() - {duration}' if duration else ''
 
     utils.info(f'Exporting history for {measurement}...')
 
-    generator = utils.sh_stream(
-        f'{sudo}docker exec influxdb-migrate influx '
-        '-database brewblox '
-        f'-execute \'SELECT * FROM "brewblox"."downsample_1m"."{measurement}" {args}\' '
-        '-format csv')
-
-    headers = next(generator, '').strip()
-
-    if not headers:
-        utils.info('No data found')
-        return
-
-    fields = [
-        f[2:].replace(' ', '\\ ')  # Remove 'm_' prefix and escape spaces
-        for f in headers.split(',')[2:]  # Ignore 'name' and 'time' columns
-    ]
     num_lines = 0
+    offset = 0
 
-    with NamedTemporaryFile('w') as tmp:
-        for line in generator:
-            if not line:
-                continue
+    while True:
 
-            num_lines += 1
-            values = line.strip().split(',')
-            name = values[0]
-            time = values[1]
+        generator = utils.sh_stream(
+            f'{sudo}docker exec influxdb-migrate influx '
+            '-database brewblox '
+            f'-execute \'SELECT * FROM "brewblox"."downsample_1m"."{measurement}" {args}\' '
+            f'ORDER BY time LIMIT {BATCH_SIZE} OFFSET {offset}'
+            '-format csv')
 
-            # Influx line protocol:
-            # MEASUREMENT k1=1,k2=2,k3=3 TIMESTAMP
-            tmp.write(f'{name} ')
-            tmp.write(
-                ','.join((
-                    f'{f}={v}'
-                    for f, v in zip(fields, values[2:])
-                    if v
-                ))
-            )
-            tmp.write(f' {time}\n')
+        headers = next(generator, '').strip()
 
-        tmp.flush()
+        if not headers:
+            return
 
-        if target == 'victoria':
-            with open(tmp.name, 'rb') as rtmp:
-                url = f'{utils.host_url()}/victoria/write'
-                urllib3.disable_warnings()
-                requests.get(url, data=rtmp, verify=False)
+        fields = [
+            f[2:].replace(' ', '\\ ')  # Remove 'm_' prefix and escape spaces
+            for f in headers.split(',')[2:]  # Ignore 'name' and 'time' columns
+        ]
 
-        elif target == 'file':
-            date = datetime.now().strftime('%Y%m%d_%H%M')
-            fname = f'./influxdb-export/{measurement}__{date}__{duration or "all"}.lines'
-            sh(f'mkdir -p ./influxdb-export/; cp "{tmp.name}" "{fname}"')
+        with NamedTemporaryFile('w') as tmp:
+            for line in generator:
+                if not line:
+                    continue
 
-        else:
-            raise ValueError(f'Invalid target: {target}')
+                num_lines += 1
+                values = line.strip().split(',')
+                name = values[0]
+                time = values[1]
 
-    utils.info(f'Exported {num_lines} points')
+                # Influx line protocol:
+                # MEASUREMENT k1=1,k2=2,k3=3 TIMESTAMP
+                tmp.write(f'{name} ')
+                tmp.write(
+                    ','.join((
+                        f'{f}={v}'
+                        for f, v in zip(fields, values[2:])
+                        if v
+                    ))
+                )
+                tmp.write(f' {time}\n')
+
+            tmp.flush()
+
+            if target == 'victoria':
+                with open(tmp.name, 'rb') as rtmp:
+                    url = f'{utils.host_url()}/victoria/write'
+                    urllib3.disable_warnings()
+                    requests.get(url, data=rtmp, verify=False)
+
+            elif target == 'file':
+                date = datetime.now().strftime('%Y%m%d_%H%M')
+                fname = f'./influxdb-export/{measurement}__{date}__{duration or "all"}__{offset}.lines'
+                sh(f'mkdir -p ./influxdb-export/; cp "{tmp.name}" "{fname}"')
+
+            else:
+                raise ValueError(f'Invalid target: {target}')
+
+        offset += BATCH_SIZE
+        utils.info(f'Exported {num_lines} lines')
 
 
 def migrate_influxdb(target: str = 'victoria', duration: str = '', services: List[str] = []):
@@ -242,7 +248,8 @@ def migrate_influxdb(target: str = 'victoria', duration: str = '', services: Lis
         utils.info('influxdb/ dir not found. Skipping migration...')
         return
 
-    sh(f'{sudo}docker stop influxdb-migrate', silent=True, check=False)
+    # Stop container in case previous migration was cancelled
+    sh(f'{sudo}docker stop influxdb-migrate > /dev/null', check=False)
 
     # Start standalone container
     # We'll communicate using 'docker exec', so no need to publish a port
@@ -270,4 +277,4 @@ def migrate_influxdb(target: str = 'victoria', duration: str = '', services: Lis
         _copy_influx_measurement(svc, duration, target)
 
     # Stop migration container
-    sh(f'{sudo}docker stop influxdb-migrate > /dev/null')
+    sh(f'{sudo}docker stop influxdb-migrate > /dev/null', check=False)

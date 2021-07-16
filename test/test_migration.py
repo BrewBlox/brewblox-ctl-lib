@@ -3,6 +3,7 @@ Tests brewblox_ctl_lib.migration
 """
 
 import json
+from functools import partial
 
 import httpretty
 import pytest
@@ -21,13 +22,17 @@ def csv_measurement_stream(cmd):
     yield 'name,s2'
 
 
-def csv_data_stream(cmd):
-    yield 'name,time,m_k1,m_k2,m_k3'
-    yield 'sparkey,1626096480000000000,10,20,30'
-    yield 'sparkey,1626096480000000001,11,21,31'
-    yield 'sparkey,1626096480000000002,12,22,32'
-    yield 'sparkey,1626096480000000003,13,23,33'
-    yield ''
+def csv_data_stream(opts, cmd):
+    if opts.setdefault('calls', 0) < 3:
+        opts['calls'] += 1
+        yield 'name,time,m_k1,m_k2,m_k3'
+        yield 'sparkey,1626096480000000000,10,20,30'
+        yield 'sparkey,1626096480000000001,11,21,31'
+        yield 'sparkey,1626096480000000002,12,22,32'
+        yield 'sparkey,1626096480000000003,13,23,33'
+        yield ''
+    else:
+        return
 
 
 @pytest.fixture
@@ -179,17 +184,17 @@ def test_influx_measurements(m_utils):
 
 
 def test_copy_influx_measurement_file(m_utils, m_sh, mocker):
-    m_utils.sh_stream.side_effect = csv_data_stream
+    m_utils.sh_stream.side_effect = partial(csv_data_stream, {})
     mocker.patch(TESTED + '.NamedTemporaryFile', wraps=migration.NamedTemporaryFile)
 
     migration._copy_influx_measurement('sparkey', '1d', 'file')
-    assert m_sh.call_count == 1
+    assert m_sh.call_count == 3
 
 
 @httpretty.activate(allow_net_connect=False)
 def test_copy_influx_measurement_victoria(m_utils, m_sh, mocker):
     m_utils.host_url.return_value = 'https://localhost'
-    m_utils.sh_stream.side_effect = csv_data_stream
+    m_utils.sh_stream.side_effect = partial(csv_data_stream, {})
     mocker.patch(TESTED + '.NamedTemporaryFile', wraps=migration.NamedTemporaryFile)
 
     httpretty.register_uri(
@@ -198,7 +203,7 @@ def test_copy_influx_measurement_victoria(m_utils, m_sh, mocker):
     )
 
     migration._copy_influx_measurement('sparkey', '1d', 'victoria')
-    assert len(httpretty.latest_requests()) == 1
+    assert len(httpretty.latest_requests()) == 3
     assert m_sh.call_count == 0
 
 
@@ -214,7 +219,7 @@ def test_copy_influx_measurement_empty(m_utils, m_sh, mocker):
 
 
 def test_copy_influx_measurement_error(m_utils, m_sh, mocker):
-    m_utils.sh_stream.side_effect = csv_data_stream
+    m_utils.sh_stream.side_effect = partial(csv_data_stream, {})
     mocker.patch(TESTED + '.NamedTemporaryFile', wraps=migration.NamedTemporaryFile)
 
     with pytest.raises(ValueError):
