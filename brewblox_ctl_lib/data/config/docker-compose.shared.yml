@@ -22,13 +22,13 @@ services:
     image: victoriametrics/victoria-metrics:v1.63.0
     restart: unless-stopped
     labels:
-      - traefik.http.routers.victoria.middlewares=prefix-strip
       - traefik.http.services.victoria.loadbalancer.server.port=8428
     volumes:
       - ./victoria:/victoria-metrics-data
     command: >-
       --retentionPeriod=100y
       --influxMeasurementFieldSeparator=/
+      --http.pathPrefix=/victoria
   redis:
     image: redis:6.0
     restart: unless-stopped
