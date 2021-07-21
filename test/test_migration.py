@@ -188,7 +188,7 @@ def test_copy_influx_measurement_file(m_utils, m_sh, mocker):
     mocker.patch(TESTED + '.NamedTemporaryFile', wraps=migration.NamedTemporaryFile)
 
     migration._copy_influx_measurement('sparkey', '1d', 'file')
-    assert m_sh.call_count == 6
+    assert m_sh.call_count == 4
 
 
 @httpretty.activate(allow_net_connect=False)
