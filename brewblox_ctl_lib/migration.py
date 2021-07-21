@@ -163,7 +163,8 @@ def _copy_influx_measurement(
     This requires an InfluxDB docker container with name 'influxdb-migrate'
     to have been started.
     """
-    BATCH_SIZE = 5000
+    QUERY_BATCH_SIZE = 5000
+    FILE_BATCH_SIZE = 50000
     FILE_DIR = './influxdb-export'
     sudo = utils.optsudo()
     measurement = f'"brewblox"."downsample_1m"."{service}"'
@@ -182,7 +183,7 @@ def _copy_influx_measurement(
         generator = utils.sh_stream(
             f'{sudo}docker exec influxdb-migrate influx '
             '-database brewblox '
-            f"-execute 'SELECT * FROM {measurement} {args} ORDER BY time LIMIT {BATCH_SIZE} OFFSET {offset}' "
+            f"-execute 'SELECT * FROM {measurement} {args} ORDER BY time LIMIT {QUERY_BATCH_SIZE} OFFSET {offset}' "
             '-format csv')
 
         headers = next(generator, '').strip()
@@ -226,13 +227,14 @@ def _copy_influx_measurement(
                     requests.get(url, data=rtmp, verify=False)
 
             elif target == 'file':
-                fname = f'{FILE_DIR}/{service}__{date}__{duration or "all"}.lines'
+                idx = str(offset // FILE_BATCH_SIZE + 1).rjust(3, '0')
+                fname = f'{FILE_DIR}/{service}__{date}__{duration or "all"}__{idx}.lines'
                 sh(f'cat "{tmp.name}" >> "{fname}"')
 
             else:
                 raise ValueError(f'Invalid target: {target}')
 
-        offset += BATCH_SIZE
+        offset += QUERY_BATCH_SIZE
         utils.info(f'Exported {num_lines} lines')
 
 
