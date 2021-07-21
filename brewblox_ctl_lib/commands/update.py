@@ -75,6 +75,12 @@ def upped_migrate(prev_version):
     if prev_version < StrictVersion('0.6.0'):
         migration.migrate_couchdb()
 
+    if prev_version < StrictVersion('0.7.0'):
+        utils.warn('')
+        utils.warn('Brewblox now uses a new history database.')
+        utils.warn('To migrate your data, run `brewblox-ctl database influxdb`.')
+        utils.warn('')
+
 
 @cli.command()
 def libs():
@@ -219,9 +225,9 @@ def update(ctx, update_ctl, update_ctl_done, pull, avahi_config, migrate, prune,
 
     if prune:
         utils.info('Pruning unused images...')
-        sh(f'{sudo}docker image prune -f')
+        sh(f'{sudo}docker image prune -f > /dev/null')
         utils.info('Pruning unused volumes...')
-        sh(f'{sudo}docker volume prune -f')
+        sh(f'{sudo}docker volume prune -f > /dev/null')
 
 
 @cli.command(hidden=True)
