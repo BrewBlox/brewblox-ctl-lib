@@ -175,6 +175,9 @@ def _copy_influx_measurement(
     num_lines = 0
     offset = 0
 
+    if target == 'file':
+        sh(f'mkdir -p {FILE_DIR}')
+
     while True:
         generator = utils.sh_stream(
             f'{sudo}docker exec influxdb-migrate influx '
@@ -191,9 +194,6 @@ def _copy_influx_measurement(
             f[2:].replace(' ', '\\ ')  # Remove 'm_' prefix and escape spaces
             for f in headers.split(',')[2:]  # Ignore 'name' and 'time' columns
         ]
-
-        if target == 'file':
-            sh(f'mkdir -p {FILE_DIR}')
 
         with NamedTemporaryFile('w') as tmp:
             for line in generator:
