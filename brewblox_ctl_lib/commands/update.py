@@ -75,13 +75,17 @@ def upped_migrate(prev_version):
     if prev_version < StrictVersion('0.6.0'):
         utils.warn('')
         utils.warn('Brewblox now uses a new configuration database.')
-        utils.warn('To migrate your data, run `brewblox-ctl database from-couchdb`.')
+        utils.warn('To migrate your data, run:')
+        utils.warn('')
+        utils.warn('    brewblox-ctl database from-couchdb')
         utils.warn('')
 
     if prev_version < StrictVersion('0.7.0'):
         utils.warn('')
         utils.warn('Brewblox now uses a new history database.')
-        utils.warn('To migrate your data, run `brewblox-ctl database from-influxdb`.')
+        utils.warn('To migrate your data, run:')
+        utils.warn('')
+        utils.warn('    brewblox-ctl database from-influxdb')
         utils.warn('')
 
 
