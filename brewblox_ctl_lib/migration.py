@@ -153,13 +153,18 @@ def _influx_measurements() -> List[str]:
     return measurements
 
 
-def _copy_influx_measurement(service: str, duration: str, target: str):
+def _copy_influx_measurement(
+    service: str,
+    duration: str,
+    target: str,
+):
     """
     Export measurement from Influx, and copy/import to `target`.
     This requires an InfluxDB docker container with name 'influxdb-migrate'
     to have been started.
     """
     BATCH_SIZE = 5000
+    FILE_DIR = './influxdb-export'
     sudo = utils.optsudo()
     measurement = f'"brewblox"."downsample_1m"."{service}"'
     args = f'where time > now() - {duration}' if duration else ''
@@ -186,6 +191,9 @@ def _copy_influx_measurement(service: str, duration: str, target: str):
             f[2:].replace(' ', '\\ ')  # Remove 'm_' prefix and escape spaces
             for f in headers.split(',')[2:]  # Ignore 'name' and 'time' columns
         ]
+
+        if target == 'file':
+            sh(f'mkdir -p {FILE_DIR}')
 
         with NamedTemporaryFile('w') as tmp:
             for line in generator:
@@ -218,9 +226,8 @@ def _copy_influx_measurement(service: str, duration: str, target: str):
                     requests.get(url, data=rtmp, verify=False)
 
             elif target == 'file':
-                offset_str = str(offset).rjust(9, '0')
-                fname = f'./influxdb-export/{service}__{date}__{duration or "all"}__{offset_str}.lines'
-                sh(f'mkdir -p ./influxdb-export/; cp "{tmp.name}" "{fname}"')
+                fname = f'{FILE_DIR}/{service}__{date}__{duration or "all"}.lines'
+                sh(f'cat "{tmp.name}" >> "{fname}"')
 
             else:
                 raise ValueError(f'Invalid target: {target}')
@@ -229,7 +236,11 @@ def _copy_influx_measurement(service: str, duration: str, target: str):
         utils.info(f'Exported {num_lines} lines')
 
 
-def migrate_influxdb(target: str = 'victoria', duration: str = '', services: List[str] = []):
+def migrate_influxdb(
+    target: str = 'victoria',
+    duration: str = '',
+    services: List[str] = [],
+):
     """Exports InfluxDB history data.
 
     The exported data is either immediately imported to the new history database,
