@@ -56,29 +56,6 @@ def test_remove(m_utils, m_sh, mocker):
     invoke(service.remove)
 
 
-def test_editor(m_utils, m_sh, mocker):
-    m_restart = mocker.patch(TESTED + '.restart_services')
-
-    invoke(service.editor)
-    assert m_restart.call_count == 0
-
-    m_utils.read_file.side_effect = [
-        {
-            'services': {
-                'spark-one': {},
-            }
-        },
-        {
-            'services': {
-                'spark-one': {'edited': True},
-            }
-        },
-    ]
-
-    invoke(service.editor)
-    assert m_restart.call_count == 1
-
-
 def test_ports(m_utils, m_sh):
     invoke(service.ports)
     assert m_utils.setenv.call_count == 3

@@ -62,46 +62,6 @@ def remove(ctx, services):
 
 
 @service.command()
-@click.option('--port', type=click.INT, default=8300, help='Port on which the editor is served')
-@click.pass_context
-def editor(ctx, port):
-    """Run web-based docker-compose.yml editor.
-
-    This will start a new docker container listening on a host port (default: 8300).
-    Navigate there in your browser to access the GUI for editing docker-compose.yml.
-
-    When you're done editing, save your file in the GUI, and press Ctrl+C in the terminal.
-    """
-    utils.check_config()
-    utils.confirm_mode()
-
-    orig = utils.read_file('docker-compose.yml')
-
-    sudo = utils.optsudo()
-    host_ip = utils.host_ip()
-
-    cmd = ' '.join([
-        f'{sudo}docker run',
-        '--rm --init --pull always',
-        f'-p "{port}:8300"',
-        '-v "$(pwd):/app/config"',
-        f'brewblox/brewblox-web-editor:{utils.docker_tag()}',
-        f'--host-address {host_ip}',
-        f'--host-port {port}',
-    ])
-
-    try:
-        utils.info('Starting editor...')
-        sh(cmd)
-    except KeyboardInterrupt:  # pragma: no cover
-        pass
-
-    if orig != utils.read_file('docker-compose.yml'):
-        utils.info('Configuration changes detected.')
-        restart_services(ctx, compose_args=['--remove-orphans'])
-
-
-@service.command()
 @click.option('--http',
               envvar=const.HTTP_PORT_KEY,
               help='Port used for HTTP connections.')
