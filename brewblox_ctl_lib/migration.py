@@ -277,8 +277,8 @@ def migrate_influxdb(
 
     utils.warn('Depending on the amount of data, this may take some hours.')
     utils.warn('You can use your system as normal while the migration is in progress.')
-    utils.warn('The migration can safely be stopped and restarted.')
-    utils.warn('You can use the --offset option to resume a migration.')
+    utils.warn('The migration can safely be stopped and restarted or resumed.')
+    utils.warn('To resume a migration, use the `--offset [SERVICE] [LINES]` option.')
 
     if opts.dry_run:
         utils.info('Dry run. Skipping migration...')
