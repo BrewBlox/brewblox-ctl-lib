@@ -154,13 +154,13 @@ def _influx_measurements() -> List[str]:
     return measurements
 
 
-def _influx_line_count(service: str) -> Optional[int]:
+def _influx_line_count(service: str, args: str) -> Optional[int]:
     sudo = utils.optsudo()
     measurement = f'"brewblox"."downsample_1m"."{service}"'
     points_field = '"m_ Combined Influx points"'
     json_result = sh(f'{sudo}docker exec influxdb-migrate influx '
                      '-database brewblox '
-                     f"-execute 'SELECT count({points_field}) FROM {measurement}' "
+                     f"-execute 'SELECT count({points_field}) FROM {measurement} {args}' "
                      '-format json',
                      capture=True)
 
@@ -191,7 +191,7 @@ def _copy_influx_measurement(
     args = f'where time > now() - {duration}' if duration else ''
     date = datetime.now().strftime('%Y%m%d_%H%M')
 
-    total_lines = _influx_line_count(service)
+    total_lines = _influx_line_count(service, args)
     offset = max(offset, 0)
     offset -= (offset % QUERY_BATCH_SIZE)  # Round down to multiple of batch size
     num_lines = offset

@@ -186,10 +186,10 @@ def test_influx_measurements(m_utils):
 def test_influx_line_count(m_utils, m_sh):
     m_sh.return_value = \
         '{"results":[{"series":[{"name":"spark-one","columns":["time","count"],"values":[[0,825518]]}]}]}'
-    assert migration._influx_line_count('spark-one') == 825518
+    assert migration._influx_line_count('spark-one', '') == 825518
 
     m_sh.return_value = '{"results":[{}]}'
-    assert migration._influx_line_count('spark-one') is None
+    assert migration._influx_line_count('spark-one', '') is None
 
 
 def test_copy_influx_measurement_file(m_utils, m_sh, mocker):
