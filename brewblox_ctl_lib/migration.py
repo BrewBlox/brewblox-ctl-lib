@@ -149,6 +149,7 @@ def _influx_measurements() -> List[str]:
     measurements = [
         s.strip().split(',')[1]
         for s in raw_measurements[1:]  # ignore line with headers
+        if s.strip()
     ]
 
     return measurements
@@ -166,10 +167,10 @@ def _influx_line_count(service: str, args: str) -> Optional[int]:
 
     result = json.loads(json_result)
 
-    if not result['results'][0]:
+    try:
+        return result['results'][0]['series'][0]['values'][0][1]
+    except (IndexError, KeyError):
         return None
-
-    return result['results'][0]['series'][0]['values'][0][1]
 
 
 def _copy_influx_measurement(
