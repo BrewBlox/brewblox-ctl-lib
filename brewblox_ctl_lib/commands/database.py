@@ -44,6 +44,8 @@ def from_couchdb():
               type=click.Choice(['victoria', 'file']))
 @click.option('--duration',
               default='',
+              prompt='From how far back do you want to migrate data? (eg. 1d, 30d, 1y). '
+              'Leave empty to migrate everything.',
               help='Period of exported data. Example: 30d')
 @click.option('--offset',
               multiple=True, nargs=2, type=click.Tuple([str, int]),
