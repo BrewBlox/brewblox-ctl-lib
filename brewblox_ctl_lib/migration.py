@@ -192,9 +192,9 @@ def _copy_influx_measurement(
     date = datetime.now().strftime('%Y%m%d_%H%M')
 
     total_lines = _influx_line_count(service)
-    num_lines = 0
     offset = max(offset, 0)
     offset -= (offset % QUERY_BATCH_SIZE)  # Round down to multiple of batch size
+    num_lines = offset
 
     if target == 'file':
         sh(f'mkdir -p {FILE_DIR}')
@@ -315,7 +315,7 @@ def migrate_influxdb(
 
     # Export data and import to target
     for svc in services:
-        offset = next((v for v in offsets if v[0] == svc), ['', 0])[1]
+        offset = next((v for v in offsets if v[0] == svc), ('default', 0))[1]
         _copy_influx_measurement(svc, duration, target, offset)
 
     # Stop migration container
