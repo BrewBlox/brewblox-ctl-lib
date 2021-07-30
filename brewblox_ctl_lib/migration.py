@@ -193,7 +193,8 @@ def _copy_influx_measurement(
 
     total_lines = _influx_line_count(service)
     num_lines = 0
-    offset = max(offset, 0) // QUERY_BATCH_SIZE * QUERY_BATCH_SIZE
+    offset = max(offset, 0)
+    offset -= (offset % QUERY_BATCH_SIZE)  # Round down to multiple of batch size
 
     if target == 'file':
         sh(f'mkdir -p {FILE_DIR}')
