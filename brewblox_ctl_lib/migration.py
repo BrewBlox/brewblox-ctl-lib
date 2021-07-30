@@ -252,6 +252,8 @@ def migrate_influxdb(
     sudo = utils.optsudo()
 
     utils.info('Exporting history data from InfluxDB...')
+    utils.warn('This can take a while.')
+    utils.warn('Brewblox will function normally while the migration is in progress.')
 
     if opts.dry_run:
         utils.info('Dry run. Skipping migration...')
