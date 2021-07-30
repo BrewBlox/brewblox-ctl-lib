@@ -2,10 +2,11 @@
 Manual migration steps
 """
 
+import json
 from contextlib import suppress
 from datetime import datetime
 from tempfile import NamedTemporaryFile
-from typing import List
+from typing import List, Optional, Tuple
 
 import requests
 import urllib3
@@ -153,10 +154,29 @@ def _influx_measurements() -> List[str]:
     return measurements
 
 
+def _influx_line_count(service: str) -> Optional[int]:
+    sudo = utils.optsudo()
+    measurement = f'"brewblox"."downsample_1m"."{service}"'
+    points_field = '"m_ Combined Influx points"'
+    json_result = sh(f'{sudo}docker exec influxdb-migrate influx '
+                     '-database brewblox '
+                     f"-execute 'SELECT count({points_field}) FROM {measurement}' "
+                     '-format json',
+                     capture=True)
+
+    result = json.loads(json_result)
+
+    if not result['results'][0]:
+        return None
+
+    return result['results'][0]['series'][0]['values'][0][1]
+
+
 def _copy_influx_measurement(
     service: str,
     duration: str,
     target: str,
+    offset: int = 0,
 ):
     """
     Export measurement from Influx, and copy/import to `target`.
@@ -171,13 +191,15 @@ def _copy_influx_measurement(
     args = f'where time > now() - {duration}' if duration else ''
     date = datetime.now().strftime('%Y%m%d_%H%M')
 
-    utils.info(f'Exporting history for {service}...')
-
+    total_lines = _influx_line_count(service)
     num_lines = 0
-    offset = 0
+    offset = max(offset, 0) // QUERY_BATCH_SIZE * QUERY_BATCH_SIZE
 
     if target == 'file':
         sh(f'mkdir -p {FILE_DIR}')
+
+    if total_lines is None:
+        return
 
     while True:
         generator = utils.sh_stream(
@@ -235,13 +257,14 @@ def _copy_influx_measurement(
                 raise ValueError(f'Invalid target: {target}')
 
         offset += QUERY_BATCH_SIZE
-        utils.info(f'Exported {num_lines} lines')
+        utils.info(f'{service}: exported {num_lines}/{total_lines} lines')
 
 
 def migrate_influxdb(
     target: str = 'victoria',
     duration: str = '',
     services: List[str] = [],
+    offsets: List[Tuple[str, int]] = [],
 ):
     """Exports InfluxDB history data.
 
@@ -252,8 +275,10 @@ def migrate_influxdb(
     sudo = utils.optsudo()
 
     utils.info('Exporting history data from InfluxDB...')
-    utils.warn('This can take a while.')
-    utils.warn('Brewblox will function normally while the migration is in progress.')
+    utils.warn('Depending on the amount of data, this may take some hours.')
+    utils.warn('You can use your system as normal while the migration is in progress.')
+    utils.warn('The migration can safely be stopped and restarted.')
+    utils.warn('You can use the --offset option to resume a migration.')
 
     if opts.dry_run:
         utils.info('Dry run. Skipping migration...')
@@ -289,7 +314,8 @@ def migrate_influxdb(
 
     # Export data and import to target
     for svc in services:
-        _copy_influx_measurement(svc, duration, target)
+        offset = next((v for v in offsets if v[0] == svc), ['', 0])[1]
+        _copy_influx_measurement(svc, duration, target, offset)
 
     # Stop migration container
     sh(f'{sudo}docker stop influxdb-migrate > /dev/null', check=False)

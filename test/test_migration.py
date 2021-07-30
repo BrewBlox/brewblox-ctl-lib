@@ -183,9 +183,19 @@ def test_influx_measurements(m_utils):
     assert migration._influx_measurements() == ['s1', 's2']
 
 
+def test_influx_line_count(m_utils, m_sh):
+    m_sh.return_value = \
+        '{"results":[{"series":[{"name":"spark-one","columns":["time","count"],"values":[[0,825518]]}]}]}'
+    assert migration._influx_line_count('spark-one') == 825518
+
+    m_sh.return_value = '{"results":[{}]}'
+    assert migration._influx_line_count('spark-one') is None
+
+
 def test_copy_influx_measurement_file(m_utils, m_sh, mocker):
     m_utils.sh_stream.side_effect = partial(csv_data_stream, {})
     mocker.patch(TESTED + '.NamedTemporaryFile', wraps=migration.NamedTemporaryFile)
+    mocker.patch(TESTED + '._influx_line_count', return_value=1000)
 
     migration._copy_influx_measurement('sparkey', '1d', 'file')
     assert m_sh.call_count == 4
@@ -196,6 +206,7 @@ def test_copy_influx_measurement_victoria(m_utils, m_sh, mocker):
     m_utils.host_url.return_value = 'https://localhost'
     m_utils.sh_stream.side_effect = partial(csv_data_stream, {})
     mocker.patch(TESTED + '.NamedTemporaryFile', wraps=migration.NamedTemporaryFile)
+    mocker.patch(TESTED + '._influx_line_count', return_value=1000)
 
     httpretty.register_uri(
         httpretty.GET,
@@ -213,6 +224,7 @@ def test_copy_influx_measurement_empty(m_utils, m_sh, mocker):
         return
     m_utils.sh_stream.side_effect = empty
     m_tmp = mocker.patch(TESTED + '.NamedTemporaryFile', wraps=migration.NamedTemporaryFile)
+    mocker.patch(TESTED + '._influx_line_count', return_value=None)
 
     migration._copy_influx_measurement('sparkey', '1d', 'file')
     assert m_tmp.call_count == 0
@@ -221,6 +233,7 @@ def test_copy_influx_measurement_empty(m_utils, m_sh, mocker):
 def test_copy_influx_measurement_error(m_utils, m_sh, mocker):
     m_utils.sh_stream.side_effect = partial(csv_data_stream, {})
     mocker.patch(TESTED + '.NamedTemporaryFile', wraps=migration.NamedTemporaryFile)
+    mocker.patch(TESTED + '._influx_line_count', return_value=1000)
 
     with pytest.raises(ValueError):
         migration._copy_influx_measurement('sparkey', '1d', 'space magic')

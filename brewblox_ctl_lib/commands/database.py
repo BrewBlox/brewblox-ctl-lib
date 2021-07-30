@@ -45,8 +45,13 @@ def from_couchdb():
 @click.option('--duration',
               default='',
               help='Period of exported data. Example: 30d')
+@click.option('--offset',
+              multiple=True, nargs=2, type=click.Tuple([str, int]),
+              default=[],
+              help='Start given service(s) with an offset. Useful for resuming exports. '
+              'Example: [--offset spark-one 10000 --offset spark-two 5000]')
 @click.argument('services', nargs=-1)
-def from_influxdb(target, duration, services):
+def from_influxdb(target, duration, offset, services):
     """Migrate history data from InfluxDB to Victoria Metrics or file.
 
     In config version 0.7.0 Victoria Metrics replaced InfluxDB as history database.
@@ -69,4 +74,4 @@ def from_influxdb(target, duration, services):
     """
     utils.check_config()
     utils.confirm_mode()
-    migration.migrate_influxdb(target, duration, list(services))
+    migration.migrate_influxdb(target, duration, list(services), list(offset))
