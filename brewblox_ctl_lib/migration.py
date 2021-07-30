@@ -275,7 +275,6 @@ def migrate_influxdb(
     opts = utils.ctx_opts()
     sudo = utils.optsudo()
 
-    utils.info('Exporting history data from InfluxDB...')
     utils.warn('Depending on the amount of data, this may take some hours.')
     utils.warn('You can use your system as normal while the migration is in progress.')
     utils.warn('The migration can safely be stopped and restarted.')
@@ -288,6 +287,8 @@ def migrate_influxdb(
     if not utils.path_exists('./influxdb/'):
         utils.info('influxdb/ dir not found. Skipping migration...')
         return
+
+    utils.info('Starting InfluxDB container...')
 
     # Stop container in case previous migration was cancelled
     sh(f'{sudo}docker stop influxdb-migrate > /dev/null', check=False)
