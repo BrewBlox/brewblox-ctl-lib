@@ -18,7 +18,7 @@ def cli():
 def check_ports():
     if utils.path_exists('./docker-compose.yml'):
         utils.info('Stopping services...')
-        sh('{}docker-compose down'.format(utils.optsudo()))
+        sh(f'{utils.optsudo()}docker-compose down')
 
     ports = [
         utils.getenv(key, const.ENV_DEFAULTS[key]) for key in [
@@ -41,8 +41,9 @@ def check_ports():
                 break
 
     if used_ports:
-        utils.warn('Port(s) {} already in use. '.format(', '.join(used_ports)) +
-                   "Run 'brewblox-ctl service ports' to configure Brewblox ports.")
+        port_str = ', '.join(used_ports)
+        utils.warn(f'Port(s) {port_str} already in use.')
+        utils.warn('Run `brewblox-ctl service ports` to configure Brewblox ports.')
         for line in used_lines:
             utils.warn(line)
         if not utils.confirm('Do you want to continue?'):
@@ -66,15 +67,16 @@ def makecert(dir, release):
     """
     utils.confirm_mode()
     sudo = utils.optsudo()
+    tag = utils.docker_tag(release)
     absdir = Path(dir).absolute()
-    sh('mkdir -p "{}"'.format(absdir))
-    sh('{}docker run'.format(sudo) +
+    sh(f'mkdir -p "{absdir}"')
+    sh(f'{sudo}docker run' +
         ' --rm --privileged' +
         ' --pull always' +
-        ' -v "{}":/certs/'.format(absdir) +
-        ' brewblox/omgwtfssl:{}'.format(utils.docker_tag(release)))
-    sh('sudo chmod 644 "{}/brewblox.crt"'.format(absdir))
-    sh('sudo chmod 600 "{}/brewblox.key"'.format(absdir))
+        f' -v "{absdir}":/certs/' +
+        f' brewblox/omgwtfssl:{tag}')
+    sh(f'sudo chmod 644 "{absdir}/brewblox.crt"')
+    sh(f'sudo chmod 600 "{absdir}/brewblox.key"')
 
 
 @cli.command()
@@ -108,7 +110,7 @@ def setup(ctx, avahi_config, pull, port_check):
         - Create docker-compose configuration files. (Optional)
         - Pull docker images.                        (Optional)
         - Create datastore (Redis) directory.        (Optional)
-        - Create history (InfluxDB) directory.       (Optional)
+        - Create history (Victoria) directory.       (Optional)
         - Create gateway (Traefik) directory.        (Optional)
         - Create SSL certificates.                   (Optional)
         - Start and configure services.              (Optional)
@@ -119,8 +121,6 @@ def setup(ctx, avahi_config, pull, port_check):
     utils.confirm_mode()
 
     sudo = utils.optsudo()
-    history_url = utils.history_url()
-    upped_services = ['traefik', 'influx', 'history']
 
     if port_check:
         check_ports()
@@ -136,8 +136,8 @@ def setup(ctx, avahi_config, pull, port_check):
                           'Do you want to keep them?')
 
     skip_history = \
-        utils.path_exists('./influxdb/') \
-        and utils.confirm('This directory already contains InfluxDB history files. ' +
+        utils.path_exists('./victoria/') \
+        and utils.confirm('This directory already contains Victoria history files. ' +
                           'Do you want to keep them?')
 
     skip_gateway = \
@@ -158,19 +158,19 @@ def setup(ctx, avahi_config, pull, port_check):
         utils.update_avahi_config()
 
     utils.info('Copying docker-compose.shared.yml...')
-    sh('cp -f {}/docker-compose.shared.yml ./'.format(const.CONFIG_DIR))
+    sh(f'cp -f {const.CONFIG_DIR}/docker-compose.shared.yml ./')
 
     if not skip_compose:
         utils.info('Copying docker-compose.yml...')
-        sh('cp -f {}/docker-compose.yml ./'.format(const.CONFIG_DIR))
+        sh(f'cp -f {const.CONFIG_DIR}/docker-compose.yml ./')
 
     # Stop and pull after we're sure we have a compose file
     utils.info('Stopping services...')
-    sh('{}docker-compose down'.format(sudo))
+    sh(f'{sudo}docker-compose down')
 
     if pull:
         utils.info('Pulling docker images...')
-        sh('{}docker-compose pull'.format(sudo))
+        sh(f'{sudo}docker-compose pull')
 
     if not skip_datastore:
         utils.info('Creating datastore directory...')
@@ -178,7 +178,7 @@ def setup(ctx, avahi_config, pull, port_check):
 
     if not skip_history:
         utils.info('Creating history directory...')
-        sh('sudo rm -rf ./influxdb/; mkdir ./influxdb/')
+        sh('sudo rm -rf ./victoria/; mkdir ./victoria/')
 
     if not skip_gateway:
         utils.info('Creating gateway directory...')
@@ -192,20 +192,7 @@ def setup(ctx, avahi_config, pull, port_check):
         sh('sudo rm -rf ./mosquitto/; mkdir ./mosquitto/')
 
     # Always copy cert config to traefik dir
-    sh('cp -f {}/traefik-cert.yaml ./traefik/'.format(const.CONFIG_DIR))
-
-    # Bring images online that we will send configuration
-    utils.info('Starting configured services...')
-    sh('{}docker-compose up -d {}'.format(sudo, ' '.join(upped_services)))
-
-    # Always setup history
-    utils.info('Configuring history settings...')
-    sh('{} http wait {}/ping'.format(const.CLI, history_url))
-    sh('{} http post --quiet {}/configure'.format(const.CLI, history_url))
-
-    # Setup is done - leave system in stable state
-    utils.info('Stopping services...')
-    sh('{}docker-compose down'.format(utils.optsudo()))
+    sh(f'cp -f {const.CONFIG_DIR}/traefik-cert.yaml ./traefik/')
 
     # Setup is complete and ok - now set CFG version
     utils.setenv(const.CFG_VERSION_KEY, const.CURRENT_VERSION)

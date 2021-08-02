@@ -4,8 +4,11 @@ Utility functions specific to lib
 
 import json
 import re
+import shlex
+import subprocess
 from pathlib import Path
 from tempfile import NamedTemporaryFile
+from typing import Generator
 
 import click
 import yaml
@@ -53,15 +56,15 @@ def show_data(data):
 
 def host_url():
     port = getenv(const.HTTPS_PORT_KEY, '443')
-    return '{}:{}'.format(const.HOST, port)
+    return f'{const.HOST}:{port}'
 
 
 def history_url():
-    return '{}/history/history'.format(host_url())
+    return f'{host_url()}/history/history'
 
 
 def datastore_url():
-    return '{}/history/datastore'.format(host_url())
+    return f'{host_url()}/history/datastore'
 
 
 def host_ip():
@@ -85,7 +88,7 @@ def read_compose(fname='docker-compose.yml'):
 def write_compose(config, fname='docker-compose.yml'):  # pragma: no cover
     opts = ctx_opts()
     if opts.dry_run or opts.verbose:
-        click.secho('{} {}'.format(const.LOG_COMPOSE, fname), fg='magenta', color=opts.color)
+        click.secho(f'{const.LOG_COMPOSE} {fname}', fg='magenta', color=opts.color)
         show_data(yaml.safe_dump(config))
     if not opts.dry_run:
         with open(fname, 'w') as f:
@@ -115,13 +118,32 @@ def check_service_name(ctx, param, value):
     return value
 
 
+def sh_stream(cmd: str) -> Generator[str, None, None]:
+    opts = ctx_opts()
+    if opts.verbose:
+        click.secho(f'{const.LOG_SHELL} {cmd}', fg='magenta', color=opts.color)
+
+    process = subprocess.Popen(
+        shlex.split(cmd),
+        stdout=subprocess.PIPE,
+        universal_newlines=True,
+    )
+
+    while True:
+        output = process.stdout.readline()
+        if not output and process.poll() is not None:
+            break
+        else:
+            yield output
+
+
 def pip_install(*libs):
     user = getenv('USER')
     args = '--quiet --upgrade --no-cache-dir ' + ' '.join(libs)
-    if user and Path('/home/{}'.format(user)).is_dir():
-        return sh('{} -m pip install --user {}'.format(const.PY, args))
+    if user and Path(f'/home/{user}').is_dir():
+        return sh(f'{const.PY} -m pip install --user {args}')
     else:
-        return sh('sudo {} -m pip install {}'.format(const.PY, args))
+        return sh(f'sudo {const.PY} -m pip install {args}')
 
 
 def update_avahi_config():
@@ -132,7 +154,7 @@ def update_avahi_config():
     try:
         config = ConfigObj(conf, file_error=True)
     except OSError:
-        warn('Avahi config file not found: {}'.format(conf))
+        warn(f'Avahi config file not found: {conf}')
         return
 
     config.setdefault('reflector', {})
@@ -156,8 +178,8 @@ def update_avahi_config():
         # avahi-daemon.conf requires a 'key=value' syntax
         tmp.write('\n'.join(lines).replace(' = ', '=') + '\n')
         tmp.flush()
-        sh('sudo chmod --reference={} {}'.format(conf, tmp.name))
-        sh('sudo cp -fp {} {}'.format(tmp.name, conf))
+        sh(f'sudo chmod --reference={conf} {tmp.name}')
+        sh(f'sudo cp -fp {tmp.name} {conf}')
 
     if command_exists('service'):
         info('Restarting avahi-daemon service...')

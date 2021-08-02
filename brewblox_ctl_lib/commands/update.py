@@ -2,16 +2,12 @@
 Migration scripts
 """
 
-from contextlib import suppress
-from datetime import datetime
 from distutils.version import StrictVersion
 from pathlib import Path
 
 import click
-import requests
-import urllib3
 from brewblox_ctl import click_helpers, sh
-from brewblox_ctl_lib import const, utils
+from brewblox_ctl_lib import const, migration, utils
 
 
 @click.group(cls=click_helpers.OrderedGroup)
@@ -21,134 +17,13 @@ def cli():
 
 def apply_config():
     """Apply system-defined configuration from config dir"""
-    sh('cp -f {}/traefik-cert.yaml ./traefik/'.format(const.CONFIG_DIR))
-    sh('cp -f {}/docker-compose.shared.yml ./'.format(const.CONFIG_DIR))
+    sh(f'cp -f {const.CONFIG_DIR}/traefik-cert.yaml ./traefik/')
+    sh(f'cp -f {const.CONFIG_DIR}/docker-compose.shared.yml ./')
     shared_cfg = utils.read_shared_compose()
     usr_cfg = utils.read_compose()
 
     usr_cfg['version'] = shared_cfg['version']
     utils.write_compose(usr_cfg)
-
-
-def datastore_migrate_redis():
-    urllib3.disable_warnings()
-    sudo = utils.optsudo()
-    opts = utils.ctx_opts()
-    redis_url = utils.datastore_url()
-    couch_url = 'http://localhost:5984'
-
-    if opts.dry_run:
-        utils.info('Dry run. Skipping migration...')
-        return
-
-    if not utils.path_exists('./couchdb/'):
-        utils.info('couchdb/ dir not found. Skipping migration...')
-        return
-
-    utils.info('Starting a temporary CouchDB container on port 5984...')
-    sh('{}docker rm -f couchdb-migrate'.format(sudo), check=False)
-    sh('{}docker run --rm -d'
-        ' --name couchdb-migrate'
-        ' -v "$(pwd)/couchdb/:/opt/couchdb/data/"'
-        ' -p "5984:5984"'
-        ' treehouses/couchdb:2.3.1'.format(sudo))
-    sh('{} http wait {}'.format(const.CLI, couch_url))
-    sh('{} http wait {}/ping'.format(const.CLI, redis_url))
-
-    resp = requests.get('{}/_all_dbs'.format(couch_url))
-    resp.raise_for_status()
-    dbs = resp.json()
-
-    for db in ['brewblox-ui-store', 'brewblox-automation']:
-        if db in dbs:
-            resp = requests.get('{}/{}/_all_docs'.format(couch_url, db),
-                                params={'include_docs': True})
-            resp.raise_for_status()
-            docs = [v['doc'] for v in resp.json()['rows']]
-            # Drop invalid names
-            docs[:] = [d for d in docs if len(d['_id'].split('__', 1)) == 2]
-            for d in docs:
-                segments = d['_id'].split('__', 1)
-                d['namespace'] = '{}:{}'.format(db, segments[0])
-                d['id'] = segments[1]
-                del d['_rev']
-                del d['_id']
-            resp = requests.post('{}/mset'.format(redis_url),
-                                 json={'values': docs},
-                                 verify=False)
-            resp.raise_for_status()
-            utils.info('Migrated {} entries from {}'.format(len(docs), db))
-
-    if 'spark-service' in dbs:
-        resp = requests.get('{}/spark-service/_all_docs'.format(couch_url),
-                            params={'include_docs': True})
-        resp.raise_for_status()
-        docs = [v['doc'] for v in resp.json()['rows']]
-        for d in docs:
-            d['namespace'] = 'spark-service'
-            d['id'] = d['_id']
-            del d['_rev']
-            del d['_id']
-        resp = requests.post('{}/mset'.format(redis_url),
-                             json={'values': docs},
-                             verify=False)
-        resp.raise_for_status()
-        utils.info('Migrated {} entries from spark-service'.format(len(docs)))
-
-    sh('{}docker stop couchdb-migrate'.format(sudo))
-    sh('sudo mv couchdb/ couchdb-migrated-{}'.format(datetime.now().strftime('%Y%m%d')))
-
-
-def migrate_influx_overhaul():
-    # Breaking changes: Influx downsampling model overhaul
-    # Old data is completely incompatible
-    utils.select('Upgrading to version >=0.2.0 requires a complete reset of your history data. ' +
-                 "We'll be deleting it now")
-    sh('sudo rm -rf ./influxdb')
-
-
-def migrate_compose_split():
-    # Splitting compose configuration between docker-compose and docker-compose.shared.yml
-    # Version pinning (0.2.2) will happen automatically
-    utils.info('Moving system services to docker-compose.shared.yml...')
-    config = utils.read_compose()
-    sys_names = [
-        'mdns',
-        'eventbus',
-        'influx',
-        'datastore',
-        'history',
-        'ui',
-        'traefik',
-    ]
-    usr_config = {
-        'version': config['version'],
-        'services': {key: svc for (key, svc) in config['services'].items() if key not in sys_names}
-    }
-    utils.write_compose(usr_config)
-
-
-def migrate_compose_datastore():
-    # The couchdb datastore service is gone
-    # Older services may still rely on it
-    utils.info('Removing `depends_on` fields from docker-compose.yml...')
-    config = utils.read_compose()
-    for svc in config['services'].values():
-        with suppress(KeyError):
-            del svc['depends_on']
-    utils.write_compose(config)
-
-    # Init dir. It will be filled during upped_migrate
-    utils.info('Creating redis/ dir...')
-    sh('mkdir -p redis/')
-
-
-def migrate_ipv6_fix():
-    # Undo disable-ipv6
-    sh('sudo sed -i "/net.ipv6.*.disable_ipv6 = 1/d" /etc/sysctl.conf', check=False)
-
-    # Enable ipv6 in docker daemon config
-    utils.enable_ipv6()
 
 
 def check_automation_ui():
@@ -173,35 +48,45 @@ def check_env_vars():
             utils.setenv(key, default_value)
 
 
+def check_dirs():
+    utils.info('Checking data directories...')
+    sh('mkdir -p ./traefik/ ./redis/ ./victoria/')
+
+
 def downed_migrate(prev_version):
     """Migration commands to be executed without any running services"""
-    if prev_version < StrictVersion('0.2.0'):
-        migrate_influx_overhaul()
-
     if prev_version < StrictVersion('0.3.0'):
-        migrate_compose_split()
+        migration.migrate_compose_split()
 
     if prev_version < StrictVersion('0.6.0'):
-        migrate_compose_datastore()
+        migration.migrate_compose_datastore()
 
     if prev_version < StrictVersion('0.6.1'):
-        migrate_ipv6_fix()
+        migration.migrate_ipv6_fix()
 
     # Not related to a specific release
     check_automation_ui()
     check_env_vars()
+    check_dirs()
 
 
 def upped_migrate(prev_version):
     """Migration commands to be executed after the services have been started"""
-    # Always run history configure
-    history_url = utils.history_url()
-    sh('{} http wait {}/ping'.format(const.CLI, history_url))
-    sh('{} http post --quiet {}/configure'.format(const.CLI, history_url))
-
     if prev_version < StrictVersion('0.6.0'):
-        utils.info('Migrating datastore from CouchDB to Redis...')
-        datastore_migrate_redis()
+        utils.warn('')
+        utils.warn('Brewblox now uses a new configuration database.')
+        utils.warn('To migrate your data, run:')
+        utils.warn('')
+        utils.warn('    brewblox-ctl database from-couchdb')
+        utils.warn('')
+
+    if prev_version < StrictVersion('0.7.0'):
+        utils.warn('')
+        utils.warn('Brewblox now uses a new history database.')
+        utils.warn('To migrate your data, run:')
+        utils.warn('')
+        utils.warn('    brewblox-ctl database from-influxdb')
+        utils.warn('')
 
 
 @cli.command()
@@ -297,7 +182,7 @@ def update(ctx, update_ctl, update_ctl_done, pull, avahi_config, migrate, prune,
             and Path('/usr/local/bin/brewblox-ctl').exists():  # pragma: no cover
         utils.warn('brewblox-ctl appears to have been installed using sudo.')
         if utils.confirm('Do you want to fix this now?'):
-            sh('sudo {} -m pip uninstall -y brewblox-ctl docker-compose'.format(const.PY), check=False)
+            sh(f'sudo {const.PY} -m pip uninstall -y brewblox-ctl docker-compose', check=False)
             utils.pip_install('brewblox-ctl')  # docker-compose is a dependency
 
             # Debian stretch still has the bug where ~/.local/bin is not included in $PATH
@@ -322,9 +207,9 @@ def update(ctx, update_ctl, update_ctl_done, pull, avahi_config, migrate, prune,
     if migrate:
         # Everything except downed_migrate can be done with running services
         utils.info('Stopping services...')
-        sh('{}docker-compose down'.format(sudo))
+        sh(f'{sudo}docker-compose down')
 
-        utils.info('Migrating configuration files...')
+        utils.info('Updating configuration files...')
         apply_config()
         downed_migrate(prev_version)
     else:
@@ -333,23 +218,23 @@ def update(ctx, update_ctl, update_ctl_done, pull, avahi_config, migrate, prune,
 
     if pull:
         utils.info('Pulling docker images...')
-        sh('{}docker-compose pull'.format(sudo))
+        sh(f'{sudo}docker-compose pull')
 
     utils.info('Starting services...')
-    sh('{}docker-compose up -d'.format(sudo))
+    sh(f'{sudo}docker-compose up -d')
 
     if migrate:
         utils.info('Migrating service configuration...')
         upped_migrate(prev_version)
 
-        utils.info('Updating version number to {}...'.format(const.CURRENT_VERSION))
+        utils.info(f'Updating version number to {const.CURRENT_VERSION}...')
         utils.setenv(const.CFG_VERSION_KEY, const.CURRENT_VERSION)
 
     if prune:
         utils.info('Pruning unused images...')
-        sh('{}docker image prune -f'.format(sudo))
+        sh(f'{sudo}docker image prune -f > /dev/null')
         utils.info('Pruning unused volumes...')
-        sh('{}docker volume prune -f'.format(sudo))
+        sh(f'{sudo}docker volume prune -f > /dev/null')
 
 
 @cli.command(hidden=True)
@@ -359,4 +244,4 @@ def update(ctx, update_ctl, update_ctl_done, pull, avahi_config, migrate, prune,
               help='Prune docker images.')
 def migrate(prune):
     """Backwards compatibility implementation to not break brewblox-ctl update"""
-    sh('{} update --no-pull --no-update-ctl {}'.format(const.CLI, '--prune' if prune else '--no-prune'))
+    sh(f'{const.CLI} update --no-pull --no-update-ctl ' + ('--prune' if prune else '--no-prune'))

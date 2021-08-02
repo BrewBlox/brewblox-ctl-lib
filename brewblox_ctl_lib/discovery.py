@@ -23,8 +23,7 @@ def discover_usb():
                            re.IGNORECASE | re.MULTILINE):
         id = obj.group('serial')
         model = obj.group('model')
-        # 'usb ' is same length as 'wifi'
-        desc = 'usb  {} {}'.format(id, model)
+        desc = f'USB {id} {model}'
         yield {
             'id': id,
             'desc': desc,
@@ -50,7 +49,7 @@ def discover_wifi():
             id = info.server[:-len('.local.')]
             host = inet_ntoa(info.addresses[0])
             port = info.port
-            desc = 'wifi {} {} {}'.format(id, host, port)
+            desc = f'LAN {id} {host} {port}'
             yield {
                 'id': id,
                 'desc': desc,
@@ -67,7 +66,7 @@ def discover_device(discovery_type):
     utils.info('Discovering devices...')
     if discovery_type in ['all', 'usb']:
         yield from discover_usb()
-    if discovery_type in ['all', 'wifi']:
+    if discovery_type in ['all', 'wifi', 'lan']:
         yield from discover_wifi()
 
 
@@ -75,13 +74,15 @@ def find_device(discovery_type, device_host=None):
     devs = []
 
     for i, dev in enumerate(discover_device(discovery_type)):
+        desc = dev['desc']
+
         if not device_host:
             devs.append(dev)
-            click.echo('device {} :: {}'.format(i+1, dev['desc']))
+            click.echo(f'device {i+1} :: {desc}')
 
         # Don't echo discarded devices
         if device_host and dev.get('host') == device_host:
-            click.echo('{} matches --device-host {}'.format(dev['desc'], device_host))
+            click.echo(f'{desc} matches --device-host {device_host}')
             return dev
 
     if device_host or not devs:

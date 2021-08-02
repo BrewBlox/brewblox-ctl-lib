@@ -100,6 +100,22 @@ def test_spark_overwrite(m_utils, m_sh, m_find, mocker):
     assert m_utils.warn.call_count > 0
 
 
+def test_add_tilt(m_utils, m_sh, mocker):
+    m_utils.read_compose.side_effect = lambda: {'services': {}}
+    invoke(add_device.add_tilt)
+    assert m_sh.call_count == 2
+
+    m_sh.reset_mock()
+    m_utils.confirm.return_value = False
+    invoke(add_device.add_tilt)
+    assert m_sh.call_count == 1
+
+    m_sh.reset_mock()
+    m_utils.read_compose.side_effect = lambda: {'services': {'tilt': {}}}
+    invoke(add_device.add_tilt, _err=True)
+    assert m_sh.call_count == 0
+
+
 def test_add_plaato(m_utils, m_sh, mocker):
     m_utils.read_compose.side_effect = lambda: {'services': {}}
 

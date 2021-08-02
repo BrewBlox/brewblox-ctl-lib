@@ -89,7 +89,7 @@ def add_spark(name,
     config = utils.read_compose()
 
     if name in config['services'] and not force:
-        click.echo('Service "{}" already exists. Use the --force flag if you want to overwrite it'.format(name))
+        click.echo(f'Service `{name}` already exists. Use the --force flag if you want to overwrite it')
         raise SystemExit(1)
 
     for (nm, svc) in config['services'].items():
@@ -102,12 +102,12 @@ def add_spark(name,
             '--device-host' in cmd,
             '--simulation' in cmd,
         ]):
-            utils.warn("The existing Spark service '{}' does not have any connection settings.".format(nm))
+            utils.warn(f'The existing Spark service `{nm}` does not have any connection settings.')
             utils.warn('It will connect to any controller it can find.')
             utils.warn('This may cause multiple services to connect to the same controller.')
-            utils.warn("To reconfigure '{}', please run:".format(nm))
+            utils.warn(f'To reconfigure `{nm}`, please run:')
             utils.warn('')
-            utils.warn('    brewblox-ctl add-spark -f --name {}'.format(nm))
+            utils.warn(f'    brewblox-ctl add-spark -f --name {nm}')
             utils.warn('')
             utils.select('Press ENTER to continue or Ctrl-C to exit')
 
@@ -139,24 +139,67 @@ def add_spark(name,
         commands += [command]
 
     config['services'][name] = {
-        'image': '{}:{}'.format(image_name, utils.docker_tag(release)),
+        'image': f'{image_name}:{utils.docker_tag(release)}',
         'privileged': True,
         'restart': 'unless-stopped',
         'command': ' '.join(commands)
     }
 
     if simulation:
-        volume_dir = 'simulator__{}'.format(name)
+        volume_dir = f'simulator__{name}'
         config['services'][name]['volumes'] = [
-            './{}:/app/simulator'.format(volume_dir)
+            f'./{volume_dir}:/app/simulator'
         ]
-        sh('mkdir -m 777 -p {}'.format(volume_dir))
+        sh(f'mkdir -m 777 -p {volume_dir}')
 
     utils.write_compose(config)
-    click.echo("Added Spark service '{}'.".format(name))
+    click.echo(f'Added Spark service `{name}`.')
     click.echo('It will automatically show up in the UI.\n')
-    if utils.confirm("Do you want to run 'brewblox-ctl up' now?"):
-        sh('{}docker-compose up -d'.format(sudo))
+    if utils.confirm('Do you want to run `brewblox-ctl up` now?'):
+        sh(f'{sudo}docker-compose up -d')
+
+
+@cli.command()
+@click.option('-f', '--force',
+              is_flag=True,
+              help='Allow overwriting an existing service')
+def add_tilt(force):
+    """
+    Create a service for the Tilt hydrometer.
+
+    The service listens for Bluetooth status updates from the Tilt,
+    and requires the host to have a Bluetooth receiver.
+
+    The empty ./tilt dir is created to hold calibration files.
+    """
+    utils.check_config()
+    utils.confirm_mode()
+
+    name = 'tilt'
+    sudo = utils.optsudo()
+    config = utils.read_compose()
+
+    if name in config['services'] and not force:
+        click.echo(f'Service `{name}` already exists')
+        raise SystemExit(1)
+
+    config['services'][name] = {
+        'image': 'brewblox/brewblox-tilt:${BREWBLOX_RELEASE}',
+        'restart': 'unless-stopped',
+        'privileged': True,
+        'network_mode': 'host',
+        'volumes': [
+            f'./{name}:/share',
+        ]
+    }
+
+    sh(f'mkdir -p ./{name}')
+
+    utils.write_compose(config)
+    click.echo(f'Added Tilt service `{name}`.')
+    click.echo('It will automatically show up in the UI.\n')
+    if utils.confirm('Do you want to run `brewblox-ctl up` now?'):
+        sh(f'{sudo}docker-compose up -d')
 
 
 @cli.command()
@@ -188,7 +231,7 @@ def add_plaato(name, token, force):
     config = utils.read_compose()
 
     if name in config['services'] and not force:
-        click.echo('Service "{}" already exists. Use the --force flag if you want to overwrite it'.format(name))
+        click.echo(f'Service `{name}` already exists. Use the --force flag if you want to overwrite it')
         raise SystemExit(1)
 
     config['services'][name] = {
@@ -197,18 +240,21 @@ def add_plaato(name, token, force):
         'environment': {
             'PLAATO_AUTH': token,
         },
-        'command': '--name=' + name,
+        'command': f'--name={name}',
     }
 
     utils.write_compose(config)
-    click.echo("Added Plaato service '{}'.".format(name))
+    click.echo(f'Added Plaato service `{name}`.')
     click.echo('This service publishes history data, but does not have a UI component.')
-    if utils.confirm("Do you want to run 'brewblox-ctl up' now?"):
-        sh('{}docker-compose up -d'.format(sudo))
+    if utils.confirm('Do you want to run `brewblox-ctl up` now?'):
+        sh(f'{sudo}docker-compose up -d')
 
 
 @cli.command()
-def add_node_red():
+@click.option('-f', '--force',
+              is_flag=True,
+              help='Allow overwriting an existing service')
+def add_node_red(force):
     """
     Create a service for Node-RED.
     """
@@ -221,24 +267,24 @@ def add_node_red():
     port = utils.getenv(const.HTTPS_PORT_KEY)
     config = utils.read_compose()
 
-    if name in config['services']:
-        click.echo('The {} service already exists'.format(name))
+    if name in config['services'] and not force:
+        click.echo(f'Service `{name}` already exists')
         raise SystemExit(1)
 
     config['services'][name] = {
         'image': 'brewblox/node-red:${BREWBLOX_RELEASE}',
         'restart': 'unless-stopped',
         'volumes': [
-            './{}:/data'.format(name),
+            f'./{name}:/data',
         ]
     }
 
-    sh('mkdir -p ./{}'.format(name))
+    sh(f'mkdir -p ./{name}')
     if [getgid(), getuid()] != [1000, 1000]:
-        sh('sudo chown 1000:1000 ./{}'.format(name))
+        sh(f'sudo chown -R 1000:1000 ./{name}')
 
     utils.write_compose(config)
-    click.echo("Added Node-RED service '{}'.".format(name))
-    if utils.confirm("Do you want to run 'brewblox-ctl up' now?"):
-        sh('{}docker-compose up -d'.format(sudo))
-        click.echo('Visit https://{}:{}/{} in your browser to load the editor.'.format(host, port, name))
+    click.echo(f'Added Node-RED service `{name}`.')
+    if utils.confirm('Do you want to run `brewblox-ctl up` now?'):
+        sh(f'{sudo}docker-compose up -d')
+        click.echo(f'Visit https://{host}:{port}/{name} in your browser to load the editor.')

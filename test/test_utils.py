@@ -46,8 +46,8 @@ def test_get_urls(m_getenv):
         '1234',
         '4321',
     ]
-    assert utils.history_url() == '{}:1234/history/history'.format(HOST)
-    assert utils.datastore_url() == '{}:4321/history/datastore'.format(HOST)
+    assert utils.history_url() == f'{HOST}:1234/history/history'
+    assert utils.datastore_url() == f'{HOST}:4321/history/datastore'
 
     assert m_getenv.call_args_list == [
         call(HTTPS_PORT_KEY, '443'),
@@ -97,6 +97,38 @@ def test_check_service_name(name):
 def test_check_service_name_err(name):
     with pytest.raises(click.BadParameter):
         utils.check_service_name(None, 'name', name)
+
+
+def test_sh_stream(mocker):
+    m_opts = mocker.patch(TESTED + '.ctx_opts').return_value
+    m_opts.verbose = False
+    m_popen = mocker.patch(TESTED + '.subprocess.Popen')
+    m_popen.return_value.stdout.readline.side_effect = [
+        'line 1',
+        '',
+        'line 2',
+        'line 3',
+        ''
+    ]
+    m_popen.return_value.poll.side_effect = [
+        None,
+        0,
+    ]
+    assert list(utils.sh_stream('cmd')) == [
+        'line 1',
+        '',
+        'line 2',
+        'line 3',
+    ]
+
+
+def test_sh_stream_empty(mocker):
+    m_opts = mocker.patch(TESTED + '.ctx_opts').return_value
+    m_opts.verbose = True
+    m_popen = mocker.patch(TESTED + '.subprocess.Popen')
+    m_popen.return_value.stdout.readline.side_effect = ['']
+    m_popen.return_value.poll.side_effect = [0]
+    assert list(utils.sh_stream('cmd')) == []
 
 
 def test_pip_install(mocker, m_getenv, m_sh):

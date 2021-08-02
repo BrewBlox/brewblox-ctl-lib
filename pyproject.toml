@@ -8,14 +8,14 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = ">=3.6,<4"
-brewblox-ctl = "^0.25.0"
+brewblox-ctl = "^0.26.1"
 
 [tool.poetry.dev-dependencies]
-pytest-cov = "^2.11.1"
+pytest-cov = "^2.12.1"
 pytest-flake8 = "^1.0.7"
-flake8 = "^3.8.4"
-autopep8 = "^1.5.5"
-pytest-mock = "^3.5.1"
+flake8 = "^3.9.2"
+autopep8 = "^1.5.7"
+pytest-mock = "^3.6.1"
 flake8-quotes = "^3.2.0"
 httpretty = "1.0.5"
 
