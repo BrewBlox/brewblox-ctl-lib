@@ -109,7 +109,7 @@ def m_find(mocker):
 def test_discover_usb(m_glob):
     expected = {
         'id': '4f0052000551353432383931',
-        'desc': 'usb  4f0052000551353432383931 P1',
+        'desc': 'USB 4f0052000551353432383931 P1',
         'model': 'P1',
     }
 
@@ -123,13 +123,13 @@ def test_discover_wifi(m_browser, m_conf):
     gen = discovery.discover_wifi()
     assert next(gen, None) == {
         'id': 'id1',
-        'desc': 'wifi id1 1.2.3.4 1234',
+        'desc': 'LAN id1 1.2.3.4 1234',
         'host': '1.2.3.4',
         'port': 1234,
     }
     assert next(gen, None) == {
         'id': 'id2',
-        'desc': 'wifi id2 4.3.2.1 4321',
+        'desc': 'LAN id2 4.3.2.1 4321',
         'host': '4.3.2.1',
         'port': 4321,
     }

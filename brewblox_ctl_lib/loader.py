@@ -11,8 +11,8 @@ except AttributeError as ex:  # pragma: no cover
     print('To update brewblox-ctl, run: \n\n\t python3 -m pip install --user --upgrade --no-cache-dir brewblox-ctl \n')
     raise ex
 
-from brewblox_ctl_lib.commands import (add_device, backup, diagnostic, service,
-                                       setup, update)
+from brewblox_ctl_lib.commands import (add_device, backup, database,
+                                       diagnostic, service, setup, update)
 
 
 def cli_sources():
@@ -20,6 +20,7 @@ def cli_sources():
         setup.cli,
         add_device.cli,
         service.cli,
+        database.cli,
         update.cli,
         diagnostic.cli,
         backup.cli,

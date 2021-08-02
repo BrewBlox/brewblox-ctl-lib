@@ -4,8 +4,11 @@ Utility functions specific to lib
 
 import json
 import re
+import shlex
+import subprocess
 from pathlib import Path
 from tempfile import NamedTemporaryFile
+from typing import Generator
 
 import click
 import yaml
@@ -113,6 +116,25 @@ def check_service_name(ctx, param, value):
     if not re.match(r'^[a-z0-9-_]+$', value):
         raise click.BadParameter('Names can only contain lowercase letters, numbers, - or _')
     return value
+
+
+def sh_stream(cmd: str) -> Generator[str, None, None]:
+    opts = ctx_opts()
+    if opts.verbose:
+        click.secho(f'{const.LOG_SHELL} {cmd}', fg='magenta', color=opts.color)
+
+    process = subprocess.Popen(
+        shlex.split(cmd),
+        stdout=subprocess.PIPE,
+        universal_newlines=True,
+    )
+
+    while True:
+        output = process.stdout.readline()
+        if not output and process.poll() is not None:
+            break
+        else:
+            yield output
 
 
 def pip_install(*libs):

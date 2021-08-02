@@ -99,6 +99,38 @@ def test_check_service_name_err(name):
         utils.check_service_name(None, 'name', name)
 
 
+def test_sh_stream(mocker):
+    m_opts = mocker.patch(TESTED + '.ctx_opts').return_value
+    m_opts.verbose = False
+    m_popen = mocker.patch(TESTED + '.subprocess.Popen')
+    m_popen.return_value.stdout.readline.side_effect = [
+        'line 1',
+        '',
+        'line 2',
+        'line 3',
+        ''
+    ]
+    m_popen.return_value.poll.side_effect = [
+        None,
+        0,
+    ]
+    assert list(utils.sh_stream('cmd')) == [
+        'line 1',
+        '',
+        'line 2',
+        'line 3',
+    ]
+
+
+def test_sh_stream_empty(mocker):
+    m_opts = mocker.patch(TESTED + '.ctx_opts').return_value
+    m_opts.verbose = True
+    m_popen = mocker.patch(TESTED + '.subprocess.Popen')
+    m_popen.return_value.stdout.readline.side_effect = ['']
+    m_popen.return_value.poll.side_effect = [0]
+    assert list(utils.sh_stream('cmd')) == []
+
+
 def test_pip_install(mocker, m_getenv, m_sh):
     mocker.patch(TESTED + '.Path')
     mocker.patch(TESTED + '.const.PY', '/PY')

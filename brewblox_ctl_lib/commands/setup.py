@@ -110,7 +110,7 @@ def setup(ctx, avahi_config, pull, port_check):
         - Create docker-compose configuration files. (Optional)
         - Pull docker images.                        (Optional)
         - Create datastore (Redis) directory.        (Optional)
-        - Create history (InfluxDB) directory.       (Optional)
+        - Create history (Victoria) directory.       (Optional)
         - Create gateway (Traefik) directory.        (Optional)
         - Create SSL certificates.                   (Optional)
         - Start and configure services.              (Optional)
@@ -121,8 +121,6 @@ def setup(ctx, avahi_config, pull, port_check):
     utils.confirm_mode()
 
     sudo = utils.optsudo()
-    history_url = utils.history_url()
-    upped_services = ['traefik', 'influx', 'history']
 
     if port_check:
         check_ports()
@@ -138,8 +136,8 @@ def setup(ctx, avahi_config, pull, port_check):
                           'Do you want to keep them?')
 
     skip_history = \
-        utils.path_exists('./influxdb/') \
-        and utils.confirm('This directory already contains InfluxDB history files. ' +
+        utils.path_exists('./victoria/') \
+        and utils.confirm('This directory already contains Victoria history files. ' +
                           'Do you want to keep them?')
 
     skip_gateway = \
@@ -180,7 +178,7 @@ def setup(ctx, avahi_config, pull, port_check):
 
     if not skip_history:
         utils.info('Creating history directory...')
-        sh('sudo rm -rf ./influxdb/; mkdir ./influxdb/')
+        sh('sudo rm -rf ./victoria/; mkdir ./victoria/')
 
     if not skip_gateway:
         utils.info('Creating gateway directory...')
@@ -195,19 +193,6 @@ def setup(ctx, avahi_config, pull, port_check):
 
     # Always copy cert config to traefik dir
     sh(f'cp -f {const.CONFIG_DIR}/traefik-cert.yaml ./traefik/')
-
-    # Bring images online that we will send configuration
-    utils.info('Starting configured services...')
-    sh(f'{sudo}docker-compose up -d ' + ' '.join(upped_services))
-
-    # Always setup history
-    utils.info('Configuring history settings...')
-    sh(f'{const.CLI} http wait {history_url}/ping')
-    sh(f'{const.CLI} http post --quiet {history_url}/configure')
-
-    # Setup is done - leave system in stable state
-    utils.info('Stopping services...')
-    sh(f'{sudo}docker-compose down')
 
     # Setup is complete and ok - now set CFG version
     utils.setenv(const.CFG_VERSION_KEY, const.CURRENT_VERSION)

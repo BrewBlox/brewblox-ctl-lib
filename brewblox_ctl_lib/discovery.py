@@ -23,8 +23,7 @@ def discover_usb():
                            re.IGNORECASE | re.MULTILINE):
         id = obj.group('serial')
         model = obj.group('model')
-        # 'usb ' is same length as 'wifi'
-        desc = f'usb  {id} {model}'
+        desc = f'USB {id} {model}'
         yield {
             'id': id,
             'desc': desc,
@@ -50,7 +49,7 @@ def discover_wifi():
             id = info.server[:-len('.local.')]
             host = inet_ntoa(info.addresses[0])
             port = info.port
-            desc = f'wifi {id} {host} {port}'
+            desc = f'LAN {id} {host} {port}'
             yield {
                 'id': id,
                 'desc': desc,
@@ -67,7 +66,7 @@ def discover_device(discovery_type):
     utils.info('Discovering devices...')
     if discovery_type in ['all', 'usb']:
         yield from discover_usb()
-    if discovery_type in ['all', 'wifi']:
+    if discovery_type in ['all', 'wifi', 'lan']:
         yield from discover_wifi()
 
 
