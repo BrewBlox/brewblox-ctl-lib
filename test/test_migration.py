@@ -197,7 +197,7 @@ def test_copy_influx_measurement_file(m_utils, m_sh, mocker):
     mocker.patch(TESTED + '.NamedTemporaryFile', wraps=migration.NamedTemporaryFile)
     mocker.patch(TESTED + '._influx_line_count', return_value=1000)
 
-    migration._copy_influx_measurement('sparkey', '1d', 'file')
+    migration._copy_influx_measurement('sparkey', 'today', '1d', 'file')
     assert m_sh.call_count == 4
 
 
@@ -213,7 +213,7 @@ def test_copy_influx_measurement_victoria(m_utils, m_sh, mocker):
         'https://localhost/victoria/write',
     )
 
-    migration._copy_influx_measurement('sparkey', '1d', 'victoria')
+    migration._copy_influx_measurement('sparkey', 'today', '1d', 'victoria')
     assert len(httpretty.latest_requests()) == 3
     assert m_sh.call_count == 0
 
@@ -226,7 +226,7 @@ def test_copy_influx_measurement_empty(m_utils, m_sh, mocker):
     m_tmp = mocker.patch(TESTED + '.NamedTemporaryFile', wraps=migration.NamedTemporaryFile)
     mocker.patch(TESTED + '._influx_line_count', return_value=None)
 
-    migration._copy_influx_measurement('sparkey', '1d', 'file')
+    migration._copy_influx_measurement('sparkey', 'today', '1d', 'file')
     assert m_tmp.call_count == 0
 
 
@@ -236,7 +236,7 @@ def test_copy_influx_measurement_error(m_utils, m_sh, mocker):
     mocker.patch(TESTED + '._influx_line_count', return_value=1000)
 
     with pytest.raises(ValueError):
-        migration._copy_influx_measurement('sparkey', '1d', 'space magic')
+        migration._copy_influx_measurement('sparkey', 'today', '1d', 'space magic')
 
 
 def test_migrate_influxdb(m_utils, m_sh, mocker):

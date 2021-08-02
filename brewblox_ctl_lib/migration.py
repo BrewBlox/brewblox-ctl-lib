@@ -175,6 +175,7 @@ def _influx_line_count(service: str, args: str) -> Optional[int]:
 
 def _copy_influx_measurement(
     service: str,
+    date: str,
     duration: str,
     target: str,
     offset: int = 0,
@@ -190,7 +191,6 @@ def _copy_influx_measurement(
     sudo = utils.optsudo()
     measurement = f'"brewblox"."downsample_1m"."{service}"'
     args = f'where time > now() - {duration}' if duration else ''
-    date = datetime.now().strftime('%Y%m%d_%H%M')
 
     total_lines = _influx_line_count(service, args)
     offset = max(offset, 0)
@@ -275,6 +275,7 @@ def migrate_influxdb(
     """
     opts = utils.ctx_opts()
     sudo = utils.optsudo()
+    date = datetime.now().strftime('%Y%m%d_%H%M')
 
     utils.warn('Depending on the amount of data, this may take some hours.')
     utils.warn('You can use your system as normal while the migration is in progress.')
@@ -318,7 +319,7 @@ def migrate_influxdb(
     # Export data and import to target
     for svc in services:
         offset = next((v for v in offsets if v[0] == svc), ('default', 0))[1]
-        _copy_influx_measurement(svc, duration, target, offset)
+        _copy_influx_measurement(svc, date, duration, target, offset)
 
     # Stop migration container
     sh(f'{sudo}docker stop influxdb-migrate > /dev/null', check=False)
