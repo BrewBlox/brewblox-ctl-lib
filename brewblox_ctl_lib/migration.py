@@ -211,6 +211,7 @@ def _copy_influx_measurement(
             '-format csv')
 
         headers = next(generator, '').strip()
+        time = None
 
         if not headers:
             return
@@ -258,7 +259,8 @@ def _copy_influx_measurement(
             else:
                 raise ValueError(f'Invalid target: {target}')
 
-        offset += QUERY_BATCH_SIZE
+        offset = 0
+        args = f'where time > {time}'
         utils.info(f'{service}: exported {num_lines}/{total_lines} lines')
 
 
