@@ -3,7 +3,6 @@ Migration scripts
 """
 
 from distutils.version import StrictVersion
-from pathlib import Path
 
 import click
 from brewblox_ctl import click_helpers, sh
@@ -15,8 +14,47 @@ def cli():
     """Global command group"""
 
 
-def apply_config():
+def check_version(prev_version: StrictVersion):
+    """Verify that the previous version is sane and sensible"""
+    if prev_version.version == (0, 0, 0):
+        utils.error('This configuration was never set up. Please run brewblox-ctl setup first')
+        raise SystemExit(1)
+
+    if prev_version > StrictVersion(const.CURRENT_VERSION):
+        utils.error('Your system is running a version newer than the selected release. ' +
+                    'This may be due to switching release tracks.' +
+                    'You can use the --from-version flag if you know what you are doing.')
+        raise SystemExit(1)
+
+
+def check_sudo_install():
+    """
+    Early versions were installed using 'sudo pip install brewblox-ctl'.
+    This should be fixed to avoid duplicate installs.
+    """
+    if utils.user_home_exists() and utils.path_exists('/usr/local/bin/brewblox-ctl'):  # pragma: no cover
+        utils.warn('brewblox-ctl appears to have been installed using sudo.')
+        if utils.confirm('Do you want to fix this now?'):
+            sh(f'sudo {const.PY} -m pip uninstall -y brewblox-ctl docker-compose', check=False)
+            utils.pip_install('brewblox-ctl')  # docker-compose is a dependency
+            raise SystemExit(1)
+
+
+def check_path():
+    """
+    Verify that ~/.local/bin is in $PATH.
+    This was not the default for Debian Stretch, and is always good to check.
+    """
+    if utils.user_home_exists() and '.local/bin' not in utils.getenv('PATH'):
+        sh('echo \'export PATH="$HOME/.local/bin:$PATH"\' >> ~/.bashrc')
+        utils.info('Added the ~/.local/bin directory to $PATH')
+        utils.warn('Please run "exec $SHELL --login" to apply the changes to $PATH')
+        raise SystemExit(1)
+
+
+def apply_config_files():
     """Apply system-defined configuration from config dir"""
+    utils.info('Updating configuration files...')
     sh(f'cp -f {const.CONFIG_DIR}/traefik-cert.yaml ./traefik/')
     sh(f'cp -f {const.CONFIG_DIR}/docker-compose.shared.yml ./')
     shared_cfg = utils.read_shared_compose()
@@ -55,6 +93,11 @@ def check_dirs():
 
 def downed_migrate(prev_version):
     """Migration commands to be executed without any running services"""
+    # Always apply shared config files
+    apply_config_files()
+    utils.update_avahi_config()
+    utils.add_particle_udev_rules()
+
     if prev_version < StrictVersion('0.3.0'):
         migration.migrate_compose_split()
 
@@ -106,9 +149,9 @@ def libs():
 @click.option('--pull/--no-pull',
               default=True,
               help='Update docker service images.')
-@click.option('--avahi-config/--no-avahi-config',
+@click.option('--update-system/--no-update-system',
               default=True,
-              help='Update Avahi config to enable mDNS discovery')
+              help='Update Apt system packages. Skipped for systems without Apt.')
 @click.option('--migrate/--no-migrate',
               default=True,
               help='Migrate Brewblox configuration and service settings.')
@@ -119,8 +162,7 @@ def libs():
               default='0.0.0',
               envvar=const.CFG_VERSION_KEY,
               help='[ADVANCED] Override current version number.')
-@click.pass_context
-def update(ctx, update_ctl, update_ctl_done, pull, avahi_config, migrate, prune, from_version):
+def update(update_ctl, update_ctl_done, pull, update_system, migrate, prune, from_version):
     """Download and apply updates.
 
     This is the one-stop-shop for updating your Brewblox install.
@@ -128,39 +170,38 @@ def update(ctx, update_ctl, update_ctl_done, pull, avahi_config, migrate, prune,
 
     By default, all options are enabled.
 
-    --update-ctl/--no-update-ctl determines whether it download new versions
+    --update-ctl/--no-update-ctl: Whether to download and install new versions of
     of brewblox-ctl and brewblox-ctl lib. If this flag is set, update will download the new version
     and then restart itself. This way, the migrate is done with the latest version of brewblox-ctl.
 
     If you're using dry run mode, you'll notice the hidden option --update-ctl-done.
     You can use it to watch the rest of the update: it\'s a flag to avoid endless loops.
 
-    --pull/--no-pull governs whether new docker images are pulled.
+    --pull/--no-pull. Whether to pull docker images.
     This is useful if any of your services is using a local image (not from Docker Hub).
 
-    --avahi-config/--no-avahi-config. Check avahi-daemon configuration.
-    This is required for TCP discovery of Spark controllers.
+    --update-system/--no-update-system determines whether
 
     --migrate/--no-migrate. Updates regularly require changes to configuration.
-    To do this, services are stopped. If the update only requires pulling docker images,
-    you can disable migration to avoid the docker-compose down/up.
+    Required changes are applied here.
 
     --prune/--no-prune. Updates to docker images can leave unused old versions
     on your system. These can be pruned to free up disk space.
-    Do note that this includes all images on your system, not just those created by Brewblox.
+    This includes all images and volumes on your system, and not just those created by Brewblox.
 
     \b
     Steps:
-        - Update brewblox-ctl and extensions.
-        - Restart update command to run with updated brewblox-ctl.
-        - Pull docker images.
+        - Check whether any system fixes must be applied.
+        - Update brewblox-ctl and brewblox-ctl libs.
         - Stop services.
+        - Update Avahi config.
+        - Update system packages.
         - Migrate configuration files.
-        - Copy docker-compose.shared.yml from defaults.
+        - Pull Docker images.
+        - Prune unused Docker images and volumes.
         - Start services.
         - Migrate service configuration.
         - Write version number to .env file.
-        - Prune unused images.
     """
     utils.check_config()
     utils.confirm_mode()
@@ -168,67 +209,31 @@ def update(ctx, update_ctl, update_ctl_done, pull, avahi_config, migrate, prune,
 
     prev_version = StrictVersion(from_version)
 
-    if prev_version.version == (0, 0, 0):
-        click.echo('This configuration was never set up. Please run brewblox-ctl setup first')
-        raise SystemExit(1)
-
-    if prev_version > StrictVersion(const.CURRENT_VERSION):
-        click.echo('Your system is running a version newer than the selected release. ' +
-                   'This may be due to switching release tracks.' +
-                   'You can use the --from-version flag if you know what you are doing.')
-        raise SystemExit(1)
-
-    if Path.home().name != 'root' and Path.home().exists() \
-            and Path('/usr/local/bin/brewblox-ctl').exists():  # pragma: no cover
-        utils.warn('brewblox-ctl appears to have been installed using sudo.')
-        if utils.confirm('Do you want to fix this now?'):
-            sh(f'sudo {const.PY} -m pip uninstall -y brewblox-ctl docker-compose', check=False)
-            utils.pip_install('brewblox-ctl')  # docker-compose is a dependency
-
-            # Debian stretch still has the bug where ~/.local/bin is not included in $PATH
-            if '.local/bin' not in utils.getenv('PATH'):
-                sh('echo \'export PATH="$HOME/.local/bin:$PATH"\' >> ~/.bashrc')
-
-            utils.info('Please run "exec $SHELL --login" to apply the changes to $PATH')
-            return
+    check_version(prev_version)
+    check_sudo_install()
+    check_path()
 
     if update_ctl and not update_ctl_done:
         utils.info('Updating brewblox-ctl...')
         utils.pip_install('brewblox-ctl')
-        utils.info('Updating brewblox-ctl libs...')
+        utils.info('Updating brewblox-ctl lib...')
         utils.load_ctl_lib()
         # Restart ctl - we just replaced the source code
         sh(' '.join([const.PY, *const.ARGS, '--update-ctl-done']))
         return
 
-    if avahi_config:
-        utils.update_avahi_config()
+    utils.info('Stopping services...')
+    sh(f'{sudo}docker-compose down')
+
+    if update_system:
+        utils.update_system_packages()
 
     if migrate:
-        # Everything except downed_migrate can be done with running services
-        utils.info('Stopping services...')
-        sh(f'{sudo}docker-compose down')
-
-        utils.info('Updating configuration files...')
-        apply_config()
         downed_migrate(prev_version)
-    else:
-        utils.info('Updating configuration files...')
-        apply_config()
 
     if pull:
         utils.info('Pulling docker images...')
         sh(f'{sudo}docker-compose pull')
-
-    utils.info('Starting services...')
-    sh(f'{sudo}docker-compose up -d')
-
-    if migrate:
-        utils.info('Migrating service configuration...')
-        upped_migrate(prev_version)
-
-        utils.info(f'Updating version number to {const.CURRENT_VERSION}...')
-        utils.setenv(const.CFG_VERSION_KEY, const.CURRENT_VERSION)
 
     if prune:
         utils.info('Pruning unused images...')
@@ -236,12 +241,10 @@ def update(ctx, update_ctl, update_ctl_done, pull, avahi_config, migrate, prune,
         utils.info('Pruning unused volumes...')
         sh(f'{sudo}docker volume prune -f > /dev/null')
 
+    utils.info('Starting services...')
+    sh(f'{sudo}docker-compose up -d')
 
-@cli.command(hidden=True)
-@click.option('--prune/--no-prune',
-              default=True,
-              prompt='Do you want to remove old docker images to free disk space?',
-              help='Prune docker images.')
-def migrate(prune):
-    """Backwards compatibility implementation to not break brewblox-ctl update"""
-    sh(f'{const.CLI} update --no-pull --no-update-ctl ' + ('--prune' if prune else '--no-prune'))
+    if migrate:
+        upped_migrate(prev_version)
+        utils.info(f'Configuration version: {prev_version} -> {const.CURRENT_VERSION}')
+        utils.setenv(const.CFG_VERSION_KEY, const.CURRENT_VERSION)

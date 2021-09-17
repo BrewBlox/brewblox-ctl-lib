@@ -64,6 +64,22 @@ def test_host_ip(m_getenv):
     assert utils.host_ip() == '127.0.0.1'
 
 
+def test_user_home_exists(mocker):
+    m_home = mocker.patch(TESTED + '.Path').home.return_value
+
+    m_home.name = 'root'
+    m_home.exists.return_value = False
+    assert utils.user_home_exists() is False
+
+    m_home.name = 'pi'
+    m_home.exists.return_value = False
+    assert utils.user_home_exists() is False
+
+    m_home.name = 'pi'
+    m_home.exists.return_value = True
+    assert utils.user_home_exists() is True
+
+
 def test_list_services():
     services = utils.list_services(
         'brewblox/brewblox-devcon-spark',
@@ -199,3 +215,31 @@ def test_update_avahi_config(mocker, m_sh):
     assert m_sh.call_count == 2
     assert m_warn.call_count == 1
     assert config['reflector']['enable-reflector'] == 'yes'
+
+
+def test_update_system_packages(mocker, m_sh):
+    m_info = mocker.patch(TESTED + '.info')
+    m_command_exists = mocker.patch(TESTED + '.command_exists')
+
+    m_command_exists.return_value = False
+    utils.update_system_packages()
+    assert m_sh.call_count == 0
+
+    m_command_exists.return_value = True
+    utils.update_system_packages()
+    assert m_sh.call_count > 0
+    assert m_info.call_count == 1
+
+
+def test_add_particle_udev_rules(mocker, m_sh):
+    m_info = mocker.patch(TESTED + '.info')
+    m_path_exists = mocker.patch(TESTED + '.path_exists')
+
+    m_path_exists.return_value = True
+    utils.add_particle_udev_rules()
+    assert m_sh.call_count == 0
+
+    m_path_exists.return_value = False
+    utils.add_particle_udev_rules()
+    assert m_sh.call_count > 0
+    assert m_info.call_count == 1
