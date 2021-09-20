@@ -75,6 +75,11 @@ def host_ip():
         return '127.0.0.1'
 
 
+def user_home_exists() -> bool:
+    home = Path.home()
+    return home.name != 'root' and home.exists()
+
+
 def read_file(fname):  # pragma: no cover
     with open(fname) as f:
         return '\n'.join(f.readlines())
@@ -186,3 +191,17 @@ def update_avahi_config():
         sh('sudo service avahi-daemon restart')
     else:
         warn('"service" command not found. Please restart your machine to enable Wifi discovery.')
+
+
+def update_system_packages():
+    if command_exists('apt'):
+        info('Updating apt packages...')
+        sh('sudo apt -qq update && sudo apt -qq upgrade -y')
+
+
+def add_particle_udev_rules():
+    target = '/etc/udev/rules.d/50-particle.rules'
+    if not path_exists(target) and command_exists('udevadm'):
+        info('Adding udev rules for Particle devices...')
+        sh(f'sudo cp {const.CONFIG_DIR}/50-particle.rules {target}')
+        sh('sudo udevadm control --reload-rules && sudo udevadm trigger')

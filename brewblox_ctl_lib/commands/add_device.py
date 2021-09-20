@@ -10,6 +10,12 @@ from brewblox_ctl_lib import const, utils
 from brewblox_ctl_lib.discovery import discover_device, find_device
 
 
+def check_duplicate(config: dict, name: str):
+    if name in config['services'] \
+            and not utils.confirm(f'Service `{name}` already exists. Do you want to overwrite it?'):
+        raise SystemExit(1)
+
+
 @click.group(cls=click_helpers.OrderedGroup)
 def cli():
     """Command collector"""
@@ -17,7 +23,7 @@ def cli():
 
 @cli.command()
 @click.option('--discovery', 'discovery_type',
-              type=click.Choice(['all', 'usb', 'wifi']),
+              type=click.Choice(['all', 'usb', 'wifi', 'lan']),
               default='all',
               help='Discovery setting. Use "all" to check both Wifi and USB')
 def discover_spark(discovery_type):
@@ -46,9 +52,9 @@ def discover_spark(discovery_type):
 @click.option('--device-id',
               help='Checked device ID')
 @click.option('--discovery', 'discovery_type',
-              type=click.Choice(['all', 'usb', 'wifi']),
+              type=click.Choice(['all', 'usb', 'wifi', 'lan']),
               default='all',
-              help='Discovery setting. Use "all" to check both Wifi and USB')
+              help='Discovery setting. Use "all" to check both LAN and USB')
 @click.option('--device-host',
               help='Static controller URL')
 @click.option('-c', '--command',
@@ -88,9 +94,8 @@ def add_spark(name,
     sudo = utils.optsudo()
     config = utils.read_compose()
 
-    if name in config['services'] and not force:
-        click.echo(f'Service `{name}` already exists. Use the --force flag if you want to overwrite it')
-        raise SystemExit(1)
+    if not force:
+        check_duplicate(config, name)
 
     for (nm, svc) in config['services'].items():
         img = svc.get('image', '')
@@ -179,9 +184,8 @@ def add_tilt(force):
     sudo = utils.optsudo()
     config = utils.read_compose()
 
-    if name in config['services'] and not force:
-        click.echo(f'Service `{name}` already exists')
-        raise SystemExit(1)
+    if not force:
+        check_duplicate(config, name)
 
     config['services'][name] = {
         'image': 'brewblox/brewblox-tilt:${BREWBLOX_RELEASE}',
@@ -230,9 +234,8 @@ def add_plaato(name, token, force):
     sudo = utils.optsudo()
     config = utils.read_compose()
 
-    if name in config['services'] and not force:
-        click.echo(f'Service `{name}` already exists. Use the --force flag if you want to overwrite it')
-        raise SystemExit(1)
+    if not force:
+        check_duplicate(config, name)
 
     config['services'][name] = {
         'image': 'brewblox/brewblox-plaato:${BREWBLOX_RELEASE}',
@@ -267,9 +270,8 @@ def add_node_red(force):
     port = utils.getenv(const.HTTPS_PORT_KEY)
     config = utils.read_compose()
 
-    if name in config['services'] and not force:
-        click.echo(f'Service `{name}` already exists')
-        raise SystemExit(1)
+    if not force:
+        check_duplicate(config, name)
 
     config['services'][name] = {
         'image': 'brewblox/node-red:${BREWBLOX_RELEASE}',

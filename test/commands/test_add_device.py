@@ -80,6 +80,7 @@ def test_add_spark(m_utils, m_sh, mocker, m_find):
 
 
 def test_add_spark_force(m_utils, m_sh, mocker, m_find):
+    m_utils.confirm.return_value = False
     m_utils.read_compose.side_effect = lambda: {'services': {'testey': {}}}
 
     invoke(add_device.add_spark, '--name testey', _err=True)
@@ -116,6 +117,14 @@ def test_add_tilt(m_utils, m_sh, mocker):
     assert m_sh.call_count == 0
 
 
+def test_add_tilt_force(m_utils, m_sh, mocker, m_find):
+    m_utils.confirm.return_value = False
+    m_utils.read_compose.side_effect = lambda: {'services': {'tilt': {}}}
+
+    invoke(add_device.add_tilt, _err=True)
+    invoke(add_device.add_tilt, '--force')
+
+
 def test_add_plaato(m_utils, m_sh, mocker):
     m_utils.read_compose.side_effect = lambda: {'services': {}}
 
@@ -130,6 +139,7 @@ def test_add_plaato(m_utils, m_sh, mocker):
 
 
 def test_add_plaato_force(m_utils, m_sh, mocker, m_find):
+    m_utils.confirm.return_value = False
     m_utils.read_compose.side_effect = lambda: {'services': {'testey': {}}}
 
     invoke(add_device.add_plaato, '--name testey --token x', _err=True)
@@ -155,5 +165,7 @@ def test_add_node_red_other_uid(m_utils, m_sh, mocker, m_getuid):
 
 
 def test_add_node_red_force(m_utils, m_sh, mocker, m_find):
+    m_utils.confirm.return_value = False
     m_utils.read_compose.side_effect = lambda: {'services': {'node-red': {}}}
     invoke(add_device.add_node_red, _err=True)
+    invoke(add_device.add_node_red, '--force')
