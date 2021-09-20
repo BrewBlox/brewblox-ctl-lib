@@ -8,7 +8,7 @@ from queue import Empty, Queue
 from socket import inet_ntoa
 
 import click
-from zeroconf import ServiceBrowser, ServiceStateChange, Zeroconf
+from zeroconf import ServiceBrowser, ServiceInfo, ServiceStateChange, Zeroconf
 
 from brewblox_ctl_lib import utils
 
@@ -32,10 +32,10 @@ def discover_usb():
 
 
 def discover_wifi():
-    queue = Queue()
+    queue: Queue[ServiceInfo] = Queue()
     conf = Zeroconf()
 
-    def on_service_state_change(zeroconf, service_type, name, state_change):
+    def on_service_state_change(zeroconf: Zeroconf, service_type, name, state_change):
         if state_change == ServiceStateChange.Added:
             info = zeroconf.get_service_info(service_type, name)
             queue.put(info)
