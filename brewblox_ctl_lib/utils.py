@@ -200,8 +200,10 @@ def update_system_packages():
 
 
 def add_particle_udev_rules():
-    target = '/etc/udev/rules.d/50-particle.rules'
+    rules_dir = '/etc/udev/rules.d'
+    target = f'{rules_dir}/50-particle.rules'
     if not path_exists(target) and command_exists('udevadm'):
         info('Adding udev rules for Particle devices...')
+        sh(f'sudo mkdir -p {rules_dir}')
         sh(f'sudo cp {const.CONFIG_DIR}/50-particle.rules {target}')
         sh('sudo udevadm control --reload-rules && sudo udevadm trigger')
