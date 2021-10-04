@@ -194,7 +194,10 @@ def add_tilt(force):
         'network_mode': 'host',
         'volumes': [
             f'./{name}:/share',
-        ]
+        ],
+        'labels': [
+            'traefik.enable=false',
+        ],
     }
 
     sh(f'mkdir -p ./{name}')
