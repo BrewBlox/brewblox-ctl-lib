@@ -71,4 +71,9 @@ steps:
     --platform linux/amd64,linux/arm/v7,linux/arm64/v8
     docker
   displayName: Build Docker image
-  condition: and(succeeded(), variables['BRANCH'])
+  condition: and(succeeded(), variables.BRANCH)
+
+- bash: >-
+    az --help
+  displayName: Upload to Azure Storage
+  condition: and(succeeded(), variables.BRANCH)
