@@ -231,7 +231,7 @@ def update(update_ctl, update_ctl_done, pull, update_system, migrate, prune, fro
     sh(f'wget -q -O ./brewblox-ctl.tar.gz https://brewblox.blob.core.windows.net/ctl/{release}/brewblox-ctl.tar.gz')
     sh(f'{const.PY} -m venv .venv')
     sh('; '.join([
-        'source .venv/bin/activate',
+        '. ./.venv/bin/activate',
         'python3 -m pip install -q setuptools wheel',
         'python3 -m pip install -q ./brewblox-ctl.tar.gz',
         ' '.join(['python3', *const.ARGS]),  # Already have the --update-ctl-done arg
