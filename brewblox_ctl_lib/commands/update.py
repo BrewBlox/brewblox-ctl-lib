@@ -225,14 +225,19 @@ def update(update_ctl, update_ctl_done, pull, update_system, migrate, prune, fro
     # Download and install the new brewblox-ctl
     utils.info('Upgrading brewblox-ctl to the unified version...')
     if utils.command_exists('apt'):  # pragma: no branch
+        utils.info('Installing dependencies...')
         sh('sudo apt update && sudo apt install -y python3-venv')
+    else:
+        utils.warn('Apt not found. You may need to install `python3-venv` manually.')
 
     release = utils.getenv(const.RELEASE_KEY)
     sh(f'wget -q -O ./brewblox-ctl.tar.gz https://brewblox.blob.core.windows.net/ctl/{release}/brewblox-ctl.tar.gz')
+    utils.info('Creating virtual env...')
     sh(f'{const.PY} -m venv .venv')
+    utils.info('Installing packages...')
     sh('; '.join([
         '. ./.venv/bin/activate',
-        'python3 -m pip install -q setuptools wheel',
-        'python3 -m pip install -q ./brewblox-ctl.tar.gz',
+        'python3 -m pip install setuptools wheel',
+        'python3 -m pip install ./brewblox-ctl.tar.gz',
         ' '.join(['python3', *const.ARGS]),  # Already have the --update-ctl-done arg
     ]))
