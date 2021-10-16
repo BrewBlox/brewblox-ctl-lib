@@ -227,8 +227,6 @@ def update(update_ctl, update_ctl_done, pull, update_system, migrate, prune, fro
     if utils.command_exists('apt'):  # pragma: no branch
         utils.info('Installing dependencies...')
         sh('sudo apt update && sudo apt install -y python3-venv')
-    else:
-        utils.warn('Apt not found. You may need to install `python3-venv` manually.')
 
     release = utils.getenv(const.RELEASE_KEY)
     sh(f'wget -q -O ./brewblox-ctl.tar.gz https://brewblox.blob.core.windows.net/ctl/{release}/brewblox-ctl.tar.gz')
