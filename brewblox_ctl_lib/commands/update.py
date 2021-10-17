@@ -233,7 +233,7 @@ def update(update_ctl, update_ctl_done, pull, update_system, migrate, prune, fro
     utils.info('Creating virtual env...')
     sh(f'{const.PY} -m venv .venv')
     utils.info('Installing packages...')
-    sh('; '.join([
+    sh('&& '.join([
         '. .venv/bin/activate',
         'python3 -m pip install setuptools wheel',
         'python3 -m pip install ./brewblox-ctl.tar.gz',
