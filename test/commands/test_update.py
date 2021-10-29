@@ -56,7 +56,7 @@ def test_libs(m_utils, m_sh):
 
 
 def test_update(m_utils, m_sh, mocker):
-    mocker.patch(TESTED + '.migration')
+    # mocker.patch(TESTED + '.migration')
 
     invoke(update.update, '--from-version 0.0.1', input='\n')
     invoke(update.update, f'--from-version {const.CURRENT_VERSION} --no-update-ctl --prune')
@@ -85,35 +85,35 @@ def test_check_version(m_utils, mocker):
         update.check_version(StrictVersion('1.3.0'))
 
 
-def test_check_path(m_utils, m_sh, mocker):
-    mocker.patch(TESTED + '.SystemExit', DummyError)
+# def test_check_path(m_utils, m_sh, mocker):
+#     mocker.patch(TESTED + '.SystemExit', DummyError)
 
-    m_utils.user_home_exists.return_value = False
-    m_utils.getenv.return_value = '/usr/bin'
-    update.check_path()
-    assert m_sh.call_count == 0
+#     m_utils.user_home_exists.return_value = False
+#     m_utils.getenv.return_value = '/usr/bin'
+#     update.check_path()
+#     assert m_sh.call_count == 0
 
-    m_utils.user_home_exists.return_value = True
-    m_utils.getenv.return_value = '/usr/bin:/home/$USER/.local/bin'
-    update.check_path()
-    assert m_sh.call_count == 0
+#     m_utils.user_home_exists.return_value = True
+#     m_utils.getenv.return_value = '/usr/bin:/home/$USER/.local/bin'
+#     update.check_path()
+#     assert m_sh.call_count == 0
 
-    m_utils.user_home_exists.return_value = True
-    m_utils.getenv.return_value = '/usr/bin'
-    with pytest.raises(DummyError):
-        update.check_path()
-    assert m_sh.call_count > 0
+#     m_utils.user_home_exists.return_value = True
+#     m_utils.getenv.return_value = '/usr/bin'
+#     with pytest.raises(DummyError):
+#         update.check_path()
+#     assert m_sh.call_count > 0
 
 
-def test_check_automation_ui(m_utils):
-    update.check_automation_ui()
-    assert 'automation-ui' in m_utils.write_compose.call_args[0][0]['services']
+# def test_check_automation_ui(m_utils):
+#     update.check_automation_ui()
+#     assert 'automation-ui' in m_utils.write_compose.call_args[0][0]['services']
 
-    m_utils.read_compose.side_effect = lambda: {
-        'version': '3.7',
-        'services': {}
-    }
+#     m_utils.read_compose.side_effect = lambda: {
+#         'version': '3.7',
+#         'services': {}
+#     }
 
-    # No automation service -> no changes
-    update.check_automation_ui()
-    assert m_utils.write_compose.call_count == 1
+#     # No automation service -> no changes
+#     update.check_automation_ui()
+#     assert m_utils.write_compose.call_count == 1

@@ -6,7 +6,7 @@ from distutils.version import StrictVersion
 
 import click
 from brewblox_ctl import click_helpers, sh
-from brewblox_ctl_lib import const, migration, utils
+from brewblox_ctl_lib import const, utils
 
 
 @click.group(cls=click_helpers.OrderedGroup)
@@ -27,109 +27,109 @@ def check_version(prev_version: StrictVersion):
         raise SystemExit(1)
 
 
-def check_sudo_install():
-    """
-    Early versions were installed using 'sudo pip install brewblox-ctl'.
-    This should be fixed to avoid duplicate installs.
-    """
-    if utils.user_home_exists() and utils.path_exists('/usr/local/bin/brewblox-ctl'):  # pragma: no cover
-        utils.warn('brewblox-ctl appears to have been installed using sudo.')
-        if utils.confirm('Do you want to fix this now?'):
-            sh(f'sudo {const.PY} -m pip uninstall -y brewblox-ctl docker-compose', check=False)
-            utils.pip_install('brewblox-ctl')  # docker-compose is a dependency
-            raise SystemExit(1)
+# def check_sudo_install():
+#     """
+#     Early versions were installed using 'sudo pip install brewblox-ctl'.
+#     This should be fixed to avoid duplicate installs.
+#     """
+#     if utils.user_home_exists() and utils.path_exists('/usr/local/bin/brewblox-ctl'):  # pragma: no cover
+#         utils.warn('brewblox-ctl appears to have been installed using sudo.')
+#         if utils.confirm('Do you want to fix this now?'):
+#             sh(f'sudo {const.PY} -m pip uninstall -y brewblox-ctl docker-compose', check=False)
+#             utils.pip_install('brewblox-ctl')  # docker-compose is a dependency
+#             raise SystemExit(1)
 
 
-def check_path():
-    """
-    Verify that ~/.local/bin is in $PATH.
-    This was not the default for Debian Stretch, and is always good to check.
-    """
-    if utils.user_home_exists() and '.local/bin' not in utils.getenv('PATH'):
-        sh('echo \'export PATH="$HOME/.local/bin:$PATH"\' >> ~/.bashrc')
-        utils.info('Added the ~/.local/bin directory to $PATH')
-        utils.warn('Please run "exec $SHELL --login" to apply the changes to $PATH')
-        raise SystemExit(1)
+# def check_path():
+#     """
+#     Verify that ~/.local/bin is in $PATH.
+#     This was not the default for Debian Stretch, and is always good to check.
+#     """
+#     if utils.user_home_exists() and '.local/bin' not in utils.getenv('PATH'):
+#         sh('echo \'export PATH="$HOME/.local/bin:$PATH"\' >> ~/.bashrc')
+#         utils.info('Added the ~/.local/bin directory to $PATH')
+#         utils.warn('Please run "exec $SHELL --login" to apply the changes to $PATH')
+#         raise SystemExit(1)
 
 
-def apply_config_files():
-    """Apply system-defined configuration from config dir"""
-    utils.info('Updating configuration files...')
-    sh(f'cp -f {const.CONFIG_DIR}/traefik-cert.yaml ./traefik/')
-    sh(f'cp -f {const.CONFIG_DIR}/docker-compose.shared.yml ./')
-    shared_cfg = utils.read_shared_compose()
-    usr_cfg = utils.read_compose()
+# def apply_config_files():
+#     """Apply system-defined configuration from config dir"""
+#     utils.info('Updating configuration files...')
+#     sh(f'cp -f {const.CONFIG_DIR}/traefik-cert.yaml ./traefik/')
+#     sh(f'cp -f {const.CONFIG_DIR}/docker-compose.shared.yml ./')
+#     shared_cfg = utils.read_shared_compose()
+#     usr_cfg = utils.read_compose()
 
-    usr_cfg['version'] = shared_cfg['version']
-    utils.write_compose(usr_cfg)
-
-
-def check_automation_ui():
-    # The automation service is deprecated, and its editor is removed from the UI.
-    # The service was always optional - only add the automation-ui service if automation is present.
-    config = utils.read_compose()
-    services = config['services']
-    if 'automation' in services and 'automation-ui' not in services:
-        utils.info('Adding automation-ui service...')
-        services['automation-ui'] = {
-            'image': 'brewblox/brewblox-automation-ui:${BREWBLOX_RELEASE}',
-            'restart': 'unless-stopped',
-        }
-        utils.write_compose(config)
+#     usr_cfg['version'] = shared_cfg['version']
+#     utils.write_compose(usr_cfg)
 
 
-def check_env_vars():
-    utils.info('Checking .env variables...')
-    for (key, default_value) in const.ENV_DEFAULTS.items():
-        current_value = utils.getenv(key)
-        if current_value is None:
-            utils.setenv(key, default_value)
+# def check_automation_ui():
+#     # The automation service is deprecated, and its editor is removed from the UI.
+#     # The service was always optional - only add the automation-ui service if automation is present.
+#     config = utils.read_compose()
+#     services = config['services']
+#     if 'automation' in services and 'automation-ui' not in services:
+#         utils.info('Adding automation-ui service...')
+#         services['automation-ui'] = {
+#             'image': 'brewblox/brewblox-automation-ui:${BREWBLOX_RELEASE}',
+#             'restart': 'unless-stopped',
+#         }
+#         utils.write_compose(config)
 
 
-def check_dirs():
-    utils.info('Checking data directories...')
-    sh('mkdir -p ./traefik/ ./redis/ ./victoria/')
+# def check_env_vars():
+#     utils.info('Checking .env variables...')
+#     for (key, default_value) in const.ENV_DEFAULTS.items():
+#         current_value = utils.getenv(key)
+#         if current_value is None:
+#             utils.setenv(key, default_value)
 
 
-def downed_migrate(prev_version):
-    """Migration commands to be executed without any running services"""
-    # Always apply shared config files
-    apply_config_files()
-    utils.update_avahi_config()
-    utils.add_particle_udev_rules()
-
-    if prev_version < StrictVersion('0.3.0'):
-        migration.migrate_compose_split()
-
-    if prev_version < StrictVersion('0.6.0'):
-        migration.migrate_compose_datastore()
-
-    if prev_version < StrictVersion('0.6.1'):
-        migration.migrate_ipv6_fix()
-
-    # Not related to a specific release
-    check_automation_ui()
-    check_env_vars()
-    check_dirs()
+# def check_dirs():
+#     utils.info('Checking data directories...')
+#     sh('mkdir -p ./traefik/ ./redis/ ./victoria/')
 
 
-def upped_migrate(prev_version):
-    """Migration commands to be executed after the services have been started"""
-    if prev_version < StrictVersion('0.6.0'):
-        utils.warn('')
-        utils.warn('Brewblox now uses a new configuration database.')
-        utils.warn('To migrate your data, run:')
-        utils.warn('')
-        utils.warn('    brewblox-ctl database from-couchdb')
-        utils.warn('')
+# def downed_migrate(prev_version):
+#     """Migration commands to be executed without any running services"""
+#     # Always apply shared config files
+#     apply_config_files()
+#     utils.update_avahi_config()
+#     utils.add_particle_udev_rules()
 
-    if prev_version < StrictVersion('0.7.0'):
-        utils.warn('')
-        utils.warn('Brewblox now uses a new history database.')
-        utils.warn('To migrate your data, run:')
-        utils.warn('')
-        utils.warn('    brewblox-ctl database from-influxdb')
-        utils.warn('')
+#     if prev_version < StrictVersion('0.3.0'):
+#         migration.migrate_compose_split()
+
+#     if prev_version < StrictVersion('0.6.0'):
+#         migration.migrate_compose_datastore()
+
+#     if prev_version < StrictVersion('0.6.1'):
+#         migration.migrate_ipv6_fix()
+
+#     # Not related to a specific release
+#     check_automation_ui()
+#     check_env_vars()
+#     check_dirs()
+
+
+# def upped_migrate(prev_version):
+#     """Migration commands to be executed after the services have been started"""
+#     if prev_version < StrictVersion('0.6.0'):
+#         utils.warn('')
+#         utils.warn('Brewblox now uses a new configuration database.')
+#         utils.warn('To migrate your data, run:')
+#         utils.warn('')
+#         utils.warn('    brewblox-ctl database from-couchdb')
+#         utils.warn('')
+
+#     if prev_version < StrictVersion('0.7.0'):
+#         utils.warn('')
+#         utils.warn('Brewblox now uses a new history database.')
+#         utils.warn('To migrate your data, run:')
+#         utils.warn('')
+#         utils.warn('    brewblox-ctl database from-influxdb')
+#         utils.warn('')
 
 
 @cli.command()
@@ -208,10 +208,7 @@ def update(update_ctl, update_ctl_done, pull, update_system, migrate, prune, fro
     sudo = utils.optsudo()
 
     prev_version = StrictVersion(from_version)
-
     check_version(prev_version)
-    check_sudo_install()
-    check_path()
 
     if update_ctl and not update_ctl_done:
         utils.info('Updating brewblox-ctl...')
@@ -225,26 +222,20 @@ def update(update_ctl, update_ctl_done, pull, update_system, migrate, prune, fro
     utils.info('Stopping services...')
     sh(f'{sudo}docker-compose down')
 
-    if update_system:
-        utils.update_system_packages()
+    # Download and install the new brewblox-ctl
+    utils.info('Upgrading brewblox-ctl to the unified version...')
+    if utils.command_exists('apt'):  # pragma: no branch
+        utils.info('Installing dependencies...')
+        sh('sudo apt update && sudo apt install -y python3-venv')
 
-    if migrate:
-        downed_migrate(prev_version)
-
-    if pull:
-        utils.info('Pulling docker images...')
-        sh(f'{sudo}docker-compose pull')
-
-    if prune:
-        utils.info('Pruning unused images...')
-        sh(f'{sudo}docker image prune -f > /dev/null')
-        utils.info('Pruning unused volumes...')
-        sh(f'{sudo}docker volume prune -f > /dev/null')
-
-    utils.info('Starting services...')
-    sh(f'{sudo}docker-compose up -d')
-
-    if migrate:
-        upped_migrate(prev_version)
-        utils.info(f'Configuration version: {prev_version} -> {const.CURRENT_VERSION}')
-        utils.setenv(const.CFG_VERSION_KEY, const.CURRENT_VERSION)
+    release = utils.getenv(const.RELEASE_KEY)
+    sh(f'wget -q -O ./brewblox-ctl.tar.gz https://brewblox.blob.core.windows.net/ctl/{release}/brewblox-ctl.tar.gz')
+    utils.info('Creating virtual env...')
+    sh(f'{const.PY} -m venv .venv')
+    utils.info('Installing packages...')
+    sh('&& '.join([
+        '. .venv/bin/activate',
+        'python3 -m pip install setuptools wheel',
+        'python3 -m pip install ./brewblox-ctl.tar.gz',
+        ' '.join(['python3 -m brewblox_ctl', *const.ARGS[1:]]),  # Already have the --update-ctl-done arg
+    ]))
