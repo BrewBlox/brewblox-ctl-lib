@@ -224,7 +224,7 @@ def update(update_ctl, update_ctl_done, pull, update_system, migrate, prune, fro
 
     # Download and install the new brewblox-ctl
     utils.info('Upgrading brewblox-ctl to the unified version...')
-    if utils.command_exists('apt'):  # pragma: no branch
+    if utils.command_exists('apt') and update_system:  # pragma: no branch
         utils.info('Installing dependencies...')
         sh('sudo apt update && sudo apt install -y python3-venv')
 
@@ -233,7 +233,7 @@ def update(update_ctl, update_ctl_done, pull, update_system, migrate, prune, fro
     utils.info('Creating virtual env...')
     sh(f'{const.PY} -m venv .venv')
     utils.info('Installing packages...')
-    sh('&& '.join([
+    sh(' && '.join([
         '. .venv/bin/activate',
         'python3 -m pip install setuptools wheel',
         'python3 -m pip install ./brewblox-ctl.tar.gz',
