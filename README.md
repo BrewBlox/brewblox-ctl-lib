@@ -1,4 +1,9 @@
-# brewblox-ctl dynamic library
+# brewblox-ctl dynamic library (OBSOLETE)
+
+**With the 2021/10/29 release, brewblox-ctl and brewblox-ctl lib have been merged. All brewblox-ctl related code can be found in the https://github.com/BrewBlox/brewblox-ctl repository.**
+
+**For more information, see https://brewblox.netlify.app/dev/decisions/20211101_unified_brewblox_ctl.html**
+
 
 [brewblox-ctl](https://github.com/BrewBlox/brewblox-ctl) is the CLI tool for installing and managing Brewblox. It is installed through Pip.
 
